@@ -26,7 +26,7 @@ func grpcConn(addr string) *grpc.ClientConn {
 }
 
 func NewGreenfieldChallengerClient(grpcAddr, chainId, endpoint string, opt sp.Option, km keys.KeyManager) *GreenfieldChallengerClient {
-	chainClient := chain.NewGreenfieldClient(grpcAddr, chainId, km)
+	chainClient := chain.NewGreenfieldClient(grpcAddr, chainId)
 	spClient, err := sp.NewSpClient(endpoint, &opt)
 	// TODO: Error message
 	if err != nil {
