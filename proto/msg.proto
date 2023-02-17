@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "github.com/bnb-chain/greenfield-challenger";
+
+message MsgAttest {
+  uint64 ChallengeId       = 1;
+  uint64 VoteResult        = 2;
+  []uint64 VoteValidatorSet  = 3;
+  []byte   VoteAggSignature  = 4;
+}
+
