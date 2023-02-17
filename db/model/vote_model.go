@@ -2,14 +2,16 @@ package model
 
 import "gorm.io/gorm"
 
-// TODO: Check if id, other fields required
 // TODO: EventType string -> EventType EventType
 type Vote struct {
-	Id        int64
-	PubKey    []byte `gorm:"NOT NULL;index:idx_vote_channel_id_sequence_pub_key"`
-	Signature []byte `gorm:"NOT NULL"`
-	EventType string `gorm:"NOT NULL"`
-	EventHash []byte `gorm:"NOT NULL"`
+	Id          int64
+	VoteOption  string `gorm:"NOT NULL"`
+	ChallengeId int64  `gorm:"NOT NULL"`
+	PubKey      []byte `gorm:"NOT NULL"`
+	Signature   []byte `gorm:"NOT NULL"`
+	EventType   string `gorm:"NOT NULL"`
+	EventHash   []byte `gorm:"NOT NULL"`
+	CreatedTime int64  `gorm:"NOT NULL"`
 }
 
 func (*Vote) TableName() string {
