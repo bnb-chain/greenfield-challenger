@@ -1,0 +1,42 @@
+{
+  "greenfield_config": {
+    "key_type": "local_private_key",
+    "aws_region": "",
+    "aws_secret_name": "",
+    "rpc_addrs": [
+      "http://0.0.0.0:26750"
+    ],
+    "grpc_addrs": [
+      "localhost:9090"
+    ],
+    "private_key": "1dfddaef3b0bd41471e0e48240e9c4bcf1a3044be469869ff903c6081e8574e9",
+    "number_of_blocks_for_finality": 1,
+    "chain_id": 1,
+    "start_height": 1,
+    "monitor_channel_list": [1],
+    "gas_limit": 210000,
+    "chain_id_string": "inscription_9000-1"
+  },
+  "vote_pool_config": {
+    "rpc_addr":
+    "http://127.0.0.1:26750",
+    "bls_private_key": "2b9422da725da69e407b8a3484ae622d28a20b55f1818f3013b34b0edc478c54"
+  },
+  "log_config": {
+    "level": "DEBUG",
+    "filename": "",
+    "max_file_size_in_mb": 0,
+    "max_backups_of_log_files": 0,
+    "max_age_to_retain_log_files_in_days": 0,
+    "use_console_logger": true,
+    "use_file_logger": false,
+    "compress": false
+  },
+  "admin_config": {
+    "listen_addr": "0.0.0.0:8080"
+  },
+  "db_config": {
+    "dialect": "mysql",
+    "db_path": "root:pass@/bfs?charset=utf8&parseTime=True&loc=Local"
+  }
+}
