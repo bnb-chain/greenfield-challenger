@@ -9,18 +9,22 @@
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": "cf1366138ffd14328db680c57db7d56471017e57a5ae203ca0f3fa84cb0b8ebb",
-    "gas_limit": 100000,
-    "chain_id_string": "greenfield_9000-121",
-    "deduplication_interval": 100,
+    "private_key": "1dfddaef3b0bd41471e0e48240e9c4bcf1a3044be469869ff903c6081e8574e9",
+    "number_of_blocks_for_finality": 1,
+    "chain_id": 1,
+    "start_height": 1,
+    "monitor_channel_list": [1],
+    "gas_limit": 210000,
+    "chain_id_string": "inscription_9000-1"
   },
   "vote_pool_config": {
-    "rpc_addr": "http://127.0.0.1:26750",
-    "bls_private_key": "527a0e4711c2ac7d150069e0a0ecf9e9bb11538abed1467237122bb378ff089f"
+    "rpc_addr":
+    "http://127.0.0.1:26750",
+    "bls_private_key": "2b9422da725da69e407b8a3484ae622d28a20b55f1818f3013b34b0edc478c54"
   },
   "log_config": {
     "level": "DEBUG",
-    "filename": "log.txt",
+    "filename": "",
     "max_file_size_in_mb": 0,
     "max_backups_of_log_files": 0,
     "max_age_to_retain_log_files_in_days": 0,
@@ -28,14 +32,11 @@
     "use_file_logger": false,
     "compress": false
   },
+  "admin_config": {
+    "listen_addr": "0.0.0.0:8080"
+  },
   "db_config": {
     "dialect": "mysql",
-    "db_path": "root:root@tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
-  },
-  "alert_config": {
-    "interval": 300,
-    "identity": "your_identity",
-    "telegram_bot_id": "your_bot_id",
-    "telegram_chat_id": "your_chat_id"
+    "db_path": "root:pass@/bfs?charset=utf8&parseTime=True&loc=Local"
   }
 }

@@ -1,15 +1,13 @@
 package common
 
 import (
-	"time"
-
 	"github.com/avast/retry-go/v4"
+	"time"
 )
 
 var (
-	RtyAttemNum   = uint(5)
-	RtyAttem      = retry.Attempts(RtyAttemNum)
-	RtyDelay      = retry.Delay(time.Millisecond * 400)
-	RtyErr        = retry.LastErrorOnly(true)
-	RetryInterval = 2 * time.Second
+	RetryAttemptNum = uint(5)
+	RetryAttempts   = retry.Attempts(RetryAttemptNum)
+	RetryDelay      = retry.Delay(time.Millisecond * 400)
+	RetryErr        = retry.LastErrorOnly(true)
 )

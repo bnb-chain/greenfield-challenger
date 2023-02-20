@@ -10,8 +10,18 @@ type Config struct {
 	GreenfieldConfig GreenfieldConfig `json:"greenfield_config"`
 	VotePoolConfig   VotePoolConfig   `json:"vote_pool_config"`
 	LogConfig        LogConfig        `json:"log_config"`
-	AlertConfig      AlertConfig      `json:"alert_config"`
+	AdminConfig      AdminConfig      `json:"admin_config"`
 	DBConfig         DBConfig         `json:"db_config"`
+}
+
+type AdminConfig struct {
+	ListenAddr string `json:"listen_addr"`
+}
+
+func (cfg *AdminConfig) Validate() {
+	if cfg.ListenAddr == "" {
+		panic("listen address should not be empty")
+	}
 }
 
 type VotePoolConfig struct {
@@ -20,15 +30,18 @@ type VotePoolConfig struct {
 }
 
 type GreenfieldConfig struct {
-	KeyType               string   `json:"key_type"`
-	AWSRegion             string   `json:"aws_region"`
-	AWSSecretName         string   `json:"aws_secret_name"`
-	RPCAddrs              []string `json:"rpc_addrs"`
-	GRPCAddrs             []string `json:"grpc_addrs"`
-	PrivateKey            string   `json:"private_key"`
-	GasLimit              uint64   `json:"gas_limit"`
-	ChainIdString         string   `json:"chain_id_string"`
-	DeduplicationInterval uint64   `json:"deduplication_interval"`
+	KeyType                   string   `json:"key_type"`
+	AWSRegion                 string   `json:"aws_region"`
+	AWSSecretName             string   `json:"aws_secret_name"`
+	RPCAddrs                  []string `json:"rpc_addrs"`
+	GRPCAddrs                 []string `json:"grpc_addrs"`
+	PrivateKey                string   `json:"private_key"`
+	NumberOfBlocksForFinality uint64   `json:"number_of_blocks_for_finality"`
+	ChainId                   uint16   `json:"chain_id"`
+	StartHeight               uint64   `json:"start_height"`
+	MonitorChannelList        []uint8  `json:"monitor_channel_list"`
+	GasLimit                  uint64   `json:"gas_limit"`
+	ChainIdString             string   `json:"chain_id_string"`
 }
 
 type LogConfig struct {
@@ -71,6 +84,7 @@ func (cfg *DBConfig) Validate() {
 }
 
 func (cfg *Config) Validate() {
+	cfg.AdminConfig.Validate()
 	cfg.LogConfig.Validate()
 	cfg.DBConfig.Validate()
 }
@@ -97,10 +111,4 @@ func ParseConfigFromFile(filePath string) *Config {
 	config.Validate()
 
 	return &config
-}
-
-type AlertConfig struct {
-	Identity       string `json:"identity"`
-	TelegramBotId  string `json:"telegram_bot_id"`
-	TelegramChatId string `json:"telegram_chat_id"`
 }
