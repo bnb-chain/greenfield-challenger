@@ -4,12 +4,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type GreenlandDao struct {
+type EventDao struct {
 	DB *gorm.DB
 }
 
-func NewGreenlandDao(db *gorm.DB) *GreenlandDao {
-	return &GreenlandDao{
+func NewEventDao(db *gorm.DB) *EventDao {
+	return &EventDao{
 		DB: db,
 	}
 }
+
+// query local db for challenge id -> query blockchain for challenge
+// get_event
+// update_event_status
+// save_event

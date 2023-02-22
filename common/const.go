@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	RetryAttemptNum = uint(5)
-	RetryAttempts   = retry.Attempts(RetryAttemptNum)
-	RetryDelay      = retry.Delay(time.Millisecond * 400)
-	RetryErr        = retry.LastErrorOnly(true)
+	RtyAttemNum = uint(5)
+	RtyAttem    = retry.Attempts(RtyAttemNum)
+	RtyDelay    = retry.Delay(time.Millisecond * 400)
+	RtyErr      = retry.LastErrorOnly(true)
 )

@@ -1,14 +1,12 @@
 package dao
 
 type DaoManager struct {
-	*BlockDao
-	*EventDao
-	*VoteDao
+	VoteDao  *VoteDao
+	EventDao *EventDao
 }
 
-func NewDaoManager(blockDao *BlockDao, eventDao *EventDao, voteDao *VoteDao) *DaoManager {
+func NewDaoManager(eventDao *EventDao, voteDao *VoteDao) *DaoManager {
 	return &DaoManager{
-		BlockDao: blockDao,
 		EventDao: eventDao,
 		VoteDao:  voteDao,
 	}
