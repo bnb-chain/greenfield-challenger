@@ -2,6 +2,7 @@ package keys
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/bnb-chain/greenfield-relayer/config"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -96,7 +97,7 @@ func (m *keyManager) GetAddr() types.AccAddress {
 	return m.addr
 }
 
-func getInscriptionPrivateKey() *ethsecp256k1.PrivKey {
+func getInscriptionPrivateKey(cfg *config.GreenfieldConfig) *ethsecp256k1.PrivKey {
 	var privateKey string
 	if cfg.KeyType == config.KeyTypeAWSPrivateKey {
 		result, err := config.GetSecret(cfg.AWSSecretName, cfg.AWSRegion)

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/hex"
 	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-go-sdk/client/chain"
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
@@ -9,27 +10,24 @@ import (
 	"github.com/gnfd-challenger/common"
 	"github.com/gnfd-challenger/config"
 	"github.com/gnfd-challenger/keys"
-	"github.com/gnfd-challenger/vote"
 	"github.com/tendermint/tendermint/libs/sync"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	libclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
 	"google.golang.org/grpc"
 	"time"
 )
 
 type GreenfieldChallengerClient struct {
-	ChainClient   *chain.GreenfieldClient
-	SpClient      *sp.SPClient
-	RpcClient     rpcclient.Client
-	JsonRpcClient *libclient.Client
-	keyManager    keys.KeyManager
-	config        *config.Config
-	mutex         sync.RWMutex
-	clientIdx     int // TODO: Check if required
+	ChainClient *chain.GreenfieldClient
+	SpClient    *sp.SPClient
+	RpcClient   rpcclient.Client
+	keyManager  keys.KeyManager
+	config      *config.Config
+	mutex       sync.RWMutex
+	clientIdx   int // TODO: Check if required
 }
 
 func grpcConn(addr string) *grpc.ClientConn {
@@ -62,17 +60,15 @@ func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, 
 		panic("sp client cannot be initiated")
 	}
 	rpcClient := NewRpcClient(rpcAddr)
-	jsonRpcClient, err := libclient.New(cfg.VotePoolConfig.RPCAddr)
 	if err != nil {
 		panic(err)
 	}
 
 	return &GreenfieldChallengerClient{
-		ChainClient:   &chainClient,
-		SpClient:      spClient,
-		RpcClient:     rpcClient,
-		JsonRpcClient: jsonRpcClient,
-		keyManager:    km,
+		ChainClient: &chainClient,
+		SpClient:    spClient,
+		RpcClient:   rpcClient,
+		keyManager:  km,
 	}
 }
 
@@ -114,11 +110,11 @@ func (c *GreenfieldChallengerClient) getLatestBlockHeightWithRetry(client rpccli
 		var err error
 		latestHeight, err = c.GetLatestBlockHeight(latestHeightQueryCtx, client)
 		return err
-	}, common.RetryAttempts,
-		common.RetryDelay,
-		common.RetryErr,
+	}, common.RtyAttem,
+		common.RtyDelay,
+		common.RtyErr,
 		retry.OnRetry(func(n uint, err error) {
-			common.Logger.Infof("failed to query latest height, attempt: %d times, max_attempts: %d", n+1, common.RetryAttemptNum)
+			common.Logger.Infof("failed to query latest height, attempt: %d times, max_attempts: %d", n+1, common.RtyAttemNum)
 		}))
 }
 
@@ -130,39 +126,15 @@ func (c *GreenfieldChallengerClient) GetLatestBlockHeight(ctx context.Context, c
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
-func (c *GreenfieldChallengerClient) QueryVotes(eventHash []byte, eventType votepool.EventType) ([]*votepool.Vote, error) {
-	queryMap := make(map[string]interface{})
-	queryMap[vote.VotePoolQueryParameterEventType] = int(eventType)
-	queryMap[vote.VotePoolQueryParameterEventHash] = eventHash
-	var queryVote coretypes.ResultQueryVote
-	_, err := c.JsonRpcClient.Call(context.Background(), vote.VotePoolQueryMethodName, queryMap, &queryVote)
+// TODO: Check if required
+func (c *GreenfieldChallengerClient) GetValidatorsBlsPublicKey() ([]string, error) {
+	validators, err := c.QueryLatestValidators()
 	if err != nil {
 		return nil, err
 	}
-	return queryVote.Votes, nil
-}
-
-func (c *GreenfieldChallengerClient) BroadcastVote(v *votepool.Vote) error {
-	broadcastMap := make(map[string]interface{})
-	broadcastMap[vote.VotePoolBroadcastParameterKey] = *v
-	var broadcastVote coretypes.ResultBroadcastVote
-
-	_, err := c.JsonRpcClient.Call(context.Background(), vote.VotePoolBroadcastMethodName, broadcastMap, &broadcastVote)
-	if err != nil {
-		return err
+	var keys []string
+	for _, v := range validators {
+		keys = append(keys, hex.EncodeToString(v.GetRelayerBlsKey()))
 	}
-	return nil
+	return keys, nil
 }
-
-// TODO: Check if required
-//func (c *GreenfieldChallengerClient) GetValidatorsBlsPublicKey() ([]string, error) {
-//	validators, err := c.QueryLatestValidators()
-//	if err != nil {
-//		return nil, err
-//	}
-//	var keys []string
-//	for _, v := range validators {
-//		keys = append(keys, hex.EncodeToString(v.GetRelayerBlsKey()))
-//	}
-//	return keys, nil
-//}

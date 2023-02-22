@@ -1,6 +1,8 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 // TODO: EventType string -> EventType EventType
 type Vote struct {
@@ -9,7 +11,7 @@ type Vote struct {
 	ChallengeId int64  `gorm:"NOT NULL"`
 	PubKey      []byte `gorm:"NOT NULL"`
 	Signature   []byte `gorm:"NOT NULL"`
-	EventType   string `gorm:"NOT NULL"`
+	EventType   uint32 `gorm:"NOT NULL"`
 	EventHash   []byte `gorm:"NOT NULL"`
 	CreatedTime int64  `gorm:"NOT NULL"`
 }
