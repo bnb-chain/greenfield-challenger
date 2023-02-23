@@ -15,42 +15,66 @@ func NewVoteDao(db *gorm.DB) *VoteDao {
 	}
 }
 
-func (d *VoteDao) GetVotesByChannelIdAndSequence(channelId uint8, sequence uint64) ([]*model.Vote, error) {
-	votes := make([]*model.Vote, 0)
-	err := d.DB.Where("channel_id = ? and sequence = ?", channelId, sequence).Find(&votes).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, err
+func (db *VoteDao) SaveVote(vote *model.Vote) error {
+	err := db.DB.Create(vote).Error
+	if err != nil {
+		return err
 	}
-	return votes, nil
+	return nil
 }
 
-func (d *VoteDao) GetVoteByChannelIdAndSequenceAndPubKey(channelId uint8, sequence uint64, pubKey string) (*model.Vote, error) {
-	vote := model.Vote{}
-	err := d.DB.Model(model.Vote{}).Where("channel_id = ? and sequence = ? and pub_key = ?", channelId, sequence, pubKey).Take(&vote).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
+func (db *VoteDao) SaveAllVotes(votes []*model.Vote) error {
+	err := db.DB.Create(votes).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO: Check which methods are required
+func (db *VoteDao) GetVoteById(id int64) (*model.Vote, error) {
+	var vote model.Vote
+	err := db.DB.First(&vote, id).Error
+	if err != nil {
 		return nil, err
 	}
 	return &vote, nil
 }
 
-func (d *VoteDao) IsVoteExist(channelId uint8, sequence uint64, pubKey string) (bool, error) {
-	exists := false
-	if err := d.DB.Raw(
-		"SELECT EXISTS(SELECT id FROM vote WHERE channel_id = ? and sequence = ? and pub_key = ?)",
-		channelId, sequence, pubKey).Scan(&exists).Error; err != nil {
+func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) (*model.Vote, error) {
+	var vote model.Vote
+	err := db.DB.Where("challenge_id = ?", challengeId).Find(&vote).Error
+	if err != nil {
+		return nil, err
+	}
+	return &vote, nil
+}
+
+func (db *VoteDao) IsVoteExist(challengeId uint64) (bool, error) {
+	var count int64
+	err := db.DB.Model(&model.Vote{}).Where("challenge_id = ?", challengeId).Count(&count).Error
+	if err != nil {
 		return false, err
 	}
-	return exists, nil
+	return count > 0, nil
 }
 
-func (d *VoteDao) SaveVote(vote *model.Vote) error {
-	return d.DB.Transaction(func(dbTx *gorm.DB) error {
-		return dbTx.Create(vote).Error
-	})
+func (db *VoteDao) UpdateVote(vote *model.Vote) error {
+	err := db.DB.Save(vote).Error
+	return err
 }
 
-func (d *VoteDao) SaveBatchVotes(votes []*model.Vote) error {
-	return d.DB.Transaction(func(dbTx *gorm.DB) error {
-		return dbTx.Create(votes).Error
-	})
+func (db *VoteDao) UpdateVoteByChallengeId(challengeId uint64, updateFields map[string]interface{}) error {
+	err := db.DB.Model(model.Vote{}).Where("challenge_id = ?", challengeId).Updates(updateFields).Error
+	return err
+}
+
+func (db *VoteDao) DeleteVote(vote model.Vote) error {
+	err := db.DB.Delete(vote).Error
+	return err
+}
+
+func (db *VoteDao) DeleteVoteByChallengeId(challengeId uint64) error {
+	err := db.DB.Where("challenge_id = ?", challengeId).Delete(&model.Vote{}).Error
+	return err
 }
