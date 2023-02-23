@@ -25,9 +25,9 @@ type GreenfieldChallengerClient struct {
 	SpClient    *sp.SPClient
 	RpcClient   rpcclient.Client
 	keyManager  keys.KeyManager
+	validators  []*tmtypes.Validator // used to cache validatorss
 	config      *config.Config
 	mutex       sync.RWMutex
-	clientIdx   int // TODO: Check if required
 }
 
 func grpcConn(addr string) *grpc.ClientConn {
@@ -126,15 +126,62 @@ func (c *GreenfieldChallengerClient) GetLatestBlockHeight(ctx context.Context, c
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
-// TODO: Check if required
-func (c *GreenfieldChallengerClient) GetValidatorsBlsPublicKey() ([]string, error) {
-	validators, err := c.QueryLatestValidators()
+func (c *GreenfieldChallengerClient) QueryValidators() ([]*tmtypes.Validator, error) {
+	validators, err := c.RpcClient.Validators(context.Background(), nil, nil, nil)
+	c.validators = validators.Validators
 	if err != nil {
 		return nil, err
 	}
-	var keys []string
-	for _, v := range validators {
-		keys = append(keys, hex.EncodeToString(v.GetRelayerBlsKey()))
+	return validators.Validators, nil
+}
+
+func (c *GreenfieldChallengerClient) QueryValidatorsAtHeight(height uint64) ([]*tmtypes.Validator, error) {
+	atHeight := int64(height)
+	validators, err := c.RpcClient.Validators(context.Background(), &atHeight, nil, nil)
+	if err != nil {
+		return nil, err
 	}
-	return keys, nil
+	return validators.Validators, nil
+}
+
+func (c *GreenfieldChallengerClient) GetCachedLatestValidators() ([]*tmtypes.Validator, error) {
+	if len(c.validators) != 0 {
+		return c.validators, nil
+	}
+	validators, err := c.QueryValidators()
+	if err != nil {
+		return nil, err
+	}
+	return validators, nil
+}
+
+func (c *GreenfieldChallengerClient) QueryValidatorsBlsPublicKey() ([]string, error) {
+	validators, err := c.QueryValidators()
+	if err != nil {
+		return nil, err
+	}
+	var pubKeys []string
+	for _, v := range validators {
+		pubKeys = append(pubKeys, hex.EncodeToString(v.RelayerBlsKey))
+	}
+	return pubKeys, nil
+}
+
+func (c *GreenfieldChallengerClient) GetCachedValidatorsBlsPublicKey() ([]string, error) {
+	var validators []*tmtypes.Validator
+	var err error
+	if len(c.validators) != 0 {
+		validators = c.validators
+	} else {
+		validators, err = c.QueryValidators()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var pubKeys []string
+	for _, v := range validators {
+		pubKeys = append(pubKeys, hex.EncodeToString(v.RelayerBlsKey))
+	}
+	return pubKeys, nil
 }
