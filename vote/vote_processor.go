@@ -3,20 +3,20 @@ package vote
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"github.com/avast/retry-go/v4"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gnfd-challenger/client/rpc"
 	gnfdcommon "github.com/gnfd-challenger/common"
 	"github.com/gnfd-challenger/config"
-	"github.com/gnfd-challenger/db"
 	"github.com/gnfd-challenger/db/dao"
 	"github.com/gnfd-challenger/db/model"
 	"github.com/gnfd-challenger/keys"
-	"github.com/prysmaticlabs/prysm/crypto/bls/blst"
+	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/crypto/bls"
+	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/votepool"
 	"gorm.io/gorm"
 	"time"
@@ -55,61 +55,45 @@ func (p *GreenfieldVoteProcessor) SignAndBroadcast() {
 }
 
 func (p *GreenfieldVoteProcessor) signAndBroadcast() error {
-	latestHeight, err := p.greenfieldClient.GetLatestBlockHeightWithRetry()
+	latestBlockHeight, err := p.greenfieldClient.GetLatestBlockHeightWithRetry()
 	if err != nil {
 		gnfdcommon.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 		return err
 	}
 
-	leastSavedTxHeight, err := p.daoManager.GreenfieldDao.GetLeastSavedTransactionHeight()
+	lowestHeightSavedEvent, err := p.daoManager.EventDao.GetUnprocessedEventWithLowestHeight()
 	if err != nil {
-		gnfdcommon.Logger.Errorf("failed to get least saved tx, error: %s", err.Error())
-		return err
-	}
-	if leastSavedTxHeight+p.config.GreenfieldConfig.NumberOfBlocksForFinality > latestHeight {
-		return nil
-	}
-	txs, err := p.daoManager.GreenfieldDao.GetTransactionsByStatusAndHeight(db.Saved, leastSavedTxHeight)
-	if err != nil {
-		gnfdcommon.Logger.Errorf("failed to get transactions at height %d from db, error: %s", leastSavedTxHeight, err.Error())
+		gnfdcommon.Logger.Errorf("failed to get lowest unprocessed event, error: %s", err.Error())
 		return err
 	}
 
-	if len(txs) == 0 {
+	if lowestHeightSavedEvent.Height+p.config.GreenfieldConfig.NumberOfBlocksForFinality > latestBlockHeight {
+		return nil
+	}
+
+	events, err := p.daoManager.EventDao.GetAllEventsFromHeightWithStatus(lowestHeightSavedEvent.Height, model.Unprocessed)
+	if err != nil {
+		gnfdcommon.Logger.Errorf("error retrieving event with lowest challengeId and status=unprocessed", err.Error())
+		return err
+	}
+
+	if len(events) == 0 {
 		time.Sleep(RetryInterval)
 		return nil
 	}
 
 	// for every tx, we are going to sign it and broadcast vote of it.
-	for _, tx := range txs {
-		v, err := p.constructVoteAndSign(tx)
+	for _, event := range events {
+		v, err := p.constructVoteAndSign(event, model.VoteOptChallengeSucceed)
 		if err != nil {
 			return err
 		}
 
-		// TODO remove testing purpose code
-		bs2 := common.Hex2Bytes("0fdb6ed435515cbf4b72558a6f42d881fd99e0eddc719cb5890fbf1ec723bd0c")
-		secretKey2, err := blst.SecretKeyFromBytes(bs2)
-		if err != nil {
-			panic(err)
-		}
-		eh, _ := p.getEventHash(tx)
-		pubKey2 := secretKey2.PublicKey()
-		sign2 := secretKey2.Sign(eh).Marshal()
-
-		mockVoteFromRelayer2 := &votepool.Vote{
-			PubKey:    pubKey2.Marshal(),
-			Signature: sign2,
-			EventType: 1,
-			EventHash: eh,
-		}
-
 		// broadcast v
 		if err = retry.Do(func() error {
-			err = p.votePoolExecutor.BroadcastVote(mockVoteFromRelayer2)
 			err = p.votePoolExecutor.BroadcastVote(v)
 			if err != nil {
-				return fmt.Errorf("failed to submit vote for event with txhash: %s", tx.TxHash)
+				return fmt.Errorf("failed to submit vote for event with challengeId: %d", event.ChallengeId)
 			}
 			return nil
 		}, retry.Context(context.Background()), gnfdcommon.RtyAttem, gnfdcommon.RtyDelay, gnfdcommon.RtyErr); err != nil {
@@ -118,11 +102,11 @@ func (p *GreenfieldVoteProcessor) signAndBroadcast() error {
 
 		// After vote submitted to vote pool, persist vote Data and update the status of tx to 'SELF_VOTED'.
 		err = p.daoManager.EventDao.DB.Transaction(func(dbTx *gorm.DB) error {
-			err = p.daoManager.GreenfieldDao.UpdateTransactionStatus(tx.Id, db.SelfVoted)
+			err = p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.EventStatusChallengeSucceed)
 			if err != nil {
 				return err
 			}
-			err = p.daoManager.VoteDao.SaveVote(EntityToDto(v, tx.ChannelId, tx.Sequence, common.Hex2Bytes(tx.PayLoad)))
+			err = p.daoManager.VoteDao.SaveVote(EntityToDto(v))
 			if err != nil {
 				return err
 			}
@@ -145,17 +129,18 @@ func (p *GreenfieldVoteProcessor) CollectVotes() {
 }
 
 func (p *GreenfieldVoteProcessor) collectVotes() error {
-	txs, err := p.daoManager.EventDao.GetTransactionsByStatus(db.SelfVoted)
+	lowestHeight, err := p.daoManager.EventDao.GetUnprocessedEventWithLowestHeight()
+	events, err := p.daoManager.EventDao.GetAllEventsFromHeightWithStatus(lowestHeight.Height, model.Unprocessed)
 	if err != nil {
 		gnfdcommon.Logger.Errorf("failed to get voted transactions from db, error: %s", err.Error())
 		return err
 	}
-	for _, tx := range txs {
-		err := p.prepareEnoughValidVotesForTx(tx)
+	for _, event := range events {
+		err := p.prepareEnoughValidVotesForTx(event)
 		if err != nil {
 			return err
 		}
-		err = p.daoManager.GreenfieldDao.UpdateTransactionStatus(tx.Id, db.AllVoted)
+		err = p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.EventStatusChallengeSucceed)
 		if err != nil {
 			return err
 		}
@@ -164,12 +149,12 @@ func (p *GreenfieldVoteProcessor) collectVotes() error {
 }
 
 // prepareEnoughValidVotesForTx fetches and validate votes result, store in vote table
-func (p *GreenfieldVoteProcessor) prepareEnoughValidVotesForTx(tx *model.EventStartChallenge) error {
-	validators, err := p.greenfieldClient.QueryLatestValidators()
+func (p *GreenfieldVoteProcessor) prepareEnoughValidVotesForTx(event *model.EventStartChallenge) error {
+	validators, err := p.greenfieldClient.QueryValidators()
 	if err != nil {
 		return err
 	}
-	err = p.queryMoreThanTwoThirdVotesForTx(tx, validators)
+	err = p.queryMoreThanTwoThirdVotesForTx(event, validators)
 	if err != nil {
 		return err
 	}
@@ -177,12 +162,10 @@ func (p *GreenfieldVoteProcessor) prepareEnoughValidVotesForTx(tx *model.EventSt
 }
 
 // queryMoreThanTwoThirdVotesForTx queries votes from votePool
-func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(tx *model.EventStartChallenge, validators []stakingtypes.Validator) error {
+func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.EventStartChallenge, validators []*tmtypes.Validator) error {
 	triedTimes := 0
 	validVotesTotalCount := 1 // assume local vote is valid
-	channelId := tx.ChannelId
-	seq := tx.Sequence
-	localVote, err := p.constructVoteAndSign(tx)
+	localVote, err := p.constructVoteAndSign(event, model.VoteOptChallengeSucceed)
 	if err != nil {
 		return err
 	}
@@ -193,7 +176,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(tx *model.Even
 			return nil
 		}
 
-		queriedVotes, err := p.votePoolExecutor.QueryVotes(localVote.EventHash, votepool.ToBscCrossChainEvent)
+		queriedVotes, err := p.votePoolExecutor.QueryVotes(localVote.EventHash, votepool.DataAvailabilityChallengeEvent)
 		if err != nil {
 			gnfdcommon.Logger.Errorf("encounter error when query votes. will retry.")
 			return err
@@ -212,7 +195,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(tx *model.Even
 				continue
 			}
 
-			if err := Verify(v, localVote.EventHash); err != nil {
+			if err := VerifySignature(v, localVote.EventHash); err != nil {
 				gnfdcommon.Logger.Errorf("verify vote's signature failed,  err=%s", err)
 				validVotesCountPerReq--
 				continue
@@ -226,7 +209,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(tx *model.Even
 			}
 
 			// check duplicate, the vote might have been saved in previous request.
-			exist, err := p.daoManager.VoteDao.IsVoteExist(channelId, seq, hex.EncodeToString(v.PubKey[:]))
+			exist, err := p.daoManager.VoteDao.IsVoteExist(event.ChallengeId)
 			if err != nil {
 				return err
 			}
@@ -235,7 +218,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(tx *model.Even
 				continue
 			}
 			// a vote result persisted into DB should be valid, unique.
-			err = p.daoManager.VoteDao.SaveVote(EntityToDto(v, channelId, seq, common.Hex2Bytes(tx.PayLoad)))
+			err = p.daoManager.VoteDao.SaveVote(EntityToDto(v))
 			if err != nil {
 				return err
 			}
@@ -257,10 +240,10 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(tx *model.Even
 	}
 }
 
-func (p *GreenfieldVoteProcessor) constructVoteAndSign(tx *model.EventStartChallenge) (*votepool.Vote, error) {
+func (p *GreenfieldVoteProcessor) constructVoteAndSign(event *model.EventStartChallenge, option model.VoteOption) (*votepool.Vote, error) {
 	var v votepool.Vote
-	v.EventType = votepool.ToBscCrossChainEvent
-	eventHash, err := p.getEventHash(tx)
+	v.EventType = votepool.DataAvailabilityChallengeEvent
+	eventHash, err := p.getEventHash(event, option)
 	if err != nil {
 		return nil, err
 	}
@@ -268,19 +251,86 @@ func (p *GreenfieldVoteProcessor) constructVoteAndSign(tx *model.EventStartChall
 	return &v, nil
 }
 
-func (p *GreenfieldVoteProcessor) getEventHash(tx *model.EventStartChallenge) ([]byte, error) {
-	b, err := rlp.EncodeToBytes(tx.PayLoad)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.Keccak256Hash(b).Bytes(), nil
+// changed votepool.Vote -> model.Vote
+func (p *GreenfieldVoteProcessor) getEventHash(event *model.EventStartChallenge, option model.VoteOption) ([]byte, error) {
+	idBz := make([]byte, 8)
+	binary.BigEndian.PutUint64(idBz, event.ChallengeId)
+	resultBz := make([]byte, 8)
+	binary.BigEndian.PutUint64(resultBz, uint64(option))
+
+	bs := make([]byte, 0)
+	bs = append(bs, idBz...)
+	bs = append(bs, resultBz...)
+	hash := crypto.Keccak256Hash(bs)
+	return hash.Bytes(), nil
 }
 
-func (p *GreenfieldVoteProcessor) isVotePubKeyValid(v *votepool.Vote, validators []stakingtypes.Validator) bool {
+//func (p *GreenfieldVoteProcessor) broadcastVotes() error {
+
+//}
+
+// 1. Query votes
+// 2. Query validators
+// 3. Validate votes
+// 4. Count valid votes
+// 5. If 2/3 valid, send MsgAttest
+
+//func (p *GreenfieldVoteProcessor) aggregateVotes(challengeId uint64) error {
+//	event, err := p.daoManager.EventDao.GetEventStartChallengesByChallengeId(challengeId)
+//	if err != nil {
+//		return err
+//	}
+//
+//	validators, err := p.greenfieldClient.QueryValidators()
+//	if err != nil {
+//		return err
+//	}
+//
+//	challengeIdBz := make([]byte, 8)
+//	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
+//	voteOptBz := make([]byte, 8)
+//	binary.BigEndian.PutUint64(voteOptBz, uint64(model.VoteOptChallengeSucceed))
+//
+//	eventHashBz := make([]byte, 0)
+//	eventHashBz = append(eventHashBz, challengeIdBz...)
+//	eventHashBz = append(eventHashBz, voteOptBz...)
+//	eventHash := crypto.Keccak256Hash(eventHashBz)
+//
+//	votes, err := p.votePoolExecutor.QueryVotes(eventHash.Bytes(), votepool.DataAvailabilityChallengeEvent)
+//	if err != nil {
+//		return err
+//	}
+//
+//	// Validate votes
+//
+//	validatorTwoThird := (len(validators) / 3) * 2
+//	if len(votes) > validatorTwoThird {
+//		// send MsgAttest
+//	}
+//
+//}
+
+func (p *GreenfieldVoteProcessor) isVotePubKeyValid(v *votepool.Vote, validators []*tmtypes.Validator) bool {
 	for _, validator := range validators {
+		// Why validate by checking key?
 		if bytes.Equal(v.PubKey[:], validator.RelayerBlsKey[:]) {
 			return true
 		}
 	}
 	return false
+}
+
+func VerifySignature(vote *votepool.Vote, eventHash []byte) error {
+	blsPubKey, err := bls.PublicKeyFromBytes(vote.PubKey[:])
+	if err != nil {
+		return errors.Wrap(err, "convert public key from bytes to bls failed")
+	}
+	sig, err := bls.SignatureFromBytes(vote.Signature[:])
+	if err != nil {
+		return errors.Wrap(err, "invalid signature")
+	}
+	if !sig.Verify(blsPubKey, eventHash[:]) {
+		return errors.New("verify bls signature failed.")
+	}
+	return nil
 }

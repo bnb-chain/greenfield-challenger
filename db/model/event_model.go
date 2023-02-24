@@ -7,13 +7,13 @@ import (
 
 type EventStartChallenge struct {
 	Id                int64
-	ChallengeId       uint64 `gorm:"NOT NULL"`
-	ObjectId          uint64 `gorm:"NOT NULL"`
-	SegmentIndex      uint32 `gorm:"NOT NULL"`
-	SpOperatorAddress string `gorm:"NOT NULL"`
-	RedundancyIndex   int32  `gorm:"NOT NULL"`
-	Height            uint64 `gorm:"NOT NULL;"`
-	Status            uint8  `gorm:"NOT NULL;"`
+	ChallengeId       uint64      `gorm:"NOT NULL"`
+	ObjectId          uint64      `gorm:"NOT NULL"`
+	SegmentIndex      uint32      `gorm:"NOT NULL"`
+	SpOperatorAddress string      `gorm:"NOT NULL"`
+	RedundancyIndex   int32       `gorm:"NOT NULL"`
+	Height            uint64      `gorm:"NOT NULL;"`
+	Status            EventStatus `gorm:"NOT NULL;"`
 }
 
 func (*EventStartChallenge) TableName() string {
@@ -29,12 +29,12 @@ func InitEventTables(db *gorm.DB) {
 	}
 }
 
-type EventStatus int
+type EventStatus uint32
 
 const (
-	Unprocessed      EventStatus = 0
-	ChallengeSuccess EventStatus = 1
-	ChallengeFail    EventStatus = 2
+	Unprocessed                 EventStatus = 0
+	EventStatusChallengeSucceed EventStatus = 1
+	EventStatusChallengeFailed  EventStatus = 2
 )
 
 func EventStatusToStr(status EventStatus) (string, error) {
@@ -42,9 +42,9 @@ func EventStatusToStr(status EventStatus) (string, error) {
 	case 0:
 		return "Unprocessed", nil
 	case 1:
-		return "ChallengeSuccess", nil
+		return "EventStatusChallengeSucceed", nil
 	case 2:
-		return "ChallengeFail", nil
+		return "EventStatusChallengeFailed", nil
 	default:
 		return "", errors.New("invalid event status (0-2)")
 	}

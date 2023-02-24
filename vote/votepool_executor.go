@@ -2,6 +2,7 @@ package vote
 
 import (
 	"context"
+	"encoding/hex"
 	"github.com/gnfd-challenger/client/rpc"
 	"github.com/gnfd-challenger/config"
 
@@ -52,15 +53,14 @@ func (e *VotePoolExecutor) BroadcastVote(v *votepool.Vote) error {
 	return nil
 }
 
-//
-//func (e *VotePoolExecutor) GetValidatorsBlsPublicKey() ([]string, error) {
-//	validators, err := e.greenfieldClient.QueryLatestValidators()
-//	if err != nil {
-//		return nil, err
-//	}
-//	var keys []string
-//	for _, v := range validators {
-//		keys = append(keys, hex.EncodeToString(v.GetRelayerBlsKey()))
-//	}
-//	return keys, nil
-//}
+func (e *VotePoolExecutor) GetValidatorsBlsPublicKey() ([]string, error) {
+	validators, err := e.greenfieldClient.QueryValidators()
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, v := range validators {
+		keys = append(keys, hex.EncodeToString(v.RelayerBlsKey))
+	}
+	return keys, nil
+}
