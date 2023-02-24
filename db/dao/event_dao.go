@@ -50,6 +50,30 @@ func (db *EventDao) GetEventStartChallengesByChallengeId(challengeId uint64) (*m
 	return &event, nil
 }
 
+func (db *EventDao) GetUnprocessedEventWithLowestHeight() (*model.EventStartChallenge, error) {
+	var event model.EventStartChallenge
+	err := db.DB.Where("status = ?", model.Unprocessed).Order("height ASC").Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (db *EventDao) GetAllEventsFromHeightWithStatus(height uint64, status model.EventStatus) ([]*model.EventStartChallenge, error) {
+	var events []*model.EventStartChallenge
+	err := db.DB.Where("status = ? AND height >= ?", status, height).Find(&events).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return events, nil
+}
+
 func (db *EventDao) GetEventStartChallengeByLowestChallengeId() (*model.EventStartChallenge, error) {
 	var challenge model.EventStartChallenge
 	err := db.DB.Order("challenge_id ASC").First(&challenge).Error
@@ -82,9 +106,20 @@ func (db *EventDao) UpdateEventStartChallenge(event *model.EventStartChallenge) 
 	return err
 }
 
-func (db *EventDao) UpdateEventStartChallengeByChallengeId(challengeId uint64, updateFields map[string]interface{}) error {
-	err := db.DB.Model(model.EventStartChallenge{}).Where("challenge_id = ?", challengeId).Updates(updateFields).Error
-	return err
+func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status model.EventStatus) error {
+	var event model.EventStartChallenge
+	err := db.DB.Model(&model.EventStartChallenge{}).Where("challenge_id = ?", challengeId).First(&event).Error
+	if err != nil {
+		return err
+	}
+
+	event.Status = status
+	err = db.DB.Save(&event).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *EventDao) DeleteEventStartChallenge(event model.EventStartChallenge) error {
