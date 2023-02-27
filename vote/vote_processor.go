@@ -227,6 +227,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.E
 		validVotesTotalCount += validVotesCountPerReq
 
 		if validVotesTotalCount > len(validators)*2/3 {
+			// Send MsgAttest
 			return nil
 		}
 		if !isLocalVoteIncluded {
