@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/config"
 )
 
 type App struct {

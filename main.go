@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/bnb-chain/gnfd-challenger/app"
-	"github.com/bnb-chain/gnfd-challenger/config"
-	"github.com/bnb-chain/gnfd-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/app"
+	"github.com/bnb-chain/greenfield-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 )
 
 const (

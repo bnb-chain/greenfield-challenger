@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	ctypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/ethereum/go-ethereum/common"

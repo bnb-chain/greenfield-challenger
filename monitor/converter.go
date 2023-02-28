@@ -1,7 +1,7 @@
 package monitor
 
 import (
-	"github.com/bnb-chain/gnfd-challenger/db/model"
+	"github.com/bnb-chain/greenfield-challenger/db/model"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 )
 

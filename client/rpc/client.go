@@ -3,15 +3,16 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"github.com/bnb-chain/greenfield-challenger/logging"
+	gnfdtypes "github.com/bnb-chain/greenfield/sdk/types"
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/bnb-chain/gnfd-challenger/common"
-	"github.com/bnb-chain/gnfd-challenger/config"
-	"github.com/bnb-chain/gnfd-challenger/keys"
+	"github.com/bnb-chain/greenfield-challenger/common"
+	"github.com/bnb-chain/greenfield-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/keys"
 	"github.com/bnb-chain/greenfield-go-sdk/client/chain"
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
-	"github.com/bnb-chain/greenfield-go-sdk/types"
 	"github.com/tendermint/tendermint/libs/sync"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
@@ -54,9 +55,9 @@ func NewRpcClient(addr string) *rpchttp.HTTP {
 	return rpcClient
 }
 
-func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, opt sp.Option, km keys.KeyManager, cfg *config.Config) *GreenfieldChallengerClient {
+func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, opt sp.SpClientOption, km keys.KeyManager, cfg *config.Config) *GreenfieldChallengerClient {
 	chainClient := chain.NewGreenfieldClient(grpcAddr, chainId)
-	spClient, err := sp.NewSpClient(endpoint, &opt)
+	spClient, err := sp.NewSpClient(endpoint, opt)
 	if err != nil {
 		panic("sp client cannot be initiated")
 	}
@@ -66,7 +67,7 @@ func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, 
 	}
 
 	return &GreenfieldChallengerClient{
-		ChainClient: &chainClient,
+		ChainClient: chainClient,
 		SpClient:    spClient,
 		RpcClient:   rpcClient,
 		keyManager:  km,
@@ -75,7 +76,7 @@ func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, 
 
 func (c *GreenfieldChallengerClient) GetKeyManager() (keys.KeyManager, error) {
 	if c.keyManager == nil {
-		return nil, types.KeyManagerNotInitError
+		return nil, gnfdtypes.KeyManagerNotInitError
 	}
 	return c.keyManager, nil
 }
@@ -115,7 +116,7 @@ func (c *GreenfieldChallengerClient) getLatestBlockHeightWithRetry(client rpccli
 		common.RtyDelay,
 		common.RtyErr,
 		retry.OnRetry(func(n uint, err error) {
-			common.Logger.Infof("failed to query latest height, attempt: %d times, max_attempts: %d", n+1, common.RtyAttemNum)
+			logging.Logger.Infof("failed to query latest height, attempt: %d times, max_attempts: %d", n+1, common.RtyAttemNum)
 		}))
 }
 

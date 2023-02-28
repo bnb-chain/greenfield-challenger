@@ -1,4 +1,4 @@
-module github.com/bnb-chain/gnfd-challenger
+module github.com/bnb-chain/greenfield-challenger
 
 go 1.18
 

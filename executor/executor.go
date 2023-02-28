@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bnb-chain/gnfd-challenger/common"
-	"github.com/bnb-chain/gnfd-challenger/config"
-	"github.com/bnb-chain/gnfd-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/common"
+	"github.com/bnb-chain/greenfield-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/cosmos/cosmos-sdk/codec"
 
 	"github.com/avast/retry-go/v4"
