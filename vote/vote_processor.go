@@ -6,20 +6,21 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	"github.com/avast/retry-go/v4"
+	"github.com/bnb-chain/gnfd-challenger/client/rpc"
+	gnfdcommon "github.com/bnb-chain/gnfd-challenger/common"
+	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/gnfd-challenger/db/dao"
+	"github.com/bnb-chain/gnfd-challenger/db/model"
+	"github.com/bnb-chain/gnfd-challenger/keys"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gnfd-challenger/client/rpc"
-	gnfdcommon "github.com/gnfd-challenger/common"
-	"github.com/gnfd-challenger/config"
-	"github.com/gnfd-challenger/db/dao"
-	"github.com/gnfd-challenger/db/model"
-	"github.com/gnfd-challenger/keys"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/crypto/bls"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/votepool"
 	"gorm.io/gorm"
-	"time"
 )
 
 type GreenfieldVoteProcessor struct {
@@ -149,7 +150,7 @@ func (p *GreenfieldVoteProcessor) collectVotes() error {
 }
 
 // prepareEnoughValidVotesForTx fetches and validate votes result, store in vote table
-func (p *GreenfieldVoteProcessor) prepareEnoughValidVotesForTx(event *model.EventStartChallenge) error {
+func (p *GreenfieldVoteProcessor) prepareEnoughValidVotesForTx(event *model.Event) error {
 	validators, err := p.greenfieldClient.QueryValidators()
 	if err != nil {
 		return err
@@ -162,7 +163,7 @@ func (p *GreenfieldVoteProcessor) prepareEnoughValidVotesForTx(event *model.Even
 }
 
 // queryMoreThanTwoThirdVotesForTx queries votes from votePool
-func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.EventStartChallenge, validators []*tmtypes.Validator) error {
+func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.Event, validators []*tmtypes.Validator) error {
 	triedTimes := 0
 	validVotesTotalCount := 1 // assume local vote is valid
 	localVote, err := p.constructVoteAndSign(event, model.VoteOptChallengeSucceed)
@@ -241,7 +242,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.E
 	}
 }
 
-func (p *GreenfieldVoteProcessor) constructVoteAndSign(event *model.EventStartChallenge, option model.VoteOption) (*votepool.Vote, error) {
+func (p *GreenfieldVoteProcessor) constructVoteAndSign(event *model.Event, option model.VoteOption) (*votepool.Vote, error) {
 	var v votepool.Vote
 	v.EventType = votepool.DataAvailabilityChallengeEvent
 	eventHash, err := p.getEventHash(event, option)
@@ -253,7 +254,7 @@ func (p *GreenfieldVoteProcessor) constructVoteAndSign(event *model.EventStartCh
 }
 
 // changed votepool.Vote -> model.Vote
-func (p *GreenfieldVoteProcessor) getEventHash(event *model.EventStartChallenge, option model.VoteOption) ([]byte, error) {
+func (p *GreenfieldVoteProcessor) getEventHash(event *model.Event, option model.VoteOption) ([]byte, error) {
 	idBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(idBz, event.ChallengeId)
 	resultBz := make([]byte, 8)
