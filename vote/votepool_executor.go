@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 
-	"github.com/bnb-chain/gnfd-challenger/client/rpc"
-	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/client/rpc"
+	"github.com/bnb-chain/greenfield-challenger/config"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/rpc/jsonrpc/client"

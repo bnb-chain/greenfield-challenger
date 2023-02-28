@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/bnb-chain/gnfd-challenger/db/model"
+	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/tendermint/tendermint/votepool"
 )
 

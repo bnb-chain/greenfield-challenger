@@ -1,7 +1,7 @@
 package dao
 
 import (
-	"github.com/bnb-chain/gnfd-challenger/db/model"
+	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"gorm.io/gorm"
 )
 
