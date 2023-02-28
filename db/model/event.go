@@ -2,10 +2,11 @@ package model
 
 import (
 	"errors"
+
 	"gorm.io/gorm"
 )
 
-type EventStartChallenge struct {
+type Event struct {
 	Id                int64
 	ChallengeId       uint64      `gorm:"NOT NULL"`
 	ObjectId          uint64      `gorm:"NOT NULL"`
@@ -16,13 +17,13 @@ type EventStartChallenge struct {
 	Status            EventStatus `gorm:"NOT NULL;"`
 }
 
-func (*EventStartChallenge) TableName() string {
-	return "event_start_challenge"
+func (*Event) TableName() string {
+	return "event"
 }
 
 func InitEventTables(db *gorm.DB) {
-	if !db.Migrator().HasTable(&EventStartChallenge{}) {
-		err := db.Migrator().CreateTable(&EventStartChallenge{})
+	if !db.Migrator().HasTable(&Event{}) {
+		err := db.Migrator().CreateTable(&Event{})
 		if err != nil {
 			panic(err)
 		}

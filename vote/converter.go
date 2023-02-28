@@ -2,9 +2,10 @@ package vote
 
 import (
 	"encoding/hex"
-	"github.com/gnfd-challenger/db/model"
-	"github.com/tendermint/tendermint/votepool"
 	"time"
+
+	"github.com/bnb-chain/gnfd-challenger/db/model"
+	"github.com/tendermint/tendermint/votepool"
 )
 
 func DtoToEntity(v *model.Vote) (*votepool.Vote, error) {
