@@ -28,11 +28,11 @@ type GreenfieldVoteProcessor struct {
 	daoManager       *dao.DaoManager
 	config           *config.Config
 	signer           *VoteSigner
-	greenfieldClient *rpc.GreenfieldChallengerClient
+	greenfieldClient *rpc.ChallengerClient
 	blsPublicKey     []byte
 }
 
-func NewGreenfieldVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner, greenfieldClient *rpc.GreenfieldChallengerClient,
+func NewGreenfieldVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner, greenfieldClient *rpc.ChallengerClient,
 	votePoolExecutor *VotePoolExecutor,
 ) *GreenfieldVoteProcessor {
 	return &GreenfieldVoteProcessor{

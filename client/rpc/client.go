@@ -3,9 +3,10 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"time"
+
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	gnfdtypes "github.com/bnb-chain/greenfield/sdk/types"
-	"time"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -22,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-type GreenfieldChallengerClient struct {
+type ChallengerClient struct {
 	ChainClient *chain.GreenfieldClient
 	SpClient    *sp.SPClient
 	RpcClient   rpcclient.Client
@@ -55,7 +56,7 @@ func NewRpcClient(addr string) *rpchttp.HTTP {
 	return rpcClient
 }
 
-func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, opt sp.SpClientOption, km keys.KeyManager, cfg *config.Config) *GreenfieldChallengerClient {
+func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, opt sp.Option, km keys.KeyManager, cfg *config.Config) *ChallengerClient {
 	chainClient := chain.NewGreenfieldClient(grpcAddr, chainId)
 	spClient, err := sp.NewSpClient(endpoint, opt)
 	if err != nil {
@@ -66,22 +67,22 @@ func NewGreenfieldChallengerClient(grpcAddr, rpcAddr, chainId, endpoint string, 
 		panic(err)
 	}
 
-	return &GreenfieldChallengerClient{
-		ChainClient: chainClient,
+	return &ChallengerClient{
+		ChainClient: &chainClient,
 		SpClient:    spClient,
 		RpcClient:   rpcClient,
 		keyManager:  km,
 	}
 }
 
-func (c *GreenfieldChallengerClient) GetKeyManager() (keys.KeyManager, error) {
+func (c *ChallengerClient) GetKeyManager() (keys.KeyManager, error) {
 	if c.keyManager == nil {
 		return nil, gnfdtypes.KeyManagerNotInitError
 	}
 	return c.keyManager, nil
 }
 
-func (c *GreenfieldChallengerClient) GetBlockResultAtHeight(height int64) (*coretypes.ResultBlockResults, error) {
+func (c *ChallengerClient) GetBlockResultAtHeight(height int64) (*coretypes.ResultBlockResults, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	blockResults, err := c.RpcClient.BlockResults(ctx, &height)
@@ -91,7 +92,7 @@ func (c *GreenfieldChallengerClient) GetBlockResultAtHeight(height int64) (*core
 	return blockResults, nil
 }
 
-func (c *GreenfieldChallengerClient) GetBlockAtHeight(height int64) (*tmtypes.Block, error) {
+func (c *ChallengerClient) GetBlockAtHeight(height int64) (*tmtypes.Block, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	block, err := c.RpcClient.Block(ctx, &height)
@@ -101,11 +102,11 @@ func (c *GreenfieldChallengerClient) GetBlockAtHeight(height int64) (*tmtypes.Bl
 	return block.Block, nil
 }
 
-func (c *GreenfieldChallengerClient) GetLatestBlockHeightWithRetry() (latestHeight uint64, err error) {
+func (c *ChallengerClient) GetLatestBlockHeightWithRetry() (latestHeight uint64, err error) {
 	return c.getLatestBlockHeightWithRetry(c.RpcClient)
 }
 
-func (c *GreenfieldChallengerClient) getLatestBlockHeightWithRetry(client rpcclient.Client) (latestHeight uint64, err error) {
+func (c *ChallengerClient) getLatestBlockHeightWithRetry(client rpcclient.Client) (latestHeight uint64, err error) {
 	return latestHeight, retry.Do(func() error {
 		latestHeightQueryCtx, cancelLatestHeightQueryCtx := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelLatestHeightQueryCtx()
@@ -120,7 +121,7 @@ func (c *GreenfieldChallengerClient) getLatestBlockHeightWithRetry(client rpccli
 		}))
 }
 
-func (c *GreenfieldChallengerClient) GetLatestBlockHeight(ctx context.Context, client rpcclient.Client) (uint64, error) {
+func (c *ChallengerClient) GetLatestBlockHeight(ctx context.Context, client rpcclient.Client) (uint64, error) {
 	status, err := client.Status(ctx)
 	if err != nil {
 		return 0, err
@@ -128,7 +129,7 @@ func (c *GreenfieldChallengerClient) GetLatestBlockHeight(ctx context.Context, c
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
-func (c *GreenfieldChallengerClient) QueryValidators() ([]*tmtypes.Validator, error) {
+func (c *ChallengerClient) QueryValidators() ([]*tmtypes.Validator, error) {
 	validators, err := c.RpcClient.Validators(context.Background(), nil, nil, nil)
 	c.validators = validators.Validators
 	if err != nil {
@@ -137,7 +138,7 @@ func (c *GreenfieldChallengerClient) QueryValidators() ([]*tmtypes.Validator, er
 	return validators.Validators, nil
 }
 
-func (c *GreenfieldChallengerClient) QueryValidatorsAtHeight(height uint64) ([]*tmtypes.Validator, error) {
+func (c *ChallengerClient) QueryValidatorsAtHeight(height uint64) ([]*tmtypes.Validator, error) {
 	atHeight := int64(height)
 	validators, err := c.RpcClient.Validators(context.Background(), &atHeight, nil, nil)
 	if err != nil {
@@ -146,7 +147,7 @@ func (c *GreenfieldChallengerClient) QueryValidatorsAtHeight(height uint64) ([]*
 	return validators.Validators, nil
 }
 
-func (c *GreenfieldChallengerClient) GetCachedLatestValidators() ([]*tmtypes.Validator, error) {
+func (c *ChallengerClient) GetCachedLatestValidators() ([]*tmtypes.Validator, error) {
 	if len(c.validators) != 0 {
 		return c.validators, nil
 	}
@@ -157,7 +158,7 @@ func (c *GreenfieldChallengerClient) GetCachedLatestValidators() ([]*tmtypes.Val
 	return validators, nil
 }
 
-func (c *GreenfieldChallengerClient) QueryValidatorsBlsPublicKey() ([]string, error) {
+func (c *ChallengerClient) QueryValidatorsBlsPublicKey() ([]string, error) {
 	validators, err := c.QueryValidators()
 	if err != nil {
 		return nil, err
@@ -169,7 +170,7 @@ func (c *GreenfieldChallengerClient) QueryValidatorsBlsPublicKey() ([]string, er
 	return pubKeys, nil
 }
 
-func (c *GreenfieldChallengerClient) GetCachedValidatorsBlsPublicKey() ([]string, error) {
+func (c *ChallengerClient) GetCachedValidatorsBlsPublicKey() ([]string, error) {
 	var validators []*tmtypes.Validator
 	var err error
 	if len(c.validators) != 0 {

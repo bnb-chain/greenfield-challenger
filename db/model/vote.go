@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -21,7 +22,7 @@ func (*Vote) TableName() string {
 	return "vote"
 }
 
-func InitVoteTables(db *gorm.DB) {
+func InitVoteTable(db *gorm.DB) {
 	if !db.Migrator().HasTable(&Vote{}) {
 		err := db.Migrator().CreateTable(&Vote{})
 		if err != nil {

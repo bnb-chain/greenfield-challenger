@@ -40,7 +40,7 @@ func (s *blockSuite) TearDownTest() {
 	s.Require().NoError(err)
 }
 
-func (s *blockSuite) TestBlockDao_GetLatestBlock() {
+func (s *blockSuite) TestGetLatestBlock() {
 	block1 := &model.Block{
 		Height:    100,
 		BlockTime: 1000,
