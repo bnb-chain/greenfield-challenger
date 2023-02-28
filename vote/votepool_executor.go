@@ -15,10 +15,10 @@ import (
 type VotePoolExecutor struct {
 	client           *client.Client
 	config           *config.Config
-	greenfieldClient *rpc.GreenfieldChallengerClient
+	greenfieldClient *rpc.ChallengerClient
 }
 
-func NewVotePoolExecutor(cfg *config.Config, greenfieldClient *rpc.GreenfieldChallengerClient) *VotePoolExecutor {
+func NewVotePoolExecutor(cfg *config.Config, greenfieldClient *rpc.ChallengerClient) *VotePoolExecutor {
 	cli, err := client.New(cfg.VotePoolConfig.RPCAddr)
 	if err != nil {
 		panic(err)
