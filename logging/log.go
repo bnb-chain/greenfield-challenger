@@ -1,8 +1,9 @@
-package common
+package logging
 
 import (
-	"github.com/gnfd-challenger/config"
 	"os"
+
+	"github.com/bnb-chain/gnfd-challenger/config"
 
 	"github.com/op/go-logging"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -10,7 +11,7 @@ import (
 
 var (
 	// Logger instance for quick declarative logging levels
-	Logger = logging.MustGetLogger("inscription-relayer")
+	Logger = logging.MustGetLogger("inscription-challenger")
 	// log levels that are available
 	levels = map[string]logging.Level{
 		"CRITICAL": logging.CRITICAL,
