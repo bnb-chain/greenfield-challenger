@@ -70,7 +70,7 @@ func NewRpcClient(addr string) *http.HTTP {
 	return rpcClient
 }
 
-func getGreenfieldPrivateKey(cfg *config.GreenfieldConfig) *ethsecp256k1.PrivKey {
+func getPrivateKey(cfg *config.GreenfieldConfig) *ethsecp256k1.PrivKey {
 	var privateKey string
 	if cfg.KeyType == config.KeyTypeAWSPrivateKey {
 		result, err := config.GetSecret(cfg.AWSSecretName, cfg.AWSRegion)
@@ -96,12 +96,12 @@ func getGreenfieldPrivateKey(cfg *config.GreenfieldConfig) *ethsecp256k1.PrivKey
 	return privKey
 }
 
-func initGreenfieldClients(rpcAddrs, grpcAddrs []string) []*ExecutorClient {
-	greenfieldClients := make([]*ExecutorClient, 0)
+func initClients(rpcAddrs, grpcAddrs []string) []*ExecutorClient {
+	clients := make([]*ExecutorClient, 0)
 
 	for i := 0; i < len(rpcAddrs); i++ {
 		conn := grpcConn(grpcAddrs[i])
-		greenfieldClients = append(greenfieldClients, &ExecutorClient{
+		clients = append(clients, &ExecutorClient{
 			txClient:   tx.NewServiceClient(conn),
 			authClient: authtypes.NewQueryClient(conn),
 			rpcClient:  NewRpcClient(rpcAddrs[i]),
@@ -109,14 +109,14 @@ func initGreenfieldClients(rpcAddrs, grpcAddrs []string) []*ExecutorClient {
 			UpdatedAt:  time.Now(),
 		})
 	}
-	return greenfieldClients
+	return clients
 }
 
-func NewGreenfieldExecutor(cfg *config.Config) *Executor {
-	privKey := getGreenfieldPrivateKey(&cfg.GreenfieldConfig)
+func NewExecutor(cfg *config.Config) *Executor {
+	privKey := getPrivateKey(&cfg.GreenfieldConfig)
 	return &Executor{
 		clientIdx:         0,
-		greenfieldClients: initGreenfieldClients(cfg.GreenfieldConfig.RPCAddrs, cfg.GreenfieldConfig.GRPCAddrs),
+		greenfieldClients: initClients(cfg.GreenfieldConfig.RPCAddrs, cfg.GreenfieldConfig.GRPCAddrs),
 		privateKey:        privKey,
 		address:           privKey.PubKey().Address().String(),
 		config:            cfg,
@@ -219,27 +219,6 @@ func (e *Executor) UpdateClientLoop() {
 			e.mutex.Unlock()
 		}
 	}
-}
-
-func (e *Executor) QueryTendermintLightBlock(height int64) ([]byte, error) {
-	validators, err := e.getRpcClient().Validators(context.Background(), &height, nil, nil)
-	commit, err := e.getRpcClient().Commit(context.Background(), &height)
-	if err != nil {
-		return nil, err
-	}
-	validatorSet := tmtypes.NewValidatorSet(validators.Validators)
-	if err != nil {
-		return nil, err
-	}
-	lightBlock := tmtypes.LightBlock{
-		SignedHeader: &commit.SignedHeader,
-		ValidatorSet: validatorSet,
-	}
-	protoBlock, err := lightBlock.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	return protoBlock.Marshal()
 }
 
 func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {

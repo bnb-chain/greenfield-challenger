@@ -9,7 +9,7 @@ type BlockDao struct {
 	DB *gorm.DB
 }
 
-func NewGreenfieldBlockDao(db *gorm.DB) *BlockDao {
+func NewBlockDao(db *gorm.DB) *BlockDao {
 	return &BlockDao{
 		DB: db,
 	}

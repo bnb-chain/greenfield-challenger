@@ -21,7 +21,7 @@ func (*Event) TableName() string {
 	return "event"
 }
 
-func InitEventTables(db *gorm.DB) {
+func InitEventTable(db *gorm.DB) {
 	if !db.Migrator().HasTable(&Event{}) {
 		err := db.Migrator().CreateTable(&Event{})
 		if err != nil {

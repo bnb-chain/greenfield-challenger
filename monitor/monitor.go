@@ -13,26 +13,20 @@ import (
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"gorm.io/gorm"
 )
 
 type Monitor struct {
-	client.Client
-	daoManager dao.DaoManager
-	executor   executor.Executor
+	executor   *executor.Executor
+	daoManager *dao.DaoManager
 }
 
-func NewMonitor(c client.Client, daoManager dao.DaoManager) *Monitor {
+func NewMonitor(executor *executor.Executor, daoManager *dao.DaoManager) *Monitor {
 	return &Monitor{
-		Client:     c,
+		executor:   executor,
 		daoManager: daoManager,
 	}
-}
-
-func (m Monitor) Start() {
-
 }
 
 func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) []*challengetypes.EventStartChallenge {
@@ -56,7 +50,7 @@ func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) []*challengety
 }
 
 func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChallenge {
-	if event.Type == "bnbchain.greenfield.sp.Event" {
+	if event.Type == "bnbchain.greenfield.challenge.EventStartChallenge" {
 		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress := "", "", "", "", ""
 		for _, attr := range event.Attributes {
 			if string(attr.Key) == "challenge_id" {
@@ -71,10 +65,22 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 				spOpAddress = strings.Trim(string(attr.Value), `"`)
 			}
 		}
-		challengeId, _ := strconv.ParseInt(challengeIdStr, 10, 64)
-		objectId, _ := strconv.ParseInt(objectIdStr, 10, 64)
-		redundancyIndex, _ := strconv.ParseInt(redundancyIndexStr, 10, 32)
-		segmentIndex, _ := strconv.ParseInt(segmentIndexStr, 10, 32)
+		challengeId, err := strconv.ParseInt(challengeIdStr, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		objectId, err := strconv.ParseInt(objectIdStr, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		redundancyIndex, err := strconv.ParseInt(redundancyIndexStr, 10, 32)
+		if err != nil {
+			panic(err)
+		}
+		segmentIndex, err := strconv.ParseInt(segmentIndexStr, 10, 32)
+		if err != nil {
+			panic(err)
+		}
 		return &challengetypes.EventStartChallenge{
 			ChallengeId:       uint64(challengeId),
 			ObjectId:          uint64(objectId),
@@ -86,9 +92,9 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 	return nil
 }
 
-func (l *Monitor) StartLoop() {
+func (m *Monitor) StartLoop() {
 	for {
-		err := l.poll()
+		err := m.poll()
 		if err != nil {
 			time.Sleep(common.RetryInterval)
 			continue
@@ -96,71 +102,66 @@ func (l *Monitor) StartLoop() {
 	}
 }
 
-func (l *Monitor) poll() error {
-	nextHeight, err := l.calNextHeight()
+func (m *Monitor) poll() error {
+	nextHeight, err := m.calNextHeight()
 	if err != nil {
 		return err
 	}
-	blockResults, block, err := l.getBlockAndBlockResult(nextHeight)
+	blockResults, block, err := m.getBlockAndBlockResult(nextHeight)
 	if err != nil {
 		return err
 	}
-	if err = l.monitorChallengeEvents(block, blockResults); err != nil {
+	if err = m.monitorChallengeEvents(block, blockResults); err != nil {
 		logging.Logger.Errorf("encounter error when monitor cross-chain events at blockHeight=%d, err=%s", nextHeight, err.Error())
 		return err
 	}
 	return nil
 }
 
-func (l *Monitor) getLatestPolledBlock() (*model.Block, error) {
-	block, err := l.daoManager.GetLatestBlock()
+func (m *Monitor) getLatestPolledBlock() (*model.Block, error) {
+	block, err := m.daoManager.GetLatestBlock()
 	if err != nil {
 		return nil, err
 	}
 	return block, nil
 }
 
-func (l *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResults, *tmtypes.Block, error) {
+func (m *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResults, *tmtypes.Block, error) {
 	logging.Logger.Infof("retrieve greenfield block at height=%d", height)
-	blockResults, err := l.executor.GetBlockResultAtHeight(int64(height))
+	blockResults, err := m.executor.GetBlockResultAtHeight(int64(height))
 	if err != nil {
 		return nil, nil, err
 	}
-	block, err := l.executor.GetBlockAtHeight(int64(height))
+	block, err := m.executor.GetBlockAtHeight(int64(height))
 	if err != nil {
 		return nil, nil, err
 	}
 	return blockResults, block, nil
 }
 
-func (l *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *ctypes.ResultBlockResults) error {
-	events := l.parseEvents(blockResults)
-
+func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *ctypes.ResultBlockResults) error {
+	events := m.parseEvents(blockResults)
 	b := &model.Block{
 		Height:    uint64(block.Height),
 		BlockTime: block.Time.Unix(),
 	}
-	return l.daoManager.SaveBlockAndEvents(b, EntitiesToDtos(uint64(block.Height), events))
+	return m.daoManager.SaveBlockAndEvents(b, EntitiesToDtos(uint64(block.Height), events))
 }
 
-func (l *Monitor) calNextHeight() (uint64, error) {
-	latestPolledBlock, err := l.getLatestPolledBlock()
+func (m *Monitor) calNextHeight() (uint64, error) {
+	latestPolledBlock, err := m.getLatestPolledBlock()
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logging.Logger.Errorf("failed to get latest block from db, error: %s", err.Error())
 		return 0, err
 	}
-	nextHeight := latestPolledBlock.Height
+	nextHeight := latestPolledBlock.Height + 1
 
-	if nextHeight == 0 {
-		nextHeight = 1
-	}
-
-	latestBlockHeight, err := l.executor.GetLatestBlockHeightWithRetry()
+	latestBlockHeight, err := m.executor.GetLatestBlockHeightWithRetry()
 	if err != nil {
 		logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 		return 0, err
 	}
-	// pauses relayer for a bit since it already caught the newest block
+	// pauses challenger for a bit since it already caught the newest block
 	if int64(nextHeight) == int64(latestBlockHeight) {
 		time.Sleep(common.RetryInterval)
 		return nextHeight, nil
