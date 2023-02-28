@@ -3,7 +3,7 @@ package logging
 import (
 	"os"
 
-	"github.com/bnb-chain/greenfield-challenger/config"
+	"github.com/bnb-chain/gnfd-challenger/config"
 
 	"github.com/op/go-logging"
 	"gopkg.in/natefinch/lumberjack.v2"

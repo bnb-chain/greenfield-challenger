@@ -6,76 +6,75 @@ import (
 	"encoding/json"
 	_ "encoding/json"
 	"fmt"
-	"net/url"
 	"sync"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
-	"github.com/tendermint/tendermint/votepool"
+	"github.com/bnb-chain/gnfd-challenger/common"
+	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/gnfd-challenger/logging"
+	"github.com/cosmos/cosmos-sdk/codec"
 
-	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/logging"
-	sdkclient "github.com/bnb-chain/greenfield-go-sdk/client/chain"
-	sdkkeys "github.com/bnb-chain/greenfield-go-sdk/keys"
-	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
-	sptypes "github.com/bnb-chain/greenfield/x/sp/types"
-	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/tendermint/tendermint/rpc/client"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/avast/retry-go/v4"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	libclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type ExecutorClient struct {
+	rpcClient  rpcclient.Client
+	txClient   tx.ServiceClient
+	authClient authtypes.QueryClient
+	Provider   string
+	Height     uint64
+	UpdatedAt  time.Time
+}
+
 type Executor struct {
-	gnfdClients *sdkclient.GnfdCompositeClients
-	spClient    *sp.SPClient
-	config      *config.Config
-	address     string
-
-	mtx                 sync.RWMutex
-	validators          []*tmtypes.Validator // used to cache validators
-	heartbeatInterval   uint64               // used to save challenge heartbeat interval
-	attestedChallengeId uint64               // used to save the last attested challenge id
+	mutex             sync.RWMutex
+	clientIdx         int
+	greenfieldClients []*ExecutorClient
+	config            *config.Config
+	privateKey        *ethsecp256k1.PrivKey
+	address           string
+	validators        []*tmtypes.Validator // used to cache validators
+	cdc               *codec.ProtoCodec
 }
 
-func NewExecutor(cfg *config.Config) *Executor {
-	privKey := getGreenfieldPrivateKey(&cfg.GreenfieldConfig)
-
-	km, err := sdkkeys.NewPrivateKeyManager(privKey)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to initiate with a key manager, err=%s", err.Error())
-		panic(err)
-	}
-
-	clients := sdkclient.NewGnfdCompositClients(
-		cfg.GreenfieldConfig.GRPCAddrs,
-		cfg.GreenfieldConfig.RPCAddrs,
-		cfg.GreenfieldConfig.ChainIdString,
-		sdkclient.WithKeyManager(km),
-		sdkclient.WithGrpcDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+func grpcConn(addr string) *grpc.ClientConn {
+	conn, err := grpc.Dial(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
-	spClient, err := sp.NewSpClient("127.0.0.1", sp.WithKeyManager(km))
 	if err != nil {
 		panic(err)
 	}
-	return &Executor{
-		gnfdClients: clients,
-		spClient:    spClient,
-		address:     km.GetAddr().String(),
-		config:      cfg,
-	}
+	return conn
 }
 
-func getGreenfieldPrivateKey(cfg *config.GreenfieldConfig) string {
+func NewRpcClient(addr string) *http.HTTP {
+	httpClient, err := libclient.DefaultHTTPClient(addr)
+	if err != nil {
+		panic(err)
+	}
+	rpcClient, err := http.NewWithClient(addr, "/websocket", httpClient)
+	if err != nil {
+		panic(err)
+	}
+	return rpcClient
+}
+
+func getGreenfieldPrivateKey(cfg *config.GreenfieldConfig) *ethsecp256k1.PrivKey {
 	var privateKey string
 	if cfg.KeyType == config.KeyTypeAWSPrivateKey {
 		result, err := config.GetSecret(cfg.AWSSecretName, cfg.AWSRegion)
 		if err != nil {
-			logging.Logger.Errorf("failed to get aws secret from config file, err=%s", err.Error())
 			panic(err)
 		}
 		type AwsPrivateKey struct {
@@ -84,88 +83,187 @@ func getGreenfieldPrivateKey(cfg *config.GreenfieldConfig) string {
 		var awsPrivateKey AwsPrivateKey
 		err = json.Unmarshal([]byte(result), &awsPrivateKey)
 		if err != nil {
-			logging.Logger.Errorf("failed to unmarshal aws private key, err=%s", err.Error())
 			panic(err)
 		}
 		privateKey = awsPrivateKey.PrivateKey
 	} else {
 		privateKey = cfg.PrivateKey
 	}
-	return privateKey
+	privKey, err := HexToEthSecp256k1PrivKey(privateKey)
+	if err != nil {
+		panic(err)
+	}
+	return privKey
 }
 
-func (e *Executor) getRpcClient() (client.Client, error) {
-	client, err := e.gnfdClients.GetClient()
+func initGreenfieldClients(rpcAddrs, grpcAddrs []string) []*ExecutorClient {
+	greenfieldClients := make([]*ExecutorClient, 0)
+
+	for i := 0; i < len(rpcAddrs); i++ {
+		conn := grpcConn(grpcAddrs[i])
+		greenfieldClients = append(greenfieldClients, &ExecutorClient{
+			txClient:   tx.NewServiceClient(conn),
+			authClient: authtypes.NewQueryClient(conn),
+			rpcClient:  NewRpcClient(rpcAddrs[i]),
+			Provider:   rpcAddrs[i],
+			UpdatedAt:  time.Now(),
+		})
+	}
+	return greenfieldClients
+}
+
+func NewGreenfieldExecutor(cfg *config.Config) *Executor {
+	privKey := getGreenfieldPrivateKey(&cfg.GreenfieldConfig)
+	return &Executor{
+		clientIdx:         0,
+		greenfieldClients: initGreenfieldClients(cfg.GreenfieldConfig.RPCAddrs, cfg.GreenfieldConfig.GRPCAddrs),
+		privateKey:        privKey,
+		address:           privKey.PubKey().Address().String(),
+		config:            cfg,
+		cdc:               Cdc(),
+	}
+}
+
+func (e *Executor) getRpcClient() rpcclient.Client {
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
+	return e.greenfieldClients[e.clientIdx].rpcClient
+}
+
+func (e *Executor) getTxClient() tx.ServiceClient {
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
+	return e.greenfieldClients[e.clientIdx].txClient
+}
+
+func (e *Executor) getAuthClient() authtypes.QueryClient {
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
+	return e.greenfieldClients[e.clientIdx].authClient
+}
+
+func (e *Executor) GetBlockResultAtHeight(height int64) (*ctypes.ResultBlockResults, error) {
+	blockResults, err := e.getRpcClient().BlockResults(context.Background(), &height)
 	if err != nil {
-		logging.Logger.Errorf("executor failed to get rpc client, err=%s", err.Error())
 		return nil, err
 	}
-	return client.TendermintClient.RpcClient.TmClient, nil
+	return blockResults, nil
 }
 
-func (e *Executor) getGnfdClient() (*sdkclient.GreenfieldClient, error) {
-	client, err := e.gnfdClients.GetClient()
+func (e *Executor) GetBlockAtHeight(height int64) (*tmtypes.Block, error) {
+	block, err := e.getRpcClient().Block(context.Background(), &height)
 	if err != nil {
-		logging.Logger.Errorf("executor failed to get greenfield client, err=%s", err.Error())
 		return nil, err
 	}
-	return client.GreenfieldClient, nil
+	return block.Block, nil
 }
 
-func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block, *ctypes.ResultBlockResults, error) {
-	client, err := e.getRpcClient()
-	if err != nil {
-		return nil, nil, err
-	}
-	block, err := client.Block(context.Background(), &height)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get block at height %d, err=%s", height, err.Error())
-		return nil, nil, err
-	}
-	blockResults, err := client.BlockResults(context.Background(), &height)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get block results at height %d, err=%s", height, err.Error())
-		return nil, nil, err
-	}
-	return block.Block, blockResults, nil
+func (e *Executor) GetLatestBlockHeightWithRetry() (latestHeight uint64, err error) {
+	return e.getLatestBlockHeightWithRetry(e.getRpcClient())
 }
 
-func (e *Executor) GetLatestBlockHeight() (latestHeight uint64, err error) {
-	client, err := e.gnfdClients.GetClient()
+func (e *Executor) getLatestBlockHeightWithRetry(client rpcclient.Client) (latestHeight uint64, err error) {
+	return latestHeight, retry.Do(func() error {
+		latestHeightQueryCtx, cancelLatestHeightQueryCtx := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelLatestHeightQueryCtx()
+		var err error
+		latestHeight, err = e.getLatestBlockHeight(latestHeightQueryCtx, client)
+		return err
+	}, common.RtyAttem,
+		common.RtyDelay,
+		common.RtyErr,
+		retry.OnRetry(func(n uint, err error) {
+			logging.Logger.Infof("failed to query latest height, attempt: %d times, max_attempts: %d", n+1, common.RtyAttem)
+		}))
+}
+
+func (e *Executor) getLatestBlockHeight(ctx context.Context, client rpcclient.Client) (uint64, error) {
+	status, err := client.Status(ctx)
 	if err != nil {
-		logging.Logger.Errorf("executor failed to get greenfield clients, err=%s", err.Error())
 		return 0, err
 	}
-	return uint64(client.Height), nil
+	return uint64(status.SyncInfo.LatestBlockHeight), nil
+}
+
+func (e *Executor) UpdateClientLoop() {
+	ticker := time.NewTicker(SleepSecondForUpdateClient * time.Second)
+	for range ticker.C {
+		logging.Logger.Infof("start to monitor greenfield data-seeds healthy")
+		for _, greenfieldClient := range e.greenfieldClients {
+			if time.Since(greenfieldClient.UpdatedAt).Seconds() > DataSeedDenyServiceThreshold {
+				msg := fmt.Sprintf("data seed %s is not accessable", greenfieldClient.Provider)
+				logging.Logger.Error(msg)
+				//config.SendTelegramMessage(e.config.AlertConfig.Identity, e.config.AlertConfig.TelegramBotId,
+				//	e.config.AlertConfig.TelegramChatId, msg)
+			}
+			height, err := e.getLatestBlockHeightWithRetry(greenfieldClient.rpcClient)
+			if err != nil {
+				logging.Logger.Errorf("get latest block height error, err=%s", err.Error())
+				continue
+			}
+			greenfieldClient.Height = height
+			greenfieldClient.UpdatedAt = time.Now()
+		}
+		highestHeight := uint64(0)
+		highestIdx := 0
+		for idx := 0; idx < len(e.greenfieldClients); idx++ {
+			if e.greenfieldClients[idx].Height > highestHeight {
+				highestHeight = e.greenfieldClients[idx].Height
+				highestIdx = idx
+			}
+		}
+		// current ExecutorClient block sync is fall behind, switch to the ExecutorClient with the highest block height
+		if e.greenfieldClients[e.clientIdx].Height+FallBehindThreshold < highestHeight {
+			e.mutex.Lock()
+			e.clientIdx = highestIdx
+			e.mutex.Unlock()
+		}
+	}
+}
+
+func (e *Executor) QueryTendermintLightBlock(height int64) ([]byte, error) {
+	validators, err := e.getRpcClient().Validators(context.Background(), &height, nil, nil)
+	commit, err := e.getRpcClient().Commit(context.Background(), &height)
+	if err != nil {
+		return nil, err
+	}
+	validatorSet := tmtypes.NewValidatorSet(validators.Validators)
+	if err != nil {
+		return nil, err
+	}
+	lightBlock := tmtypes.LightBlock{
+		SignedHeader: &commit.SignedHeader,
+		ValidatorSet: validatorSet,
+	}
+	protoBlock, err := lightBlock.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	return protoBlock.Marshal()
 }
 
 func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {
-	client, err := e.getRpcClient()
+	validators, err := e.getRpcClient().Validators(context.Background(), nil, nil, nil)
 	if err != nil {
-		return nil, err
-	}
-	validators, err := client.Validators(context.Background(), nil, nil, nil)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to query the latest validators, err=%s", err.Error())
 		return nil, err
 	}
 	return validators.Validators, nil
 }
 
+func (e *Executor) QueryValidatorsAtHeight(height uint64) ([]*tmtypes.Validator, error) {
+	atHeight := int64(height)
+	validators, err := e.getRpcClient().Validators(context.Background(), &atHeight, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return validators.Validators, nil
+
+}
+
 func (e *Executor) QueryCachedLatestValidators() ([]*tmtypes.Validator, error) {
-	result := make([]*tmtypes.Validator, 0)
-
-	e.mtx.RLock()
-	for i, p := range e.validators {
-		v := *p
-		result[i] = &v
+	if len(e.validators) != 0 {
+		return e.validators, nil
 	}
-	e.mtx.RUnlock()
-
-	if len(result) != 0 {
-		return result, nil
-	}
-
 	validators, err := e.queryLatestValidators()
 	if err != nil {
 		return nil, err
@@ -173,7 +271,7 @@ func (e *Executor) QueryCachedLatestValidators() ([]*tmtypes.Validator, error) {
 	return validators, nil
 }
 
-func (e *Executor) CacheValidatorsLoop() {
+func (e *Executor) UpdateCachedLatestValidatorsLoop() {
 	ticker := time.NewTicker(UpdateCachedValidatorsInterval)
 	for range ticker.C {
 		validators, err := e.queryLatestValidators()
@@ -181,9 +279,7 @@ func (e *Executor) CacheValidatorsLoop() {
 			logging.Logger.Errorf("update latest greenfield validators error, err=%s", err)
 			continue
 		}
-		e.mtx.Lock()
 		e.validators = validators
-		e.mtx.Unlock()
 	}
 }
 
@@ -199,219 +295,14 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 	return keys, nil
 }
 
-func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress string,
-	voteResult challangetypes.VoteResult, challenger string,
-	voteAddressSet []uint64, aggregatedSig []byte,
-) (string, error) {
-	gnfdClient, err := e.getGnfdClient()
-	if err != nil {
-		return "", err
-	}
-
-	acc, err := sdk.AccAddressFromHexUnsafe(e.address)
-	if err != nil {
-		logging.Logger.Errorf("error converting addr from hex unsafe when sending attest tx, err=%s", err.Error())
-		return "", err
-	}
-
-	msgAttest := challangetypes.NewMsgAttest(
-		acc,
-		challengeId,
-		sdkmath.NewUintFromString(objectId),
-		spOperatorAddress,
-		challangetypes.VoteResult(voteResult),
-		challenger,
-		voteAddressSet,
-		aggregatedSig,
-	)
-
-	txRes, err := gnfdClient.BroadcastTx(
-		[]sdk.Msg{msgAttest},
-		nil,
-	)
-	if err != nil {
-		logging.Logger.Errorf("error broadcasting msg attest, err=%s", err.Error())
-		return "", err
-	}
-	if txRes.TxResponse.Code != 0 {
-		return "", fmt.Errorf("tx error, code=%d, log=%s", txRes.TxResponse.Code, txRes.TxResponse.RawLog)
-	}
-	return txRes.TxResponse.TxHash, nil
-}
-
-func (e *Executor) queryLatestAttestedChallengeId() (uint64, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return 0, err
-	}
-
-	res, err := client.ChallengeQueryClient.LatestAttestedChallenge(context.Background(), &challangetypes.QueryLatestAttestedChallengeRequest{})
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get latest attested challenge, err=%s", err.Error())
-		return 0, err
-	}
-
-	return res.ChallengeId, nil
-}
-
-func (e *Executor) QueryLatestAttestedChallengeId() (uint64, error) {
-	challengeId := uint64(0)
-
-	e.mtx.RLock()
-	challengeId = e.attestedChallengeId
-	e.mtx.Unlock()
-
-	if challengeId != 0 {
-		return challengeId, nil
-	}
-	challengeId, err := e.queryLatestAttestedChallengeId()
-	if err != nil {
-		return 0, err
-	}
-	return challengeId, nil
-}
-
-func (e *Executor) UpdateAttestedChallengeIdLoop() {
-	ticker := time.NewTicker(QueryAttestedChallengeInterval)
-	for range ticker.C {
-		challengeId, err := e.queryLatestAttestedChallengeId()
-		if err != nil {
-			logging.Logger.Errorf("update latest attested challenge error, err=%s", err)
-			continue
-		}
-		e.mtx.Lock()
-		e.attestedChallengeId = challengeId
-		e.mtx.Unlock()
-	}
-}
-
-func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return 0, err
-	}
-
-	res, err := client.ChallengeQueryClient.Params(context.Background(), &challangetypes.QueryParamsRequest{})
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get latest heartbeat interval, err=%s", err.Error())
-		return 0, err
-	}
-
-	return res.Params.HeartbeatInterval, nil
-}
-
-func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
-	heartbeatInterval := uint64(0)
-
-	e.mtx.RLock()
-	heartbeatInterval = e.heartbeatInterval
-	e.mtx.Unlock()
-
-	if heartbeatInterval != 0 {
-		return heartbeatInterval, nil
-	}
-	heartbeatInterval, err := e.queryChallengeHeartbeatInterval()
-	if err != nil {
-		return 0, err
-	}
-	return heartbeatInterval, nil
-}
-
-func (e *Executor) UpdateHeartbeatIntervalLoop() {
-	ticker := time.NewTicker(QueryHeartbeatIntervalInterval)
-	for range ticker.C {
-		heartbeatInterval, err := e.queryChallengeHeartbeatInterval()
-		if err != nil {
-			logging.Logger.Errorf("update latest heartbeat interval error, err=%s", err)
-			continue
-		}
-		e.mtx.Lock()
-		e.heartbeatInterval = heartbeatInterval
-		e.mtx.Unlock()
-	}
-}
-
-func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return "", err
-	}
-
-	res, err := client.SpQueryClient.StorageProvider(context.Background(), &sptypes.QueryStorageProviderRequest{SpAddress: address})
-	if err != nil {
-		logging.Logger.Errorf("executor failed to query storage provider %s, err=%s", address, err.Error())
-		return "", err
-	}
-
-	return res.StorageProvider.Endpoint, nil
-}
-
-func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
-	client, err := e.gnfdClients.GetClient()
+func (e *Executor) GetAccount(address string) (authtypes.AccountI, error) {
+	authRes, err := e.getAuthClient().Account(context.Background(), &authtypes.QueryAccountRequest{Address: address})
 	if err != nil {
 		return nil, err
 	}
-
-	headObjQueryReq := storagetypes.QueryHeadObjectByIdRequest{ObjectId: objectId}
-	res, err := client.StorageQueryClient.HeadObjectById(context.Background(), &headObjQueryReq)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to query storage client for objectId %s, err=%s", objectId, err.Error())
+	var account authtypes.AccountI
+	if err := e.cdc.InterfaceRegistry().UnpackAny(authRes.Account, &account); err != nil {
 		return nil, err
 	}
-	return res.ObjectInfo.Checksums, nil
-}
-
-func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, segmentIndex, redundancyIndex int) (*sp.ChallengeResult, error) {
-	spUrl, err := url.Parse(endpoint)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to parse sp url %s, err=%s", endpoint, err.Error())
-		return nil, err
-	}
-	e.spClient.SetUrl(spUrl)
-
-	challengeInfo := sp.ChallengeInfo{
-		ObjectId:        objectId,
-		PieceIndex:      segmentIndex,
-		RedundancyIndex: redundancyIndex,
-	}
-	authInfo := sp.NewAuthInfo(false, "") // TODO: fill auth info when sp api is ready
-	challengeRes, err := e.spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to query challenge result info from sp client for objectId %s, err=%s", objectId, err.Error())
-		return nil, err
-	}
-	return &challengeRes, nil
-}
-
-func (e *Executor) QueryVotes(eventHash []byte, eventType votepool.EventType) ([]*votepool.Vote, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return nil, err
-	}
-
-	queryMap := make(map[string]interface{})
-	queryMap[VotePoolQueryParameterEventType] = int(eventType)
-	queryMap[VotePoolQueryParameterEventHash] = eventHash
-	var queryVote coretypes.ResultQueryVote
-	_, err = client.JsonRpcClient.Call(context.Background(), VotePoolQueryMethodName, queryMap, &queryVote)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to query votes for event hash %s event type %s, err=%s", string(eventHash), string(eventType), err.Error())
-		return nil, err
-	}
-	return queryVote.Votes, nil
-}
-
-func (e *Executor) BroadcastVote(v *votepool.Vote) error {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return err
-	}
-	broadcastMap := make(map[string]interface{})
-	broadcastMap[VotePoolBroadcastParameterKey] = *v
-	_, err = client.JsonRpcClient.Call(context.Background(), VotePoolBroadcastMethodName, broadcastMap, &ctypes.ResultBroadcastVote{})
-	if err != nil {
-		logging.Logger.Errorf("executor failed to broadcast vote to votepool for event hash %s event type %s, err=%s", string(v.EventHash), string(v.EventType), err.Error())
-		return err
-	}
-	return nil
+	return account, nil
 }

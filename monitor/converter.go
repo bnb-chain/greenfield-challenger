@@ -1,24 +1,20 @@
 package monitor
 
 import (
-	"time"
-
-	"github.com/bnb-chain/greenfield-challenger/db/model"
+	"github.com/bnb-chain/gnfd-challenger/db/model"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 )
 
 func EntityToDto(height uint64, from *challengetypes.EventStartChallenge) *model.Event {
 	to := model.Event{
+		Id:                0,
 		ChallengeId:       from.ChallengeId,
-		ObjectId:          from.ObjectId.String(),
+		ObjectId:          from.ObjectId,
 		SegmentIndex:      from.SegmentIndex,
 		SpOperatorAddress: from.SpOperatorAddress,
 		RedundancyIndex:   from.RedundancyIndex,
-		ChallengerAddress: from.ChallengerAddress,
 		Height:            height,
-		Status:            model.Unprocessed,
-		VerifyResult:      model.Unknown,
-		CreatedTime:       time.Now().Unix(),
+		Status:            0,
 	}
 	return &to
 }

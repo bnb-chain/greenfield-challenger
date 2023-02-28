@@ -3,13 +3,15 @@ package rpc
 import (
 	"context"
 	"encoding/hex"
+	"time"
+
 	"github.com/avast/retry-go/v4"
+	"github.com/bnb-chain/gnfd-challenger/common"
+	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/gnfd-challenger/keys"
 	"github.com/bnb-chain/greenfield-go-sdk/client/chain"
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
-	"github.com/gnfd-challenger/common"
-	"github.com/gnfd-challenger/config"
-	"github.com/gnfd-challenger/keys"
 	"github.com/tendermint/tendermint/libs/sync"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
@@ -17,7 +19,6 @@ import (
 	libclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
-	"time"
 )
 
 type GreenfieldChallengerClient struct {

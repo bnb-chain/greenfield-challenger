@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/bnb-chain/greenfield-challenger/app"
-	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/gnfd-challenger/app"
+	"github.com/bnb-chain/gnfd-challenger/config"
+	"github.com/bnb-chain/gnfd-challenger/logging"
 )
 
 const (
@@ -34,8 +34,8 @@ func initFlags() {
 }
 
 func printUsage() {
-	fmt.Print("usage: ./greenfield-challenger --config-type local --config-path configFile\n")
-	fmt.Print("usage: ./greenfield-challenger --config-type aws --aws-region awsRegin --aws-secret-key awsSecretKey\n")
+	fmt.Print("usage: ./greenfield-relayer --config-type local --config-path configFile\n")
+	fmt.Print("usage: ./greenfield-relayer --config-type aws --aws-region awsRegin --aws-secret-key awsSecretKey\n")
 }
 
 func main() {

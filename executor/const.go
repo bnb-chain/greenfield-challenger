@@ -5,14 +5,9 @@ import (
 )
 
 const (
+	FallBehindThreshold            = 5
+	SleepSecondForUpdateClient     = 10
+	DataSeedDenyServiceThreshold   = 60
+	RPCTimeout                     = 3 * time.Second
 	UpdateCachedValidatorsInterval = 1 * time.Minute
-	QueryHeartbeatIntervalInterval = 120 * time.Minute // blockchain challenge heartbeat interval only changed by governance
-	QueryAttestedChallengeInterval = 1 * time.Minute   // query last attested challenge id
-
-	VotePoolBroadcastMethodName   = "broadcast_vote"
-	VotePoolBroadcastParameterKey = "vote"
-
-	VotePoolQueryMethodName         = "query_vote"
-	VotePoolQueryParameterEventType = "event_type"
-	VotePoolQueryParameterEventHash = "event_hash"
 )

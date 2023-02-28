@@ -4,15 +4,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/bnb-chain/greenfield-relayer/config"
+	"strings"
+
+	"github.com/bnb-chain/gnfd-challenger/config"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	ctypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	ethHd "github.com/evmos/ethermint/crypto/hd"
 	"github.com/prysmaticlabs/prysm/crypto/bls/blst"
-
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/go-bip39"

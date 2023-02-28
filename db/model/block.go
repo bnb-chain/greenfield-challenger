@@ -3,14 +3,13 @@ package model
 import "gorm.io/gorm"
 
 type Block struct {
-	Id          int64  `gorm:"NOT NULL"`
-	Height      uint64 `gorm:"NOT NULL;uniqueIndex:idx_height"`
-	BlockTime   int64  `gorm:"NOT NULL"`
-	CreatedTime int64  `gorm:"NOT NULL"`
+	Id        int64
+	Height    uint64 `gorm:"NOT NULL"`
+	BlockTime int64  `gorm:"NOT NULL"`
 }
 
 func (*Block) TableName() string {
-	return "blocks"
+	return "block"
 }
 
 func InitBlockTable(db *gorm.DB) {
