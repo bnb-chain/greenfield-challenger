@@ -25,8 +25,8 @@ func (s *eventSuite) SetupSuite() {
 }
 
 func (s *eventSuite) TearDownSuite() {
-	//err := s.db.StopDB()
-	//s.Require().NoError(err)
+	err := s.db.StopDB()
+	s.Require().NoError(err)
 }
 
 func (s *eventSuite) SetupTest() {
@@ -37,8 +37,8 @@ func (s *eventSuite) SetupTest() {
 }
 
 func (s *eventSuite) TearDownTest() {
-	//err := s.db.ClearDB()
-	//s.Require().NoError(err)
+	err := s.db.ClearDB()
+	s.Require().NoError(err)
 }
 
 func (s *eventSuite) TestSaveBlockAndEvents() {
@@ -54,7 +54,7 @@ func (s *eventSuite) TestSaveBlockAndEvents() {
 		SpOperatorAddress: "sp1",
 		RedundancyIndex:   0,
 		Height:            100,
-		Status:            0,
+		AttestStatus:      0,
 	})
 
 	err := s.dao.SaveBlockAndEvents(block, events)

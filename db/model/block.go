@@ -9,7 +9,7 @@ type Block struct {
 }
 
 func (*Block) TableName() string {
-	return "block"
+	return "blocks"
 }
 
 func InitBlockTable(db *gorm.DB) {

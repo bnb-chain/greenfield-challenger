@@ -2,9 +2,7 @@ package vote
 
 import (
 	"context"
-	"encoding/hex"
 
-	"github.com/bnb-chain/greenfield-challenger/client/rpc"
 	"github.com/bnb-chain/greenfield-challenger/config"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -13,20 +11,18 @@ import (
 )
 
 type VotePoolExecutor struct {
-	client           *client.Client
-	config           *config.Config
-	greenfieldClient *rpc.ChallengerClient
+	client *client.Client
+	config *config.Config
 }
 
-func NewVotePoolExecutor(cfg *config.Config, greenfieldClient *rpc.ChallengerClient) *VotePoolExecutor {
+func NewVotePoolExecutor(cfg *config.Config) *VotePoolExecutor {
 	cli, err := client.New(cfg.VotePoolConfig.RPCAddr)
 	if err != nil {
 		panic(err)
 	}
 	return &VotePoolExecutor{
-		client:           cli,
-		config:           cfg,
-		greenfieldClient: greenfieldClient,
+		client: cli,
+		config: cfg,
 	}
 }
 
@@ -54,14 +50,6 @@ func (e *VotePoolExecutor) BroadcastVote(v *votepool.Vote) error {
 	return nil
 }
 
-func (e *VotePoolExecutor) GetValidatorsBlsPublicKey() ([]string, error) {
-	validators, err := e.greenfieldClient.QueryValidators()
-	if err != nil {
-		return nil, err
-	}
-	var keys []string
-	for _, v := range validators {
-		keys = append(keys, hex.EncodeToString(v.RelayerBlsKey))
-	}
-	return keys, nil
+func (e *VotePoolExecutor) GetBlsPrivateKey() string {
+	return e.config.VotePoolConfig.BlsPrivateKey
 }
