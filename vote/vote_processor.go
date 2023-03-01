@@ -58,13 +58,13 @@ func (p *GreenfieldVoteProcessor) SignAndBroadcast() {
 func (p *GreenfieldVoteProcessor) signAndBroadcast() error {
 	latestBlockHeight, err := p.greenfieldClient.GetLatestBlockHeightWithRetry()
 	if err != nil {
-		gnfdcommon.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
+		logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 		return err
 	}
 
 	lowestHeightSavedEvent, err := p.daoManager.EventDao.GetUnprocessedEventWithLowestHeight()
 	if err != nil {
-		gnfdcommon.Logger.Errorf("failed to get lowest unprocessed event, error: %s", err.Error())
+		logging.Logger.Errorf("failed to get lowest unprocessed event, error: %s", err.Error())
 		return err
 	}
 
@@ -74,7 +74,7 @@ func (p *GreenfieldVoteProcessor) signAndBroadcast() error {
 
 	events, err := p.daoManager.EventDao.GetAllEventsFromHeightWithStatus(lowestHeightSavedEvent.Height, model.Unprocessed)
 	if err != nil {
-		gnfdcommon.Logger.Errorf("error retrieving event with lowest challengeId and status=unprocessed", err.Error())
+		logging.Logger.Errorf("error retrieving event with lowest challengeId and status=unprocessed", err.Error())
 		return err
 	}
 
@@ -133,7 +133,7 @@ func (p *GreenfieldVoteProcessor) collectVotes() error {
 	lowestHeight, err := p.daoManager.EventDao.GetUnprocessedEventWithLowestHeight()
 	events, err := p.daoManager.EventDao.GetAllEventsFromHeightWithStatus(lowestHeight.Height, model.Unprocessed)
 	if err != nil {
-		gnfdcommon.Logger.Errorf("failed to get voted transactions from db, error: %s", err.Error())
+		logging.Logger.Errorf("failed to get voted transactions from db, error: %s", err.Error())
 		return err
 	}
 	for _, event := range events {
@@ -179,7 +179,7 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.E
 
 		queriedVotes, err := p.votePoolExecutor.QueryVotes(localVote.EventHash, votepool.DataAvailabilityChallengeEvent)
 		if err != nil {
-			gnfdcommon.Logger.Errorf("encounter error when query votes. will retry.")
+			logging.Logger.Errorf("encounter error when query votes. will retry.")
 			return err
 		}
 		validVotesCountPerReq := len(queriedVotes)
@@ -191,13 +191,13 @@ func (p *GreenfieldVoteProcessor) queryMoreThanTwoThirdVotesForTx(event *model.E
 
 		for _, v := range queriedVotes {
 			if !p.isVotePubKeyValid(v, validators) {
-				gnfdcommon.Logger.Errorf("vote's pub-key %s does not belong to any validator", hex.EncodeToString(v.PubKey[:]))
+				logging.Logger.Errorf("vote's pub-key %s does not belong to any validator", hex.EncodeToString(v.PubKey[:]))
 				validVotesCountPerReq--
 				continue
 			}
 
 			if err := VerifySignature(v, localVote.EventHash); err != nil {
-				gnfdcommon.Logger.Errorf("verify vote's signature failed,  err=%s", err)
+				logging.Logger.Errorf("verify vote's signature failed,  err=%s", err)
 				validVotesCountPerReq--
 				continue
 			}
@@ -278,7 +278,7 @@ func (p *GreenfieldVoteProcessor) getEventHash(event *model.Event, option model.
 // 5. If 2/3 valid, send MsgAttest
 
 //func (p *GreenfieldVoteProcessor) aggregateVotes(challengeId uint64) error {
-//	event, err := p.daoManager.EventDao.GetEventStartChallengesByChallengeId(challengeId)
+//	event, err := p.daoManager.EventDao.GetEventsByChallengeId(challengeId)
 //	if err != nil {
 //		return err
 //	}

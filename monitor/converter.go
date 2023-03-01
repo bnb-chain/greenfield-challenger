@@ -5,7 +5,7 @@ import (
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 )
 
-func EntityToDto(height uint64, from *challengetypes.EventStartChallenge) *model.Event {
+func EntityToDto(height uint64, from *challengetypes.Event) *model.Event {
 	to := model.Event{
 		Id:                0,
 		ChallengeId:       from.ChallengeId,
@@ -19,7 +19,7 @@ func EntityToDto(height uint64, from *challengetypes.EventStartChallenge) *model
 	return &to
 }
 
-func EntitiesToDtos(height uint64, froms []*challengetypes.EventStartChallenge) []*model.Event {
+func EntitiesToDtos(height uint64, froms []*challengetypes.Event) []*model.Event {
 	tos := make([]*model.Event, 0, len(froms))
 	for _, from := range froms {
 		tos = append(tos, EntityToDto(height, from))
