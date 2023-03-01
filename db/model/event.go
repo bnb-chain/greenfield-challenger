@@ -32,10 +32,15 @@ func InitEventTable(db *gorm.DB) {
 
 type EventStatus uint32
 
+// Unprocessed for events that have not been challenged
+// ProcessedSucceed, ProcessedFailed for challenged events but not voted
+// VotedSucceed, VotedFailed for events that have been challenged AND voted
 const (
-	Unprocessed                 EventStatus = 0
-	EventStatusChallengeSucceed EventStatus = 1
-	EventStatusChallengeFailed  EventStatus = 2
+	Unprocessed      EventStatus = 0
+	ProcessedSucceed EventStatus = 1
+	ProcessedFailed  EventStatus = 2
+	VotedSucceed     EventStatus = 3
+	VotedFailed      EventStatus = 4
 )
 
 func EventStatusToStr(status EventStatus) (string, error) {
@@ -43,10 +48,14 @@ func EventStatusToStr(status EventStatus) (string, error) {
 	case 0:
 		return "Unprocessed", nil
 	case 1:
-		return "EventStatusChallengeSucceed", nil
+		return "ProcessedSucceed", nil
 	case 2:
-		return "EventStatusChallengeFailed", nil
+		return "ProcessedFailed", nil
+	case 3:
+		return "VotedSucceed", nil
+	case 4:
+		return "VotedFailed", nil
 	default:
-		return "", errors.New("invalid event status (0-2)")
+		return "", errors.New("invalid event status (0-4)")
 	}
 }
