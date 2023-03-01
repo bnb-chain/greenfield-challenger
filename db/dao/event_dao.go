@@ -32,7 +32,7 @@ func (d *EventDao) SaveBlockAndEvents(b *model.Block, events []*model.Event) err
 	})
 }
 
-func (db *EventDao) SaveEventStartChallenge(event *model.Event) error {
+func (db *EventDao) SaveEvent(event *model.Event) error {
 	err := db.DB.Create(event).Error
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func (db *EventDao) SaveEventStartChallenge(event *model.Event) error {
 	return nil
 }
 
-func (db *EventDao) SaveAllEventStartChallenges(events []*model.Event) error {
+func (db *EventDao) SaveAllEvents(events []*model.Event) error {
 	err := db.DB.Create(events).Error
 	if err != nil {
 		return err
@@ -49,7 +49,7 @@ func (db *EventDao) SaveAllEventStartChallenges(events []*model.Event) error {
 }
 
 // TODO: Check which methods are required
-func (db *EventDao) GetEventStartChallengeById(id int64) (*model.Event, error) {
+func (db *EventDao) GetEventById(id int64) (*model.Event, error) {
 	var event model.Event
 	err := db.DB.First(&event, id).Error
 	if err != nil {
@@ -58,7 +58,7 @@ func (db *EventDao) GetEventStartChallengeById(id int64) (*model.Event, error) {
 	return &event, nil
 }
 
-func (db *EventDao) GetEventStartChallengesByChallengeId(challengeId uint64) (*model.Event, error) {
+func (db *EventDao) GetEventsByChallengeId(challengeId uint64) (*model.Event, error) {
 	var event model.Event
 	err := db.DB.Where("challenge_id = ?", challengeId).Find(&event).Error
 	if err != nil {
@@ -70,6 +70,18 @@ func (db *EventDao) GetEventStartChallengesByChallengeId(challengeId uint64) (*m
 func (db *EventDao) GetUnprocessedEventWithLowestHeight() (*model.Event, error) {
 	var event model.Event
 	err := db.DB.Where("status = ?", model.Unprocessed).Order("height ASC").Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (db *EventDao) GetUnprocessedEventWithLowestChallengeId() (*model.Event, error) {
+	var event model.Event
+	err := db.DB.Where("status = ?", model.Unprocessed).Order("challenge_id ASC").Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -91,7 +103,7 @@ func (db *EventDao) GetAllEventsFromHeightWithStatus(height uint64, status model
 	return events, nil
 }
 
-func (db *EventDao) GetEventStartChallengeByLowestChallengeId() (*model.Event, error) {
+func (db *EventDao) GetEventByLowestChallengeId() (*model.Event, error) {
 	var challenge model.Event
 	err := db.DB.Order("challenge_id ASC").First(&challenge).Error
 	if err != nil {
@@ -100,7 +112,7 @@ func (db *EventDao) GetEventStartChallengeByLowestChallengeId() (*model.Event, e
 	return &challenge, nil
 }
 
-func (db *EventDao) GetEventStartChallengeByHighestChallengeId() (*model.Event, error) {
+func (db *EventDao) GetEventByHighestChallengeId() (*model.Event, error) {
 	var challenge model.Event
 	err := db.DB.Order("challenge_id DESC").First(&challenge).Error
 	if err != nil {
@@ -109,7 +121,7 @@ func (db *EventDao) GetEventStartChallengeByHighestChallengeId() (*model.Event, 
 	return &challenge, nil
 }
 
-func (db *EventDao) IsEventStartChallengeExist(challengeId uint64) (bool, error) {
+func (db *EventDao) IsEventExist(challengeId uint64) (bool, error) {
 	var count int64
 	err := db.DB.Model(&model.Event{}).Where("challenge_id = ?", challengeId).Count(&count).Error
 	if err != nil {
@@ -118,7 +130,7 @@ func (db *EventDao) IsEventStartChallengeExist(challengeId uint64) (bool, error)
 	return count > 0, nil
 }
 
-func (db *EventDao) UpdateEventStartChallenge(event *model.Event) error {
+func (db *EventDao) UpdateEvent(event *model.Event) error {
 	err := db.DB.Save(event).Error
 	return err
 }
@@ -139,12 +151,12 @@ func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status mo
 	return nil
 }
 
-func (db *EventDao) DeleteEventStartChallenge(event model.Event) error {
+func (db *EventDao) DeleteEvent(event model.Event) error {
 	err := db.DB.Delete(event).Error
 	return err
 }
 
-func (db *EventDao) DeleteEventStartChallengeByChallengeId(challengeId uint64) error {
+func (db *EventDao) DeleteEventByChallengeId(challengeId uint64) error {
 	err := db.DB.Where("challenge_id = ?", challengeId).Delete(&model.Event{}).Error
 	return err
 }
