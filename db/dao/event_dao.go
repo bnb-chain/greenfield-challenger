@@ -32,6 +32,24 @@ func (d *EventDao) SaveBlockAndEvents(b *model.Block, events []*model.Event) err
 	})
 }
 
+func (d *BlockDao) GetLatestHeartbeatEvent(status model.EventStatus) (*model.Event, error) {
+	e := model.Event{}
+	err := d.DB.Where("heartbeat_status = ?", status).Order("challenge_id desc").Take(&e).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	return &e, nil
+}
+
+func (d *BlockDao) GetEarliestHeartbeatEvent(status model.EventStatus) (*model.Event, error) {
+	event := model.Event{}
+	err := d.DB.Where("heartbeat_status = ?", status).Order("challenge_id asc").Find(&event).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	return &event, nil
+}
+
 func (db *EventDao) SaveEvent(event *model.Event) error {
 	err := db.DB.Create(event).Error
 	if err != nil {
@@ -58,9 +76,9 @@ func (db *EventDao) GetEventById(id int64) (*model.Event, error) {
 	return &event, nil
 }
 
-func (db *EventDao) GetEventsByChallengeId(challengeId uint64) (*model.Event, error) {
+func (db *EventDao) GetEventByChallengeId(challengeId uint64) (*model.Event, error) {
 	var event model.Event
-	err := db.DB.Where("challenge_id = ?", challengeId).Find(&event).Error
+	err := db.DB.Where("challenge_id = ?", challengeId).Take(&event).Error
 	if err != nil {
 		return nil, err
 	}
@@ -112,13 +130,13 @@ func (db *EventDao) GetEventByLowestChallengeId() (*model.Event, error) {
 	return &challenge, nil
 }
 
-func (db *EventDao) GetEventByHighestChallengeId() (*model.Event, error) {
-	var challenge model.Event
-	err := db.DB.Order("challenge_id DESC").First(&challenge).Error
+func (db *EventDao) GetLatestEvent() (*model.Event, error) {
+	var event model.Event
+	err := db.DB.Order("challenge_id DESC").First(&event).Error
 	if err != nil {
 		return nil, err
 	}
-	return &challenge, nil
+	return &event, nil
 }
 
 func (db *EventDao) IsEventExist(challengeId uint64) (bool, error) {
@@ -142,7 +160,7 @@ func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status mo
 		return err
 	}
 
-	event.Status = status
+	event.AttestStatus = status
 	err = db.DB.Save(&event).Error
 	if err != nil {
 		return err

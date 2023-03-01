@@ -27,8 +27,8 @@ func DtoToEntity(v *model.Vote) (*votepool.Vote, error) {
 
 func EntityToDto(from *votepool.Vote) *model.Vote {
 	v := model.Vote{
-		PubKey:      from.PubKey[:],
-		Signature:   from.Signature[:],
+		PubKey:      hex.EncodeToString(from.PubKey[:]),
+		Signature:   hex.EncodeToString(from.Signature[:]),
 		EventType:   uint32(from.EventType),
 		EventHash:   from.EventHash,
 		CreatedTime: time.Now().Unix(),
