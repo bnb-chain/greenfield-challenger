@@ -10,7 +10,7 @@ type Tx struct {
 }
 
 func (*Tx) TableName() string {
-	return "tx"
+	return "txs"
 }
 
 func InitTxTable(db *gorm.DB) {

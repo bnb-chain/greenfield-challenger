@@ -50,9 +50,13 @@ func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) (*model.Vote, error
 	return &vote, nil
 }
 
-func (db *VoteDao) IsVoteExist(challengeId uint64) (bool, error) {
+func (db *VoteDao) IsVoteExist(challengeId uint64, pubKey string, kind string) (bool, error) {
 	var count int64
-	err := db.DB.Model(&model.Vote{}).Where("challenge_id = ?", challengeId).Count(&count).Error
+	err := db.DB.Model(&model.Vote{}).
+		Where("challenge_id = ?", challengeId).
+		Where("pub_key = ?", pubKey).
+		Where("kind = ?", kind).
+		Count(&count).Error
 	if err != nil {
 		return false, err
 	}
