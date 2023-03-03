@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	_ "encoding/json"
 	"fmt"
+	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -27,6 +28,7 @@ import (
 
 type Executor struct {
 	gnfdClients *sdkclient.GnfdCompositeClients
+	spClient    *sp.SPClient
 	config      *config.Config
 	address     string
 	validators  []*tmtypes.Validator // used to cache validators
@@ -48,8 +50,10 @@ func NewExecutor(cfg *config.Config) *Executor {
 		sdkclient.WithKeyManager(km),
 		sdkclient.WithGrpcDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
 	)
+	spClient, err := sp.NewSpClient("", sp.WithKeyManager(km))
 	return &Executor{
 		gnfdClients: clients,
+		spClient:    spClient,
 		address:     km.GetAddr().String(),
 		config:      cfg,
 		cdc:         Cdc(),
@@ -92,6 +96,19 @@ func (e *Executor) getGnfdClient() (*sdkclient.GreenfieldClient, error) {
 		return nil, err
 	}
 	return client.GreenfieldClient, nil
+}
+
+func (e *Executor) GetGnfdClient() (*sdkclient.GreenfieldClient, error) {
+	client, err := e.gnfdClients.GetClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.GreenfieldClient, nil
+}
+
+func (e *Executor) GetSPClient() *sp.SPClient {
+	client := e.spClient
+	return client
 }
 
 func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block, *ctypes.ResultBlockResults, error) {
