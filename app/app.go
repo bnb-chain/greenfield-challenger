@@ -2,13 +2,13 @@ package app
 
 import (
 	"fmt"
-
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/monitor"
 	"github.com/bnb-chain/greenfield-challenger/submitter"
+	"github.com/bnb-chain/greenfield-challenger/verifier"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"gorm.io/driver/mysql"
@@ -22,6 +22,7 @@ type App struct {
 	heartbeatSubmitter *submitter.TxSubmitter
 
 	//TODO: verifier
+	hashVerifier *verifier.GreenfieldHashVerifier
 	//TODO: attest
 }
 
@@ -55,10 +56,13 @@ func NewApp(cfg *config.Config) *App {
 	heartbeatSubmitterKind := submitter.NewHeartbeatKind(daoManager, executor)
 	heartbeatSubmitter := submitter.NewTxSubmitter(cfg, executor, votePoolExecutor, heartbeatSubmitterKind)
 
+	hashVerifier := verifier.NewGreenfieldHashVerifier(cfg, daoManager, signer, executor, votePoolExecutor)
+
 	return &App{
 		eventMonitor:       monitor,
 		heartbeatProcessor: heartbeatProcessor,
 		heartbeatSubmitter: heartbeatSubmitter,
+		hashVerifier:       hashVerifier,
 	}
 }
 
@@ -69,4 +73,7 @@ func (a *App) Start() {
 	go a.heartbeatProcessor.SignAndBroadcast()
 	go a.heartbeatProcessor.CollectVotes()
 	a.heartbeatSubmitter.SubmitTransactionLoop()
+
+	// for verifier
+	go a.hashVerifier.VerifyHash()
 }
