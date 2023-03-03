@@ -34,9 +34,6 @@ func InitEventTable(db *gorm.DB) {
 
 type EventStatus int
 
-// Unprocessed for events that have not been challenged
-// ProcessedSucceed, ProcessedFailed for challenged events but not voted
-// VotedSucceed, VotedFailed for events that have been challenged AND voted
 const (
 	Unprocessed              EventStatus = 0 // Event is just stored
 	VerifiedValidChallenge   EventStatus = 1 // Event has been verified, and the challenge is valid
