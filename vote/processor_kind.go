@@ -71,7 +71,7 @@ func (h *Heartbeat) FetchEventForCollectVotes() (*model.Event, error) {
 }
 
 func (h *Heartbeat) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
-	return h.daoManager.UpdateVoteByChallengeId(challengeId, map[string]interface{}{"heartbeat_status": status})
+	return h.daoManager.UpdateEventByChallengeId(challengeId, map[string]interface{}{"heartbeat_status": status})
 }
 
 func (h *Heartbeat) SaveVote(vote *model.Vote) error {

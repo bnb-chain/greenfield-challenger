@@ -9,7 +9,7 @@ import (
 type Vote struct {
 	Id          int64
 	VoteOption  VoteOption `gorm:"NOT NULL"`
-	ChallengeId int64      `gorm:"NOT NULL"`
+	ChallengeId uint64     `gorm:"NOT NULL"`
 	PubKey      string     `gorm:"NOT NULL"`
 	Signature   string     `gorm:"NOT NULL"`
 	EventType   uint32     `gorm:"NOT NULL"`

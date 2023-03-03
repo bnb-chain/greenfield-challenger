@@ -8,6 +8,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/monitor"
+	"github.com/bnb-chain/greenfield-challenger/submitter"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"gorm.io/driver/mysql"
@@ -18,6 +19,7 @@ type App struct {
 	eventMonitor *monitor.Monitor
 
 	heartbeatProcessor *vote.VoteProcessor
+	heartbeatSubmitter *submitter.TxSubmitter
 
 	//TODO: verifier
 	//TODO: attest
@@ -47,12 +49,16 @@ func NewApp(cfg *config.Config) *App {
 	votePoolExecutor := vote.NewVotePoolExecutor(cfg)
 
 	//TODO: config interval
-	heartbeat := vote.NewHeartbeatKind(daoManager, 100)
-	heartbeatProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, votePoolExecutor, heartbeat)
+	heartbeatProcessorKind := vote.NewHeartbeatKind(daoManager, 100)
+	heartbeatProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, votePoolExecutor, heartbeatProcessorKind)
+
+	heartbeatSubmitterKind := submitter.NewHeartbeatKind(daoManager, executor)
+	heartbeatSubmitter := submitter.NewTxSubmitter(cfg, executor, votePoolExecutor, heartbeatSubmitterKind)
 
 	return &App{
 		eventMonitor:       monitor,
 		heartbeatProcessor: heartbeatProcessor,
+		heartbeatSubmitter: heartbeatSubmitter,
 	}
 }
 
@@ -61,5 +67,6 @@ func (a *App) Start() {
 
 	// for heartbeat
 	go a.heartbeatProcessor.SignAndBroadcast()
-	a.heartbeatProcessor.CollectVotes()
+	go a.heartbeatProcessor.CollectVotes()
+	a.heartbeatSubmitter.SubmitTransactionLoop()
 }
