@@ -11,7 +11,6 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
-	"github.com/bnb-chain/greenfield-challenger/keys"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield-common/go/hash"
@@ -20,24 +19,18 @@ import (
 )
 
 type GreenfieldHashVerifier struct {
-	votePoolExecutor *vote.VotePoolExecutor
-	daoManager       *dao.DaoManager
-	config           *config.Config
-	signer           *vote.VoteSigner
-	executor         *executor.Executor
-	blsPublicKey     []byte
+	daoManager *dao.DaoManager
+	config     *config.Config
+	executor   *executor.Executor
 }
 
 func NewGreenfieldHashVerifier(cfg *config.Config, dao *dao.DaoManager, signer *vote.VoteSigner, executor *executor.Executor,
 	votePoolExecutor *vote.VotePoolExecutor,
 ) *GreenfieldHashVerifier {
 	return &GreenfieldHashVerifier{
-		config:           cfg,
-		daoManager:       dao,
-		signer:           signer,
-		executor:         executor,
-		votePoolExecutor: votePoolExecutor,
-		blsPublicKey:     keys.GetBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
+		config:     cfg,
+		daoManager: dao,
+		executor:   executor,
 	}
 }
 
