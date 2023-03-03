@@ -25,13 +25,14 @@ func DtoToEntity(v *model.Vote) (*votepool.Vote, error) {
 	return &res, nil
 }
 
-func EntityToDto(from *votepool.Vote) *model.Vote {
+func EntityToDto(from *votepool.Vote, challengeId uint64) *model.Vote {
 	v := model.Vote{
 		PubKey:      hex.EncodeToString(from.PubKey[:]),
 		Signature:   hex.EncodeToString(from.Signature[:]),
 		EventType:   uint32(from.EventType),
 		EventHash:   from.EventHash,
 		CreatedTime: time.Now().Unix(),
+		ChallengeId: challengeId,
 	}
 	return &v
 }

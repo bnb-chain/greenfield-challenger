@@ -3,6 +3,8 @@ package verifier
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+
 	"github.com/bnb-chain/greenfield-challenger/client/rpc"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -13,7 +15,6 @@ import (
 	"github.com/bnb-chain/greenfield-common/go/hash"
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
-	"io/ioutil"
 )
 
 type GreenfieldHashVerifier struct {
@@ -62,8 +63,8 @@ func (p *GreenfieldHashVerifier) VerifyHash() error {
 	// Call blockchain for storage obj
 	// TODO: Will be changed to use ObjectID instead so will have to wait
 	headObjQueryReq := &storagetypes.QueryHeadObjectRequest{
-		BucketName: ,
-		ObjectName: ,
+		BucketName:,
+		ObjectName:,
 	}
 	storageObj, err := p.greenfieldClient.ChainClient.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
 	if err != nil {

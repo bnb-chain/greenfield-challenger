@@ -86,7 +86,7 @@ func (p *VoteProcessor) signAndBroadcast() error {
 		if err != nil {
 			return err
 		}
-		err = p.SaveVote(EntityToDto(v))
+		err = p.SaveVote(EntityToDto(v, event.ChallengeId))
 		if err != nil {
 			return err
 		}
@@ -125,6 +125,9 @@ func (p *VoteProcessor) prepareEnoughValidVotesForEvent(event *model.Event) erro
 	validators, err := p.executor.QueryCachedLatestValidators()
 	if err != nil {
 		return err
+	}
+	if len(validators) == 1 {
+		return nil
 	}
 	err = p.queryMoreThanTwoThirdVotesForEvent(event, validators)
 	if err != nil {
@@ -190,7 +193,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 				continue
 			}
 			// a vote result persisted into DB should be valid, unique.
-			err = p.SaveVote(EntityToDto(v))
+			err = p.SaveVote(EntityToDto(v, event.ChallengeId))
 			if err != nil {
 				return err
 			}
@@ -199,7 +202,6 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 		validVotesTotalCount += validVotesCountPerReq
 
 		if validVotesTotalCount > len(validators)*2/3 {
-			// Send MsgAttest
 			return nil
 		}
 		if !isLocalVoteIncluded {

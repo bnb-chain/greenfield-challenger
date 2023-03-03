@@ -3,9 +3,10 @@ module github.com/bnb-chain/greenfield-challenger
 go 1.18
 
 require (
+	cosmossdk.io/math v1.0.0-beta.4
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.44.159
-	github.com/bnb-chain/greenfield v0.0.0-20230301071107-5c66b4e5b4ce
+	github.com/bnb-chain/greenfield v0.0.0-20230302095011-c6c98267c4c0
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230227091017-b60c7936a1c6
 	github.com/bnb-chain/greenfield-go-sdk v0.0.5
 	github.com/cosmos/cosmos-sdk v0.46.7
@@ -29,7 +30,6 @@ require (
 
 require (
 	cosmossdk.io/errors v1.0.0-beta.7 // indirect
-	cosmossdk.io/math v1.0.0-beta.4 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
@@ -165,7 +165,8 @@ require (
 )
 
 replace (
-	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.0-20230227082532-1aeebdb079fc
+	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230228075616-68ac309b432c
+	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.0-20230302095011-c6c98267c4c0
 	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.0.7
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
