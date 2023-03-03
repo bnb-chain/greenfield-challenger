@@ -41,13 +41,16 @@ func (db *VoteDao) GetVoteById(id int64) (*model.Vote, error) {
 	return &vote, nil
 }
 
-func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) (*model.Vote, error) {
-	var vote model.Vote
-	err := db.DB.Where("challenge_id = ?", challengeId).Find(&vote).Error
-	if err != nil {
+func (db *VoteDao) GetVotesByChallengeId(challengeId uint64, kind string) ([]*model.Vote, error) {
+	votes := make([]*model.Vote, 0)
+	err := db.DB.
+		Where("challenge_id = ?", challengeId).
+		Where("kind = ?", kind).
+		Find(&votes).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
-	return &vote, nil
+	return votes, nil
 }
 
 func (db *VoteDao) IsVoteExist(challengeId uint64, pubKey string, kind string) (bool, error) {

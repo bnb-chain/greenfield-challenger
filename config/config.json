@@ -9,18 +9,16 @@
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": "1dfddaef3b0bd41471e0e48240e9c4bcf1a3044be469869ff903c6081e8574e9",
+    "private_key": "9f5853f4699b4033ba45fe8aa1a99ec43b9ff78ff134ddfe1e06a01fdcb338e0",
     "number_of_blocks_for_finality": 1,
     "chain_id": 1,
     "start_height": 1,
-    "monitor_channel_list": [1],
-    "gas_limit": 210000,
-    "chain_id_string": "inscription_9000-1"
+    "gas_limit": 100000,
+    "chain_id_string": "greenfield_9000-121"
   },
   "vote_pool_config": {
-    "rpc_addr":
-    "http://127.0.0.1:26750",
-    "bls_private_key": "2b9422da725da69e407b8a3484ae622d28a20b55f1818f3013b34b0edc478c54"
+    "rpc_addr": "http://127.0.0.1:26750",
+    "bls_private_key": "035f32d51efb482e894fae5e470e1b9fa3e0f6700d4cc9a752794a7f689925f2"
   },
   "log_config": {
     "level": "DEBUG",
