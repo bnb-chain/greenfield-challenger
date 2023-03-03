@@ -50,6 +50,11 @@ func (d *BlockDao) GetEarliestHeartbeatEvent(status model.EventStatus) (*model.E
 	return &event, nil
 }
 
+func (db *VoteDao) UpdateEventByChallengeId(challengeId uint64, updateFields map[string]interface{}) error {
+	err := db.DB.Model(model.Event{}).Where("challenge_id = ?", challengeId).Updates(updateFields).Error
+	return err
+}
+
 func (db *EventDao) SaveEvent(event *model.Event) error {
 	err := db.DB.Create(event).Error
 	if err != nil {

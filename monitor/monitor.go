@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -51,7 +52,7 @@ func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) []*challengety
 
 func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChallenge {
 	if event.Type == "bnbchain.greenfield.challenge.EventStartChallenge" {
-		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress := "", "", "", "", ""
+		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress, challengerAddress := "", "", "", "", "", ""
 		for _, attr := range event.Attributes {
 			if string(attr.Key) == "challenge_id" {
 				challengeIdStr = strings.Trim(string(attr.Value), `"`)
@@ -63,16 +64,15 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 				segmentIndexStr = strings.Trim(string(attr.Value), `"`)
 			} else if string(attr.Key) == "sp_operator_address" {
 				spOpAddress = strings.Trim(string(attr.Value), `"`)
+			} else if string(attr.Key) == "challenger_address" {
+				spOpAddress = strings.Trim(string(attr.Value), `"`)
 			}
 		}
 		challengeId, err := strconv.ParseInt(challengeIdStr, 10, 64)
 		if err != nil {
 			panic(err)
 		}
-		objectId, err := strconv.ParseInt(objectIdStr, 10, 64)
-		if err != nil {
-			panic(err)
-		}
+		objectId := sdkmath.NewUintFromString(objectIdStr)
 		redundancyIndex, err := strconv.ParseInt(redundancyIndexStr, 10, 32)
 		if err != nil {
 			panic(err)
@@ -83,10 +83,11 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 		}
 		return &challengetypes.EventStartChallenge{
 			ChallengeId:       uint64(challengeId),
-			ObjectId:          uint64(objectId),
+			ObjectId:          objectId,
 			SegmentIndex:      uint32(segmentIndex),
 			SpOperatorAddress: spOpAddress,
 			RedundancyIndex:   int32(redundancyIndex),
+			ChallengerAddress: challengerAddress,
 		}
 	}
 	return nil
@@ -128,11 +129,7 @@ func (m *Monitor) getLatestPolledBlock() (*model.Block, error) {
 
 func (m *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResults, *tmtypes.Block, error) {
 	logging.Logger.Infof("retrieve greenfield block at height=%d", height)
-	blockResults, err := m.executor.GetBlockResultAtHeight(int64(height))
-	if err != nil {
-		return nil, nil, err
-	}
-	block, err := m.executor.GetBlockAtHeight(int64(height))
+	block, blockResults, err := m.executor.GetBlockAndBlockResultAtHeight(int64(height))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -156,7 +153,7 @@ func (m *Monitor) calNextHeight() (uint64, error) {
 	}
 	nextHeight := latestPolledBlock.Height + 1
 
-	latestBlockHeight, err := m.executor.GetLatestBlockHeightWithRetry()
+	latestBlockHeight, err := m.executor.GetLatestBlockHeight()
 	if err != nil {
 		logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 		return 0, err
