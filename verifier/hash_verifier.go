@@ -3,9 +3,11 @@ package verifier
 import (
 	"bytes"
 	"context"
+	"github.com/bnb-chain/greenfield-challenger/common"
+	"github.com/bnb-chain/greenfield-challenger/executor"
 	"io/ioutil"
+	"time"
 
-	"github.com/bnb-chain/greenfield-challenger/client/rpc"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -22,26 +24,35 @@ type GreenfieldHashVerifier struct {
 	daoManager       *dao.DaoManager
 	config           *config.Config
 	signer           *vote.VoteSigner
-	greenfieldClient *rpc.GreenfieldChallengerClient
+	executor         *executor.Executor
 	blsPublicKey     []byte
 }
 
-func NewGreenfieldHashVerifier(cfg *config.Config, dao *dao.DaoManager, signer *vote.VoteSigner, greenfieldClient *rpc.GreenfieldChallengerClient,
+func NewGreenfieldHashVerifier(cfg *config.Config, dao *dao.DaoManager, signer *vote.VoteSigner, executor *executor.Executor,
 	votePoolExecutor *vote.VotePoolExecutor,
 ) *GreenfieldHashVerifier {
 	return &GreenfieldHashVerifier{
 		config:           cfg,
 		daoManager:       dao,
 		signer:           signer,
-		greenfieldClient: greenfieldClient,
+		executor:         executor,
 		votePoolExecutor: votePoolExecutor,
 		blsPublicKey:     keys.GetBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
 	}
 }
 
-func (p *GreenfieldHashVerifier) VerifyHash() error {
+func (p *GreenfieldHashVerifier) VerifyHash() {
+	for {
+		err := p.verifyHash()
+		if err != nil {
+			time.Sleep(common.RetryInterval)
+		}
+	}
+}
+
+func (p *GreenfieldHashVerifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
-	lowestUnprocessedEvent, err := p.daoManager.EventDao.GetUnprocessedEventWithLowestChallengeId()
+	lowestUnprocessedEvent, err := p.daoManager.EventDao.GetEarliestAttestEvent(model.Unprocessed)
 	if err != nil {
 		logging.Logger.Infof("No unprocessed events remaining.")
 		return nil
@@ -55,7 +66,12 @@ func (p *GreenfieldHashVerifier) VerifyHash() error {
 	}
 	// TODO: What to use for authinfo?
 	authInfo := sp.NewAuthInfo(false, "")
-	challengeRes, err := p.greenfieldClient.SpClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
+	client, err := p.executor.GetGnfdClient()
+	spClient := p.executor.GetSPClient()
+	if err != nil {
+		return err
+	}
+	challengeRes, err := spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
 	if err != nil {
 		return err
 	}
@@ -63,10 +79,10 @@ func (p *GreenfieldHashVerifier) VerifyHash() error {
 	// Call blockchain for storage obj
 	// TODO: Will be changed to use ObjectID instead so will have to wait
 	headObjQueryReq := &storagetypes.QueryHeadObjectRequest{
-		BucketName:,
-		ObjectName:,
+		//BucketName:,
+		//ObjectName:,
 	}
-	storageObj, err := p.greenfieldClient.ChainClient.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
+	storageObj, err := client.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
 	if err != nil {
 		return err
 	}
@@ -83,10 +99,10 @@ func (p *GreenfieldHashVerifier) VerifyHash() error {
 	rootHash := []byte(hash.CalcSHA256Hex(total))
 
 	if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[lowestUnprocessedEvent.RedundancyIndex+1]) {
-		p.daoManager.EventDao.UpdateEventStatusByChallengeId(lowestUnprocessedEvent.ChallengeId, model.ProcessedSucceed)
+		p.daoManager.EventDao.UpdateEventStatusByChallengeId(lowestUnprocessedEvent.ChallengeId, model.VerifiedValidChallenge)
 		return nil
 	}
 
-	p.daoManager.EventDao.UpdateEventStatusByChallengeId(lowestUnprocessedEvent.ChallengeId, model.ProcessedFailed)
+	p.daoManager.EventDao.UpdateEventStatusByChallengeId(lowestUnprocessedEvent.ChallengeId, model.VerifiedInvalidChallenge)
 	return nil
 }
