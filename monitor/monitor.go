@@ -93,7 +93,7 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 	return nil
 }
 
-func (m *Monitor) StartLoop() {
+func (m *Monitor) ListenEventLoop() {
 	for {
 		err := m.poll()
 		if err != nil {

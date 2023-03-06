@@ -32,50 +32,28 @@ func (d *EventDao) SaveBlockAndEvents(b *model.Block, events []*model.Event) err
 	})
 }
 
-func (d *BlockDao) GetLatestHeartbeatEvent(status model.EventStatus) (*model.Event, error) {
+func (d *EventDao) GetLatestEventByStatus(status model.EventStatus) (*model.Event, error) {
 	e := model.Event{}
-	err := d.DB.Where("heartbeat_status = ?", status).Order("challenge_id desc").Take(&e).Error
+	err := d.DB.Where("status = ?", status).Order("challenge_id desc").Take(&e).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 	return &e, nil
 }
 
-func (d *BlockDao) GetEarliestHeartbeatEvent(status model.EventStatus) (*model.Event, error) {
+func (d *EventDao) GetEarliestEventByStatus(status model.EventStatus) (*model.Event, error) {
 	event := model.Event{}
-	err := d.DB.Where("heartbeat_status = ?", status).Order("challenge_id asc").Find(&event).Error
+	err := d.DB.Where("status = ?", status).Order("challenge_id asc").Find(&event).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 	return &event, nil
 }
 
-func (db *VoteDao) UpdateEventByChallengeId(challengeId uint64, updateFields map[string]interface{}) error {
-	err := db.DB.Model(model.Event{}).Where("challenge_id = ?", challengeId).Updates(updateFields).Error
-	return err
-}
-
-func (db *EventDao) SaveEvent(event *model.Event) error {
-	err := db.DB.Create(event).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (db *EventDao) SaveAllEvents(events []*model.Event) error {
-	err := db.DB.Create(events).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// TODO: Check which methods are required
-func (db *EventDao) GetEventById(id int64) (*model.Event, error) {
-	var event model.Event
-	err := db.DB.First(&event, id).Error
-	if err != nil {
+func (d *EventDao) GetEarliestEventByStatuses(statuses []model.EventStatus) (*model.Event, error) {
+	event := model.Event{}
+	err := d.DB.Where("status in ?", statuses).Order("challenge_id asc").Find(&event).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 	return &event, nil
@@ -90,42 +68,6 @@ func (db *EventDao) GetEventByChallengeId(challengeId uint64) (*model.Event, err
 	return &event, nil
 }
 
-func (db *EventDao) GetUnprocessedEventWithLowestHeight() (*model.Event, error) {
-	var event model.Event
-	err := db.DB.Where("status = ?", model.Unprocessed).Order("height ASC").Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &event, nil
-}
-
-func (db *EventDao) GetUnprocessedEventWithLowestChallengeId() (*model.Event, error) {
-	var event model.Event
-	err := db.DB.Where("status = ?", model.Unprocessed).Order("challenge_id ASC").Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &event, nil
-}
-
-func (db *EventDao) GetAllEventsFromHeightWithStatus(height uint64, status model.EventStatus) ([]*model.Event, error) {
-	var events []*model.Event
-	err := db.DB.Where("status = ? AND height >= ?", status, height).Find(&events).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return events, nil
-}
-
 func (db *EventDao) GetEventByLowestChallengeId() (*model.Event, error) {
 	var challenge model.Event
 	err := db.DB.Order("challenge_id ASC").First(&challenge).Error
@@ -135,29 +77,6 @@ func (db *EventDao) GetEventByLowestChallengeId() (*model.Event, error) {
 	return &challenge, nil
 }
 
-func (db *EventDao) GetLatestEvent() (*model.Event, error) {
-	var event model.Event
-	err := db.DB.Order("challenge_id DESC").First(&event).Error
-	if err != nil {
-		return nil, err
-	}
-	return &event, nil
-}
-
-func (db *EventDao) IsEventExist(challengeId uint64) (bool, error) {
-	var count int64
-	err := db.DB.Model(&model.Event{}).Where("challenge_id = ?", challengeId).Count(&count).Error
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
-func (db *EventDao) UpdateEvent(event *model.Event) error {
-	err := db.DB.Save(event).Error
-	return err
-}
-
 func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status model.EventStatus) error {
 	var event model.Event
 	err := db.DB.Model(&model.Event{}).Where("challenge_id = ?", challengeId).First(&event).Error
@@ -165,7 +84,7 @@ func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status mo
 		return err
 	}
 
-	event.AttestStatus = status
+	event.Status = status
 	err = db.DB.Save(&event).Error
 	if err != nil {
 		return err
@@ -174,17 +93,15 @@ func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status mo
 	return nil
 }
 
-func (db *EventDao) DeleteEvent(event model.Event) error {
-	err := db.DB.Delete(event).Error
-	return err
+func (db *EventDao) IsEventExistsBetween(objectId, spOperatorAddress string, lowChallengeId, highChallengeId uint64) (bool, error) {
+	var count int64
+	err := db.DB.Model(&model.Event{}).
+		Where("object_id = ?", objectId).
+		Where("sp_operator_address = ?", spOperatorAddress).
+		Where("challenge_id between ? and ?", lowChallengeId, highChallengeId).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
-
-func (db *EventDao) DeleteEventByChallengeId(challengeId uint64) error {
-	err := db.DB.Where("challenge_id = ?", challengeId).Delete(&model.Event{}).Error
-	return err
-}
-
-// query local db for challenge id -> query blockchain for challenge
-// get_event
-// update_event_status
-// save_event

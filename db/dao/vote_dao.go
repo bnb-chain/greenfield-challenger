@@ -31,21 +31,10 @@ func (db *VoteDao) SaveAllVotes(votes []*model.Vote) error {
 	return nil
 }
 
-// TODO: Check which methods are required
-func (db *VoteDao) GetVoteById(id int64) (*model.Vote, error) {
-	var vote model.Vote
-	err := db.DB.First(&vote, id).Error
-	if err != nil {
-		return nil, err
-	}
-	return &vote, nil
-}
-
-func (db *VoteDao) GetVotesByChallengeId(challengeId uint64, kind string) ([]*model.Vote, error) {
+func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
 	err := db.DB.
 		Where("challenge_id = ?", challengeId).
-		Where("kind = ?", kind).
 		Find(&votes).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
@@ -53,32 +42,16 @@ func (db *VoteDao) GetVotesByChallengeId(challengeId uint64, kind string) ([]*mo
 	return votes, nil
 }
 
-func (db *VoteDao) IsVoteExist(challengeId uint64, pubKey string, kind string) (bool, error) {
+func (db *VoteDao) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
 	var count int64
 	err := db.DB.Model(&model.Vote{}).
 		Where("challenge_id = ?", challengeId).
 		Where("pub_key = ?", pubKey).
-		Where("kind = ?", kind).
 		Count(&count).Error
 	if err != nil {
 		return false, err
 	}
 	return count > 0, nil
-}
-
-func (db *VoteDao) UpdateVote(vote *model.Vote) error {
-	err := db.DB.Save(vote).Error
-	return err
-}
-
-func (db *VoteDao) UpdateVoteByChallengeId(challengeId uint64, updateFields map[string]interface{}) error {
-	err := db.DB.Model(model.Vote{}).Where("challenge_id = ?", challengeId).Updates(updateFields).Error
-	return err
-}
-
-func (db *VoteDao) DeleteVote(vote model.Vote) error {
-	err := db.DB.Delete(vote).Error
-	return err
 }
 
 func (db *VoteDao) DeleteVoteByChallengeId(challengeId uint64) error {

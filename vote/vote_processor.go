@@ -27,24 +27,24 @@ type VoteProcessor struct {
 	signer           *VoteSigner
 	executor         *executor.Executor
 	blsPublicKey     []byte
-	ProcessorKind
+	DataProvider
 }
 
 func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner, executor *executor.Executor,
-	votePoolExecutor *VotePoolExecutor, kind ProcessorKind) *VoteProcessor {
+	votePoolExecutor *VotePoolExecutor, kind DataProvider) *VoteProcessor {
 	return &VoteProcessor{
 		config:           cfg,
 		daoManager:       dao,
 		signer:           signer,
 		executor:         executor,
 		votePoolExecutor: votePoolExecutor,
-		ProcessorKind:    kind,
+		DataProvider:     kind,
 		blsPublicKey:     keys.GetBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
 	}
 }
 
-// SignAndBroadcast Will sign using the bls private key, broadcast the vote to votepool
-func (p *VoteProcessor) SignAndBroadcast() {
+// SignBroadcastVoteLoop Will sign using the bls private key, broadcast the vote to votepool
+func (p *VoteProcessor) SignBroadcastVoteLoop() {
 	for {
 		err := p.signAndBroadcast()
 		if err != nil {
@@ -99,7 +99,7 @@ func (p *VoteProcessor) signAndBroadcast() error {
 	return nil
 }
 
-func (p *VoteProcessor) CollectVotes() {
+func (p *VoteProcessor) CollectVotesLoop() {
 	for {
 		err := p.collectVotes()
 		if err != nil {
@@ -117,7 +117,7 @@ func (p *VoteProcessor) collectVotes() error {
 	if err != nil {
 		return err
 	}
-	return p.UpdateEventStatus(event.ChallengeId, model.AllVoted)
+	return p.UpdateEventStatus(event.ChallengeId, model.EnoughVotesCollected)
 }
 
 // prepareEnoughValidVotesForEvent fetches and validate votes result, store in vote table
@@ -147,8 +147,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 	for {
 		// skip current tx if reach the max retry.
 		if triedTimes > QueryVotepoolMaxRetry {
-			// TODO mark the status to event to ?
-			return nil
+			return p.UpdateEventStatus(event.ChallengeId, model.NoEnoughVotesCollected)
 		}
 
 		queriedVotes, err := p.votePoolExecutor.QueryVotes(localVote.EventHash, votepool.DataAvailabilityChallengeEvent)
@@ -219,7 +218,7 @@ func (p *VoteProcessor) constructVoteAndSign(event *model.Event) (*votepool.Vote
 	var v votepool.Vote
 	v.EventType = votepool.DataAvailabilityChallengeEvent
 	eventHash := p.CalculateEventHash(event)
-	p.signer.SignVote(&v, eventHash)
+	p.signer.SignVote(&v, eventHash[:])
 	return &v, nil
 }
 
