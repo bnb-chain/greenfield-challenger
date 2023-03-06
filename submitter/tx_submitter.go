@@ -39,14 +39,26 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 }
 
 func (s *TxSubmitter) process() error {
-	event, err := s.FetchEventForSubmit()
+	events, err := s.FetchEventsForSubmit()
 	if err != nil {
 		return err
 	}
-	if (*event == model.Event{}) {
+	if len(events) == 0 {
+		time.Sleep(common.RetryInterval)
 		return nil
 	}
 
+	for _, event := range events {
+		err = s.submitForSingleEvent(event)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
 	votes, err := s.FetchVotesForAggregation(event.ChallengeId)
 	if err != nil {
@@ -109,7 +121,13 @@ func (s *TxSubmitter) process() error {
 			if triedTimes > SubmitTxMaxRetry {
 				return s.UpdateEventStatus(event.ChallengeId, model.SubmitFailed)
 			}
-			_, _ = s.SubmitTx(event, valBitSet, aggregatedSignature)
+			txHash, errTx := s.SubmitTx(event, valBitSet, aggregatedSignature)
+			if errTx != nil {
+				logging.Logger.Infof("tx submitted, hash: %s", txHash)
+			} else {
+				logging.Logger.Errorf("failed to submitted tx,  err: %s", errTx.Error())
+			}
+
 		}
 	}
 }

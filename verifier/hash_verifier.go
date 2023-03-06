@@ -1,9 +1,6 @@
 package verifier
 
 import (
-	"bytes"
-	"context"
-	"io/ioutil"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -12,11 +9,9 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
-	"github.com/bnb-chain/greenfield-challenger/logging"
-	"github.com/bnb-chain/greenfield-common/go/hash"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
-	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 )
+
+const batchSize = 10
 
 type Verifier struct {
 	daoManager            *dao.DaoManager
@@ -48,12 +43,26 @@ func (p *Verifier) VerifyHashLoop() {
 
 func (p *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
-	event, err := p.daoManager.EventDao.GetEarliestEventByStatus(model.Unprocessed)
+	events, err := p.daoManager.EventDao.GetEarliestEventByStatus(model.Unprocessed, 10)
 	if err != nil {
-		logging.Logger.Infof("No unprocessed events remaining.")
+		return err
+	}
+	if len(events) == 0 {
+		time.Sleep(common.RetryInterval)
 		return nil
 	}
 
+	for _, event := range events {
+		err = p.verifyForSingleEvent(event)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// skip event if
 	// 1) no challenger field and
 	// 2) the event is not for heartbeat
@@ -65,53 +74,60 @@ func (p *Verifier) verifyHash() error {
 			return err
 		}
 		if found {
-			return p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+			return p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Duplicated)
 		}
 	}
 
-	// Call StorageProvider API to get piece hashes
-	challengeInfo := sp.ChallengeInfo{
-		ObjectId:        string(event.ObjectId),
-		PieceIndex:      int(event.SegmentIndex),
-		RedundancyIndex: int(event.RedundancyIndex),
-	}
-	// TODO: What to use for authinfo?
-	authInfo := sp.NewAuthInfo(false, "")
-	client, err := p.executor.GetGnfdClient()
-	spClient := p.executor.GetSPClient()
-	if err != nil {
-		return err
-	}
-	challengeRes, err := spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
-	if err != nil {
-		return err
-	}
+	//TODO: replace with real logic, mock for test purpose
+	/*
+			// Call StorageProvider API to get piece hashes
+			challengeInfo := sp.ChallengeInfo{
+				ObjectId:        string(event.ObjectId),
+				PieceIndex:      int(event.SegmentIndex),
+				RedundancyIndex: int(event.RedundancyIndex),
+			}
+			// TODO: What to use for authinfo?
+			authInfo := sp.NewAuthInfo(false, "")
+			client, err := p.executor.GetGnfdClient()
+			spClient := p.executor.GetSPClient()
+			if err != nil {
+				return err
+			}
+			challengeRes, err := spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
+			if err != nil {
+				return err
+			}
 
-	// Call blockchain for storage obj
-	// TODO: Will be changed to use ObjectID instead so will have to wait
-	headObjQueryReq := &storagetypes.QueryHeadObjectRequest{
-		//BucketName:,
-		//ObjectName:,
-	}
-	storageObj, err := client.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
-	if err != nil {
-		return err
-	}
-	// Hash pieceData -> Replace pieceData hash in checksums -> Validate against original checksum stored on-chain
-	// RootHash = dataHash + piecesHash
-	newChecksums := storageObj.ObjectInfo.GetChecksums() // 0-6
-	bytePieceData, err := ioutil.ReadAll(challengeRes.PieceData)
-	if err != nil {
-		return err
-	}
-	hashPieceData := hash.CalcSHA256(bytePieceData)
-	newChecksums[event.SegmentIndex] = hashPieceData
-	total := bytes.Join(newChecksums, []byte(""))
-	rootHash := []byte(hash.CalcSHA256Hex(total))
+			// Call blockchain for storage obj
+			// TODO: Will be changed to use ObjectID instead so will have to wait
+			headObjQueryReq := &storagetypes.QueryHeadObjectRequest{
+				//BucketName:,
+				//ObjectName:,
+			}
+			storageObj, err := client.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
+			if err != nil {
+				return err
+			}
+			// Hash pieceData -> Replace pieceData hash in checksums -> Validate against original checksum stored on-chain
+			// RootHash = dataHash + piecesHash
+			newChecksums := storageObj.ObjectInfo.GetChecksums() // 0-6
+			bytePieceData, err := ioutil.ReadAll(challengeRes.PieceData)
+			if err != nil {
+				return err
+			}
+			hashPieceData := hash.CalcSHA256(bytePieceData)
+			newChecksums[event.SegmentIndex] = hashPieceData
+			total := bytes.Join(newChecksums, []byte(""))
+			rootHash := []byte(hash.CalcSHA256Hex(total))
 
-	if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[event.RedundancyIndex+1]) {
-		return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedValidChallenge)
-	}
+			if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[event.RedundancyIndex+1]) {
+				return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedValid)
+			}
 
-	return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedInvalidChallenge)
+		return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedInvalid)
+	*/
+	if event.ChallengeId%3 == 0 {
+		return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedValid)
+	}
+	return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedInvalid)
 }

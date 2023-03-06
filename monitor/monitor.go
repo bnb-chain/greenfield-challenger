@@ -65,7 +65,7 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 			} else if string(attr.Key) == "sp_operator_address" {
 				spOpAddress = strings.Trim(string(attr.Value), `"`)
 			} else if string(attr.Key) == "challenger_address" {
-				spOpAddress = strings.Trim(string(attr.Value), `"`)
+				challengerAddress = strings.Trim(string(attr.Value), `"`)
 			}
 		}
 		challengeId, err := strconv.ParseInt(challengeIdStr, 10, 64)
