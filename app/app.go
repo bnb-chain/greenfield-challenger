@@ -25,7 +25,7 @@ type App struct {
 
 func NewApp(cfg *config.Config) *App {
 	db, err := gorm.Open(mysql.Open(cfg.DBConfig.DBPath), &gorm.Config{})
-	db = db.Debug()
+	// db = db.Debug() only for debug purpose
 	if err != nil {
 		panic(fmt.Sprintf("open db error, err=%s", err.Error()))
 	}
@@ -48,7 +48,7 @@ func NewApp(cfg *config.Config) *App {
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
 	votePoolExecutor := vote.NewVotePoolExecutor(cfg)
 
-	voteDataHandler := vote.NewAttestDataProvider(daoManager, cfg.GreenfieldConfig.HeartbeatInterval)
+	voteDataHandler := vote.NewDataHandler(daoManager, cfg.GreenfieldConfig.HeartbeatInterval)
 	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, votePoolExecutor, voteDataHandler)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)

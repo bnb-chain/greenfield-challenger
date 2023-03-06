@@ -2,7 +2,6 @@ package vote
 
 import (
 	"encoding/binary"
-	"errors"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -11,36 +10,41 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+const batchSize = 10
+
 type DataProvider interface {
 	CalculateEventHash(*model.Event) [32]byte
-	FetchEventForSelfVote() (*model.Event, error)
-	FetchEventForCollectVotes() (*model.Event, error)
+	FetchEventsForSelfVote() ([]*model.Event, error)
+	FetchEventsForCollectVotes() ([]*model.Event, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SaveVote(vote *model.Vote) error
 	IsVoteExists(challengeId uint64, pubKey string) (bool, error)
 }
 
-type AttestDataProvider struct {
+type DataHandler struct {
 	daoManager        *dao.DaoManager
 	heartbeatInterval uint64
+	lastIdForSelfVote uint64 // some events' status will do not change anymore, so we need to skip them
 }
 
-func NewAttestDataProvider(daoManager *dao.DaoManager, heartbeatInterval uint64) *AttestDataProvider {
-	return &AttestDataProvider{
+func NewDataHandler(daoManager *dao.DaoManager, heartbeatInterval uint64) *DataHandler {
+	return &DataHandler{
 		daoManager:        daoManager,
 		heartbeatInterval: heartbeatInterval,
 	}
 }
 
-func (h *AttestDataProvider) CalculateEventHash(event *model.Event) [32]byte {
+func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
 	challengeIdBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
 	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
 	resultBz := make([]byte, 8)
-	if event.Status == model.VerifiedValidChallenge {
+	if event.Status == model.VerifiedValid {
 		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_SUCCEED))
-	} else if event.Status == model.VerifiedInvalidChallenge {
+	} else if event.Status == model.VerifiedInvalid {
 		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_FAILED))
+	} else {
+		panic("cannot convert vote option")
 	}
 
 	bs := make([]byte, 0)
@@ -53,37 +57,36 @@ func (h *AttestDataProvider) CalculateEventHash(event *model.Event) [32]byte {
 	return hash
 }
 
-func (h *AttestDataProvider) FetchEventForSelfVote() (*model.Event, error) {
-
-	earliest, err := h.daoManager.GetEarliestEventByStatuses([]model.EventStatus{model.VerifiedInvalidChallenge,
-		model.VerifiedValidChallenge})
+func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
+	events, err := h.daoManager.GetEarliestEventsByStatuses([]model.EventStatus{model.VerifiedInvalid,
+		model.VerifiedValid}, batchSize, h.lastIdForSelfVote)
 	if err != nil {
 		return nil, err
 	}
 
-	if earliest.Status == model.VerifiedValidChallenge {
-		return earliest, nil
+	result := make([]*model.Event, 0)
+	for _, e := range events {
+		if e.Status == model.VerifiedValid || e.ChallengeId%h.heartbeatInterval == 0 {
+			result = append(result, e)
+		}
+		//it means if a challenge cannot be handled correctly, it will be skipped
+		h.lastIdForSelfVote = e.ChallengeId
 	}
-
-	if earliest.ChallengeId%h.heartbeatInterval == 0 {
-		return earliest, nil
-	}
-
-	return nil, errors.New("no event for normal or heartbeat attest vote")
+	return result, nil
 }
 
-func (h *AttestDataProvider) FetchEventForCollectVotes() (*model.Event, error) {
-	return h.daoManager.GetEarliestEventByStatus(model.SelfVoted)
+func (h *DataHandler) FetchEventsForCollectVotes() ([]*model.Event, error) {
+	return h.daoManager.GetEarliestEventByStatus(model.SelfVoted, batchSize)
 }
 
-func (h *AttestDataProvider) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
+func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
 	return h.daoManager.UpdateEventStatusByChallengeId(challengeId, status)
 }
 
-func (h *AttestDataProvider) SaveVote(vote *model.Vote) error {
+func (h *DataHandler) SaveVote(vote *model.Vote) error {
 	return h.daoManager.SaveVote(vote)
 }
 
-func (h *AttestDataProvider) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
+func (h *DataHandler) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
 	return h.daoManager.IsVoteExists(challengeId, pubKey)
 }

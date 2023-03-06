@@ -54,16 +54,25 @@ func (p *VoteProcessor) SignBroadcastVoteLoop() {
 }
 
 func (p *VoteProcessor) signAndBroadcast() error {
-	event, err := p.FetchEventForSelfVote()
-
+	events, err := p.FetchEventsForSelfVote()
 	if err != nil {
 		return err
 	}
-	if event == nil {
+	if len(events) == 0 {
 		time.Sleep(RetryInterval)
 		return nil
 	}
 
+	for _, event := range events {
+		err = p.signForSingleEvent(event)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 	v, err := p.constructVoteAndSign(event)
 	if err != nil {
 		return err
@@ -109,11 +118,27 @@ func (p *VoteProcessor) CollectVotesLoop() {
 }
 
 func (p *VoteProcessor) collectVotes() error {
-	event, err := p.FetchEventForCollectVotes()
+	events, err := p.FetchEventsForCollectVotes()
 	if err != nil {
 		return err
 	}
-	err = p.prepareEnoughValidVotesForEvent(event)
+	if len(events) == 0 {
+		time.Sleep(RetryInterval)
+		return nil
+	}
+
+	for _, event := range events {
+		err = p.collectForSingleEvent(event)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *VoteProcessor) collectForSingleEvent(event *model.Event) error {
+	err := p.prepareEnoughValidVotesForEvent(event)
 	if err != nil {
 		return err
 	}
