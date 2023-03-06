@@ -8,13 +8,12 @@ import (
 func EntityToDto(height uint64, from *challengetypes.EventStartChallenge) *model.Event {
 	to := model.Event{
 		ChallengeId:       from.ChallengeId,
-		ObjectId:          from.ObjectId.Uint64(),
+		ObjectId:          from.ObjectId.String(),
 		SegmentIndex:      from.SegmentIndex,
 		SpOperatorAddress: from.SpOperatorAddress,
 		RedundancyIndex:   from.RedundancyIndex,
 		Height:            height,
-		AttestStatus:      model.Unprocessed,
-		HeartbeatStatus:   model.Unprocessed,
+		Status:            model.Unprocessed,
 	}
 	return &to
 }

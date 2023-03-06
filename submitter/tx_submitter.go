@@ -15,22 +15,22 @@ type TxSubmitter struct {
 	config           *config.Config
 	executor         *executor.Executor
 	votePoolExecutor *vote.VotePoolExecutor
-	SubmitterKind
+	DataProvider
 }
 
 func NewTxSubmitter(cfg *config.Config, executor *executor.Executor,
-	votePoolExecutor *vote.VotePoolExecutor, submitterKind SubmitterKind) *TxSubmitter {
+	votePoolExecutor *vote.VotePoolExecutor, submitterKind DataProvider) *TxSubmitter {
 	return &TxSubmitter{
 		config:           cfg,
 		executor:         executor,
 		votePoolExecutor: votePoolExecutor,
-		SubmitterKind:    submitterKind,
+		DataProvider:     submitterKind,
 	}
 }
 
-func (a *TxSubmitter) SubmitTransactionLoop() {
+func (s *TxSubmitter) SubmitTransactionLoop() {
 	for {
-		err := a.process()
+		err := s.process()
 		if err != nil {
 			logging.Logger.Errorf("encounter error when relaying tx, err=%s ", err.Error())
 			time.Sleep(common.RetryInterval)
@@ -38,8 +38,8 @@ func (a *TxSubmitter) SubmitTransactionLoop() {
 	}
 }
 
-func (a *TxSubmitter) process() error {
-	event, err := a.FetchEventForSubmit()
+func (s *TxSubmitter) process() error {
+	event, err := s.FetchEventForSubmit()
 	if err != nil {
 		return err
 	}
@@ -47,13 +47,13 @@ func (a *TxSubmitter) process() error {
 		return nil
 	}
 
-	// Get votes result for a tx, which are already validated and qualified to aggregate sig
-	votes, err := a.FetchVotesForAggregation(event.ChallengeId)
+	// Get votes result for s tx, which are already validated and qualified to aggregate sig
+	votes, err := s.FetchVotesForAggregation(event.ChallengeId)
 	if err != nil {
 		logging.Logger.Errorf("failed to get votes for event with challenge id %d", event.ChallengeId)
 		return err
 	}
-	validators, err := a.executor.QueryCachedLatestValidators()
+	validators, err := s.executor.QueryCachedLatestValidators()
 	if err != nil {
 		return err
 	}
@@ -62,15 +62,15 @@ func (a *TxSubmitter) process() error {
 		return err
 	}
 
-	//relayerBlsPubKeys, err := a.executor.GetValidatorsBlsPublicKey()
+	//relayerBlsPubKeys, err := s.executor.GetValidatorsBlsPublicKey()
 	//if err != nil {
 	//	return err
 	//}
 	//
-	//relayerPubKey := util.BlsPubKeyFromPrivKeyStr(a.votePoolExecutor.GetBlsPrivateKey())
+	//relayerPubKey := util.BlsPubKeyFromPrivKeyStr(s.votePoolExecutor.GetBlsPrivateKey())
 	//relayerIdx := util.IndexOf(hex.EncodeToString(relayerPubKey), relayerBlsPubKeys)
 	//firstInturnRelayerIdx := int(event.Height) % len(relayerBlsPubKeys)
-	//txRelayStartTime := tx.TxTime + a.config.RelayConfig.GreenfieldToBSCRelayingDelayTime
+	//txRelayStartTime := tx.TxTime + s.config.RelayConfig.GreenfieldToBSCRelayingDelayTime
 	//logging.Logger.Infof("tx will be relayed starting at %d", txRelayStartTime)
 	//
 	//var indexDiff int
@@ -83,24 +83,48 @@ func (a *TxSubmitter) process() error {
 	//if indexDiff == 0 {
 	//	curRelayerRelayingStartTime = txRelayStartTime
 	//} else {
-	//	curRelayerRelayingStartTime = txRelayStartTime + a.config.RelayConfig.FirstInTurnRelayerRelayingWindow + int64(indexDiff-1)*a.config.RelayConfig.InTurnRelayerRelayingWindow
+	//	curRelayerRelayingStartTime = txRelayStartTime + s.config.RelayConfig.FirstInTurnRelayerRelayingWindow + int64(indexDiff-1)*s.config.RelayConfig.InTurnRelayerRelayingWindow
 	//}
 	//logging.Logger.Infof("current relayer starts relaying from %d", curRelayerRelayingStartTime)
 
 	// submit transaction
+	attested := make(chan struct{})
+	errC := make(chan error)
+	go s.checkSubmitStatus(attested, errC, event.ChallengeId)
+
+	ticker := time.NewTicker(common.RetryInterval)
+	defer ticker.Stop()
 	triedTimes := 0
 	for {
-		triedTimes++
-		// skip current tx if reach the max retry.
-		if triedTimes > SubmitTxMaxRetry {
-			// TODO mark the status to event to ?
+		select {
+		case err = <-errC:
+			return err
+		case <-attested:
+			if err = s.UpdateEventStatus(event.ChallengeId, model.Submitted); err != nil {
+				return err
+			}
 			return nil
-		}
-		_, err := a.SubmitTx(event, valBitSet, aggregatedSignature)
-		if err == nil {
-			break
+		case <-ticker.C:
+			triedTimes++
+			if triedTimes > SubmitTxMaxRetry {
+				return s.UpdateEventStatus(event.ChallengeId, model.SubmitFailed)
+			}
+			_, _ = s.SubmitTx(event, valBitSet, aggregatedSignature)
 		}
 	}
+}
 
-	return a.UpdateEventStatus(event.ChallengeId, model.Submitted)
+func (s TxSubmitter) checkSubmitStatus(attested chan struct{}, errC chan error, challengeId uint64) {
+	ticker := time.NewTicker(common.RetryInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		attestedChallengeId, err := s.executor.QueryLatestAttestedChallenge()
+		if err != nil {
+			errC <- err
+		}
+		if challengeId <= attestedChallengeId {
+			logging.Logger.Infof("challenge %d has already been attested ", challengeId)
+			attested <- struct{}{}
+		}
+	}
 }
