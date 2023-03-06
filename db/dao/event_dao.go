@@ -34,29 +34,36 @@ func (d *EventDao) SaveBlockAndEvents(b *model.Block, events []*model.Event) err
 
 func (d *EventDao) GetLatestEventByStatus(status model.EventStatus) (*model.Event, error) {
 	e := model.Event{}
-	err := d.DB.Where("status = ?", status).Order("challenge_id desc").Take(&e).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
+	err := d.DB.Where("status = ?", status).Order("challenge_id desc").First(&e).Error
+	if err != nil {
 		return nil, err
 	}
 	return &e, nil
 }
 
-func (d *EventDao) GetEarliestEventByStatus(status model.EventStatus) (*model.Event, error) {
-	event := model.Event{}
-	err := d.DB.Where("status = ?", status).Order("challenge_id asc").Find(&event).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
+func (d *EventDao) GetEarliestEventByStatus(status model.EventStatus, limit int) ([]*model.Event, error) {
+	events := []*model.Event{}
+	err := d.DB.Where("status = ?", status).
+		Order("challenge_id asc").
+		Limit(limit).
+		Find(&events).Error
+	if err != nil {
 		return nil, err
 	}
-	return &event, nil
+	return events, nil
 }
 
-func (d *EventDao) GetEarliestEventByStatuses(statuses []model.EventStatus) (*model.Event, error) {
-	event := model.Event{}
-	err := d.DB.Where("status in ?", statuses).Order("challenge_id asc").Find(&event).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
+func (d *EventDao) GetEarliestEventsByStatuses(statuses []model.EventStatus, limit int, minChallengeId uint64) ([]*model.Event, error) {
+	events := []*model.Event{}
+	err := d.DB.Where("status in ?", statuses).
+		Where("challenge_id >= ?", minChallengeId).
+		Order("challenge_id asc").
+		Limit(limit).
+		Find(&events).Error
+	if err != nil {
 		return nil, err
 	}
-	return &event, nil
+	return events, nil
 }
 
 func (db *EventDao) GetEventByChallengeId(challengeId uint64) (*model.Event, error) {
@@ -78,19 +85,10 @@ func (db *EventDao) GetEventByLowestChallengeId() (*model.Event, error) {
 }
 
 func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status model.EventStatus) error {
-	var event model.Event
-	err := db.DB.Model(&model.Event{}).Where("challenge_id = ?", challengeId).First(&event).Error
-	if err != nil {
-		return err
-	}
-
-	event.Status = status
-	err = db.DB.Save(&event).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return db.DB.Model(&model.Event{}).
+		Where("challenge_id = ?", challengeId).
+		Update("status", status).
+		Error
 }
 
 func (db *EventDao) IsEventExistsBetween(objectId, spOperatorAddress string, lowChallengeId, highChallengeId uint64) (bool, error) {

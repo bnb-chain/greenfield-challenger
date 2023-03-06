@@ -8,8 +8,10 @@ import (
 	"github.com/willf/bitset"
 )
 
+const batchSize = 10
+
 type DataProvider interface {
-	FetchEventForSubmit() (*model.Event, error)
+	FetchEventsForSubmit() ([]*model.Event, error)
 	FetchVotesForAggregation(challengeId uint64) ([]*model.Vote, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error)
@@ -27,8 +29,8 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 	}
 }
 
-func (h *DataHandler) FetchEventForSubmit() (*model.Event, error) {
-	return h.daoManager.GetEarliestEventByStatus(model.EnoughVotesCollected)
+func (h *DataHandler) FetchEventsForSubmit() ([]*model.Event, error) {
+	return h.daoManager.GetEarliestEventByStatus(model.EnoughVotesCollected, 10)
 }
 
 func (h *DataHandler) FetchVotesForAggregation(challengeId uint64) ([]*model.Vote, error) {
@@ -41,7 +43,7 @@ func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventSt
 
 func (h *DataHandler) SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error) {
 	voteResult := challengetypes.CHALLENGE_FAILED
-	if event.Status == model.VerifiedValidChallenge {
+	if event.Status == model.VerifiedValid {
 		voteResult = challengetypes.CHALLENGE_SUCCEED
 	}
 	return h.executor.SendAttestTx(event.ChallengeId, event.ObjectId, event.SpOperatorAddress,

@@ -12,6 +12,7 @@ func EntityToDto(height uint64, from *challengetypes.EventStartChallenge) *model
 		SegmentIndex:      from.SegmentIndex,
 		SpOperatorAddress: from.SpOperatorAddress,
 		RedundancyIndex:   from.RedundancyIndex,
+		ChallengerAddress: from.ChallengerAddress,
 		Height:            height,
 		Status:            model.Unprocessed,
 	}
