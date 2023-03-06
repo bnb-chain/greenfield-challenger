@@ -3,45 +3,41 @@ package verifier
 import (
 	"bytes"
 	"context"
-	"github.com/bnb-chain/greenfield-challenger/common"
-	"github.com/bnb-chain/greenfield-challenger/executor"
 	"io/ioutil"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/common"
+	"github.com/bnb-chain/greenfield-challenger/executor"
 
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
-	"github.com/bnb-chain/greenfield-challenger/keys"
 	"github.com/bnb-chain/greenfield-challenger/logging"
-	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield-common/go/hash"
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 )
 
-type GreenfieldHashVerifier struct {
-	votePoolExecutor *vote.VotePoolExecutor
-	daoManager       *dao.DaoManager
-	config           *config.Config
-	signer           *vote.VoteSigner
-	executor         *executor.Executor
-	blsPublicKey     []byte
+type Verifier struct {
+	daoManager            *dao.DaoManager
+	config                *config.Config
+	executor              *executor.Executor
+	deduplicationInterval uint64
+	heartbeatInterval     uint64
 }
 
-func NewGreenfieldHashVerifier(cfg *config.Config, dao *dao.DaoManager, signer *vote.VoteSigner, executor *executor.Executor,
-	votePoolExecutor *vote.VotePoolExecutor,
-) *GreenfieldHashVerifier {
-	return &GreenfieldHashVerifier{
-		config:           cfg,
-		daoManager:       dao,
-		signer:           signer,
-		executor:         executor,
-		votePoolExecutor: votePoolExecutor,
-		blsPublicKey:     keys.GetBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
+func NewGreenfieldHashVerifier(cfg *config.Config, dao *dao.DaoManager, executor *executor.Executor,
+	deduplicationInterval, heartbeatInterval uint64) *Verifier {
+	return &Verifier{
+		config:                cfg,
+		daoManager:            dao,
+		executor:              executor,
+		deduplicationInterval: deduplicationInterval,
+		heartbeatInterval:     heartbeatInterval,
 	}
 }
 
-func (p *GreenfieldHashVerifier) VerifyHash() {
+func (p *Verifier) VerifyHashLoop() {
 	for {
 		err := p.verifyHash()
 		if err != nil {
@@ -50,19 +46,34 @@ func (p *GreenfieldHashVerifier) VerifyHash() {
 	}
 }
 
-func (p *GreenfieldHashVerifier) verifyHash() error {
+func (p *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
-	lowestUnprocessedEvent, err := p.daoManager.EventDao.GetEarliestAttestEvent(model.Unprocessed)
+	event, err := p.daoManager.EventDao.GetEarliestEventByStatus(model.Unprocessed)
 	if err != nil {
 		logging.Logger.Infof("No unprocessed events remaining.")
 		return nil
 	}
 
+	// skip event if
+	// 1) no challenger field and
+	// 2) the event is not for heartbeat
+	// 3) the event with same storage provider and object id has been processed recently and
+	if event.ChallengerAddress == "" && event.ChallengeId%p.heartbeatInterval != 0 {
+		found, err := p.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
+			event.ChallengeId-p.deduplicationInterval, event.ChallengeId-1)
+		if err != nil {
+			return err
+		}
+		if found {
+			return p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+		}
+	}
+
 	// Call StorageProvider API to get piece hashes
 	challengeInfo := sp.ChallengeInfo{
-		ObjectId:        string(lowestUnprocessedEvent.ObjectId),
-		PieceIndex:      int(lowestUnprocessedEvent.SegmentIndex),
-		RedundancyIndex: int(lowestUnprocessedEvent.RedundancyIndex),
+		ObjectId:        string(event.ObjectId),
+		PieceIndex:      int(event.SegmentIndex),
+		RedundancyIndex: int(event.RedundancyIndex),
 	}
 	// TODO: What to use for authinfo?
 	authInfo := sp.NewAuthInfo(false, "")
@@ -94,15 +105,13 @@ func (p *GreenfieldHashVerifier) verifyHash() error {
 		return err
 	}
 	hashPieceData := hash.CalcSHA256(bytePieceData)
-	newChecksums[lowestUnprocessedEvent.SegmentIndex] = hashPieceData
+	newChecksums[event.SegmentIndex] = hashPieceData
 	total := bytes.Join(newChecksums, []byte(""))
 	rootHash := []byte(hash.CalcSHA256Hex(total))
 
-	if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[lowestUnprocessedEvent.RedundancyIndex+1]) {
-		p.daoManager.EventDao.UpdateEventStatusByChallengeId(lowestUnprocessedEvent.ChallengeId, model.VerifiedValidChallenge)
-		return nil
+	if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[event.RedundancyIndex+1]) {
+		return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedValidChallenge)
 	}
 
-	p.daoManager.EventDao.UpdateEventStatusByChallengeId(lowestUnprocessedEvent.ChallengeId, model.VerifiedInvalidChallenge)
-	return nil
+	return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedInvalidChallenge)
 }

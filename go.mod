@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.44.159
-	github.com/bnb-chain/greenfield v0.0.0-20230302095011-c6c98267c4c0
+	github.com/bnb-chain/greenfield v0.0.0-20230303092413-58575b28af31
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230227091017-b60c7936a1c6
 	github.com/bnb-chain/greenfield-go-sdk v0.0.5
 	github.com/cosmos/cosmos-sdk v0.46.7
@@ -156,7 +156,7 @@ require (
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
-	google.golang.org/genproto v0.0.0-20230221151758-ace64dc21148 // indirect
+	google.golang.org/genproto v0.0.0-20230223222841-637eb2293923 // indirect
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -166,7 +166,7 @@ require (
 
 replace (
 	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230228075616-68ac309b432c
-	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.0-20230302095011-c6c98267c4c0
+	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.0-20230303092413-58575b28af31
 	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.0.7
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

@@ -30,18 +30,18 @@ type VotePoolConfig struct {
 }
 
 type GreenfieldConfig struct {
-	KeyType                   string   `json:"key_type"`
-	AWSRegion                 string   `json:"aws_region"`
-	AWSSecretName             string   `json:"aws_secret_name"`
-	RPCAddrs                  []string `json:"rpc_addrs"`
-	GRPCAddrs                 []string `json:"grpc_addrs"`
-	PrivateKey                string   `json:"private_key"`
-	NumberOfBlocksForFinality uint64   `json:"number_of_blocks_for_finality"`
-	ChainId                   uint16   `json:"chain_id"`
-	StartHeight               uint64   `json:"start_height"`
-	MonitorChannelList        []uint8  `json:"monitor_channel_list"`
-	GasLimit                  uint64   `json:"gas_limit"`
-	ChainIdString             string   `json:"chain_id_string"`
+	KeyType               string   `json:"key_type"`
+	AWSRegion             string   `json:"aws_region"`
+	AWSSecretName         string   `json:"aws_secret_name"`
+	RPCAddrs              []string `json:"rpc_addrs"`
+	GRPCAddrs             []string `json:"grpc_addrs"`
+	PrivateKey            string   `json:"private_key"`
+	ChainId               uint16   `json:"chain_id"`
+	StartHeight           uint64   `json:"start_height"`
+	GasLimit              uint64   `json:"gas_limit"`
+	ChainIdString         string   `json:"chain_id_string"`
+	DeduplicationInterval uint64   `json:"deduplication_interval"`
+	HeartbeatInterval     uint64   `json:"heartbeat_interval"`
 }
 
 type LogConfig struct {

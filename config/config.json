@@ -10,11 +10,12 @@
       "localhost:9090"
     ],
     "private_key": "9f5853f4699b4033ba45fe8aa1a99ec43b9ff78ff134ddfe1e06a01fdcb338e0",
-    "number_of_blocks_for_finality": 1,
     "chain_id": 1,
     "start_height": 1,
     "gas_limit": 100000,
-    "chain_id_string": "greenfield_9000-121"
+    "chain_id_string": "greenfield_9000-121",
+    "deduplication_interval": 100,
+    "heartbeat_interval": 100
   },
   "vote_pool_config": {
     "rpc_addr": "http://127.0.0.1:26750",

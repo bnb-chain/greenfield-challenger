@@ -49,12 +49,12 @@ func (s *eventSuite) TestSaveBlockAndEvents() {
 	events := make([]*model.Event, 0)
 	events = append(events, &model.Event{
 		ChallengeId:       1,
-		ObjectId:          1,
+		ObjectId:          "1",
 		SegmentIndex:      1,
 		SpOperatorAddress: "sp1",
 		RedundancyIndex:   0,
 		Height:            100,
-		AttestStatus:      0,
+		Status:            0,
 	})
 
 	err := s.dao.SaveBlockAndEvents(block, events)

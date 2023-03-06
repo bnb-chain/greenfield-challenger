@@ -15,7 +15,6 @@ type Vote struct {
 	EventType   uint32     `gorm:"NOT NULL"`
 	EventHash   []byte     `gorm:"NOT NULL"`
 	CreatedTime int64      `gorm:"NOT NULL"`
-	Kind        string     `gorm:"NOT NULL"`
 }
 
 func (*Vote) TableName() string {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -16,14 +17,10 @@ import (
 )
 
 type App struct {
-	eventMonitor *monitor.Monitor
-
-	heartbeatProcessor *vote.VoteProcessor
-	heartbeatSubmitter *submitter.TxSubmitter
-
-	//TODO: verifier
-	hashVerifier *verifier.GreenfieldHashVerifier
-	//TODO: attest
+	eventMonitor  *monitor.Monitor
+	hashVerifier  *verifier.Verifier
+	voteProcessor *vote.VoteProcessor
+	txSubmitter   *submitter.TxSubmitter
 }
 
 func NewApp(cfg *config.Config) *App {
@@ -35,7 +32,6 @@ func NewApp(cfg *config.Config) *App {
 	model.InitBlockTable(db)
 	model.InitEventTable(db)
 	model.InitVoteTable(db)
-	model.InitTxTable(db)
 
 	blockDao := dao.NewBlockDao(db)
 	eventDao := dao.NewEventDao(db)
@@ -46,34 +42,30 @@ func NewApp(cfg *config.Config) *App {
 
 	monitor := monitor.NewMonitor(executor, daoManager)
 
+	hashVerifier := verifier.NewGreenfieldHashVerifier(cfg, daoManager, executor,
+		cfg.GreenfieldConfig.DeduplicationInterval, cfg.GreenfieldConfig.HeartbeatInterval)
+
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
 	votePoolExecutor := vote.NewVotePoolExecutor(cfg)
 
-	//TODO: config interval
-	heartbeatProcessorKind := vote.NewHeartbeatKind(daoManager, 100)
-	heartbeatProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, votePoolExecutor, heartbeatProcessorKind)
+	voteDataHandler := vote.NewAttestDataProvider(daoManager, cfg.GreenfieldConfig.HeartbeatInterval)
+	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, votePoolExecutor, voteDataHandler)
 
-	heartbeatSubmitterKind := submitter.NewHeartbeatKind(daoManager, executor)
-	heartbeatSubmitter := submitter.NewTxSubmitter(cfg, executor, votePoolExecutor, heartbeatSubmitterKind)
-
-	hashVerifier := verifier.NewGreenfieldHashVerifier(cfg, daoManager, signer, executor, votePoolExecutor)
+	txDataHandler := submitter.NewDataHandler(daoManager, executor)
+	txSubmitter := submitter.NewTxSubmitter(cfg, executor, votePoolExecutor, txDataHandler)
 
 	return &App{
-		eventMonitor:       monitor,
-		heartbeatProcessor: heartbeatProcessor,
-		heartbeatSubmitter: heartbeatSubmitter,
-		hashVerifier:       hashVerifier,
+		eventMonitor:  monitor,
+		hashVerifier:  hashVerifier,
+		voteProcessor: voteProcessor,
+		txSubmitter:   txSubmitter,
 	}
 }
 
 func (a *App) Start() {
-	go a.eventMonitor.StartLoop()
-
-	// for heartbeat
-	go a.heartbeatProcessor.SignAndBroadcast()
-	go a.heartbeatProcessor.CollectVotes()
-	a.heartbeatSubmitter.SubmitTransactionLoop()
-
-	// for verifier
-	go a.hashVerifier.VerifyHash()
+	go a.eventMonitor.ListenEventLoop()
+	go a.hashVerifier.VerifyHashLoop()
+	go a.voteProcessor.SignBroadcastVoteLoop()
+	go a.voteProcessor.CollectVotesLoop()
+	a.txSubmitter.SubmitTransactionLoop()
 }
