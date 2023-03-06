@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	_ "encoding/json"
 	"fmt"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 	"time"
+
+	sdkmath "cosmossdk.io/math"
+	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -239,7 +241,9 @@ func (e *Executor) GetAccount(address string) (authtypes.AccountI, error) {
 	return account, nil
 }
 
-func (e *Executor) SendHeartbeatTx(challengeId uint64, voteAddressSet []uint64, aggregatedSig []byte) (string, error) {
+func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress string,
+	voteResult challangetypes.VoteResult, challenger string,
+	voteAddressSet []uint64, aggregatedSig []byte) (string, error) {
 	gnfdClient, err := e.getGnfdClient()
 	if err != nil {
 		return "", err
@@ -250,11 +254,13 @@ func (e *Executor) SendHeartbeatTx(challengeId uint64, voteAddressSet []uint64, 
 		return "", err
 	}
 
-	//transfer := banktypes.NewMsgSend(acc, acc, sdk.NewCoins(sdk.NewInt64Coin("BNB", 100)))
-
-	msgHeartbeat := challangetypes.NewMsgHeartbeat(
+	msgHeartbeat := challangetypes.NewMsgAttest(
 		acc,
 		challengeId,
+		sdkmath.NewUintFromString(objectId),
+		spOperatorAddress,
+		challangetypes.VoteResult(voteResult),
+		challenger,
 		voteAddressSet,
 		aggregatedSig,
 	)
@@ -270,6 +276,20 @@ func (e *Executor) SendHeartbeatTx(challengeId uint64, voteAddressSet []uint64, 
 		return "", fmt.Errorf("tx error, code=%d, log=%s", txRes.TxResponse.Code, txRes.TxResponse.RawLog)
 	}
 	return txRes.TxResponse.TxHash, nil
+}
+
+func (e *Executor) QueryLatestAttestedChallenge() (uint64, error) {
+	client, err := e.gnfdClients.GetClient()
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := client.ChallengeQueryClient.LatestAttestedChallenge(context.Background(), &challangetypes.QueryLatestAttestedChallengeRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	return res.ChallengeId, nil
 }
 
 func (e *Executor) BroadcastVote(v *votepool.Vote) error {
