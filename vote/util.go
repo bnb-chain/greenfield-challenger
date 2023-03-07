@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/crypto/bls"
+	"github.com/prysmaticlabs/prysm/crypto/bls/blst"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/votepool"
 	"github.com/willf/bitset"
@@ -13,8 +14,17 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 )
 
-// VerifySignature verifies vote signature
-func VerifySignature(vote *votepool.Vote, eventHash []byte) error {
+// getBlsPubKeyFromPrivKeyStr gets public key from bls private key
+func getBlsPubKeyFromPrivKeyStr(privKeyStr string) []byte {
+	privKey, err := blst.SecretKeyFromBytes(common.Hex2Bytes(privKeyStr))
+	if err != nil {
+		panic(err)
+	}
+	return privKey.PublicKey().Marshal()
+}
+
+// verifySignature verifies vote signature
+func verifySignature(vote *votepool.Vote, eventHash []byte) error {
 	blsPubKey, err := bls.PublicKeyFromBytes(vote.PubKey[:])
 	if err != nil {
 		return errors.Wrap(err, "convert public key from bytes to bls failed")

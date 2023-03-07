@@ -6,15 +6,16 @@ import (
 
 type Event struct {
 	Id                int64
-	ChallengeId       uint64       `gorm:"NOT NULL"`
-	ObjectId          string       `gorm:"NOT NULL"`
+	ChallengeId       uint64       `gorm:"NOT NULL;index:idx_challenge_id"`
+	ObjectId          string       `gorm:"NOT NULL;index:idx_object_id_sp_addr"`
 	SegmentIndex      uint32       `gorm:"NOT NULL"`
-	SpOperatorAddress string       `gorm:"NOT NULL"`
+	SpOperatorAddress string       `gorm:"NOT NULL;index:idx_object_id_sp_addr"`
 	RedundancyIndex   int32        `gorm:"NOT NULL"`
 	ChallengerAddress string       `gorm:"NOT NULL"`
 	Height            uint64       `gorm:"NOT NULL;"`
-	Status            EventStatus  `gorm:"NOT NULL;"`
+	Status            EventStatus  `gorm:"NOT NULL;index:idx_status"`
 	VerifyResult      VerifyResult `gorm:"NOT NULL;"`
+	CreatedTime       int64        `gorm:"NOT NULL"`
 }
 
 func (*Event) TableName() string {
@@ -46,8 +47,7 @@ const (
 type VerifyResult int
 
 const (
-	// The challenge failed.
-	CHALLENGE_FAILED VerifyResult = 0
-	// The challenge succeed.
-	CHALLENGE_SUCCEED VerifyResult = 1
+	Unknown        VerifyResult = iota // Event not been verified
+	HashMatched                        // The challenge failed, hashes are matched
+	HashMismatched VerifyResult = 2    // The challenge succeed, hashed are not matched
 )

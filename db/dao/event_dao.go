@@ -53,9 +53,9 @@ func (d *EventDao) GetEarliestEventByStatus(status model.EventStatus, limit int)
 	return events, nil
 }
 
-func (d *EventDao) GetEarliestEventsByStatuses(statuses []model.EventStatus, limit int, minChallengeId uint64) ([]*model.Event, error) {
+func (d *EventDao) GetEarliestEventsByStatusAndAfter(status model.EventStatus, limit int, minChallengeId uint64) ([]*model.Event, error) {
 	events := []*model.Event{}
-	err := d.DB.Where("status in ?", statuses).
+	err := d.DB.Where("status = ?", status).
 		Where("challenge_id >= ?", minChallengeId).
 		Order("challenge_id asc").
 		Limit(limit).
@@ -73,15 +73,6 @@ func (db *EventDao) GetEventByChallengeId(challengeId uint64) (*model.Event, err
 		return nil, err
 	}
 	return &event, nil
-}
-
-func (db *EventDao) GetEventByLowestChallengeId() (*model.Event, error) {
-	var challenge model.Event
-	err := db.DB.Order("challenge_id ASC").First(&challenge).Error
-	if err != nil {
-		return nil, err
-	}
-	return &challenge, nil
 }
 
 func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status model.EventStatus) error {
