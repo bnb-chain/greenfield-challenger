@@ -10,20 +10,18 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
+	"github.com/tendermint/tendermint/votepool"
 
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	sdkclient "github.com/bnb-chain/greenfield-go-sdk/client/chain"
 	sdkkeys "github.com/bnb-chain/greenfield-go-sdk/keys"
 	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/tendermint/tendermint/rpc/client"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -34,7 +32,6 @@ type Executor struct {
 	config      *config.Config
 	address     string
 	validators  []*tmtypes.Validator // used to cache validators
-	cdc         *codec.ProtoCodec
 }
 
 func NewExecutor(cfg *config.Config) *Executor {
@@ -58,7 +55,6 @@ func NewExecutor(cfg *config.Config) *Executor {
 		spClient:    spClient,
 		address:     km.GetAddr().String(),
 		config:      cfg,
-		cdc:         Cdc(),
 	}
 }
 
@@ -90,14 +86,6 @@ func (e *Executor) getRpcClient() (client.Client, error) {
 		return nil, err
 	}
 	return client.TendermintClient.RpcClient.TmClient, nil
-}
-
-func (e *Executor) getGnfdClient() (*sdkclient.GreenfieldClient, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return nil, err
-	}
-	return client.GreenfieldClient, nil
 }
 
 func (e *Executor) GetGnfdClient() (*sdkclient.GreenfieldClient, error) {
@@ -137,53 +125,12 @@ func (e *Executor) GetLatestBlockHeight() (latestHeight uint64, err error) {
 	return uint64(client.Height), nil
 }
 
-func (e *Executor) QueryTendermintLightBlock(height int64) ([]byte, error) {
-	client, err := e.getRpcClient()
-	if err != nil {
-		return nil, err
-	}
-	validators, err := client.Validators(context.Background(), &height, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	commit, err := client.Commit(context.Background(), &height)
-	if err != nil {
-		return nil, err
-	}
-	validatorSet := tmtypes.NewValidatorSet(validators.Validators)
-	if err != nil {
-		return nil, err
-	}
-	lightBlock := tmtypes.LightBlock{
-		SignedHeader: &commit.SignedHeader,
-		ValidatorSet: validatorSet,
-	}
-	protoBlock, err := lightBlock.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	return protoBlock.Marshal()
-}
-
 func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {
 	client, err := e.getRpcClient()
 	if err != nil {
 		return nil, err
 	}
 	validators, err := client.Validators(context.Background(), nil, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return validators.Validators, nil
-}
-
-func (e *Executor) QueryValidatorsAtHeight(height uint64) ([]*tmtypes.Validator, error) {
-	client, err := e.getRpcClient()
-	if err != nil {
-		return nil, err
-	}
-	h := int64(height)
-	validators, err := client.Validators(context.Background(), &h, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -225,26 +172,10 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 	return keys, nil
 }
 
-func (e *Executor) GetAccount(address string) (authtypes.AccountI, error) {
-	gnfdClient, err := e.getGnfdClient()
-	if err != nil {
-		return nil, err
-	}
-	authRes, err := gnfdClient.Account(context.Background(), &authtypes.QueryAccountRequest{Address: address})
-	if err != nil {
-		return nil, err
-	}
-	var account authtypes.AccountI
-	if err := e.cdc.InterfaceRegistry().UnpackAny(authRes.Account, &account); err != nil {
-		return nil, err
-	}
-	return account, nil
-}
-
 func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress string,
 	voteResult challangetypes.VoteResult, challenger string,
 	voteAddressSet []uint64, aggregatedSig []byte) (string, error) {
-	gnfdClient, err := e.getGnfdClient()
+	gnfdClient, err := e.GetGnfdClient()
 	if err != nil {
 		return "", err
 	}
@@ -290,6 +221,23 @@ func (e *Executor) QueryLatestAttestedChallenge() (uint64, error) {
 	}
 
 	return res.ChallengeId, nil
+}
+
+func (e *Executor) QueryVotes(eventHash []byte, eventType votepool.EventType) ([]*votepool.Vote, error) {
+	client, err := e.gnfdClients.GetClient()
+	if err != nil {
+		return nil, err
+	}
+
+	queryMap := make(map[string]interface{})
+	queryMap[VotePoolQueryParameterEventType] = int(eventType)
+	queryMap[VotePoolQueryParameterEventHash] = eventHash
+	var queryVote coretypes.ResultQueryVote
+	_, err = client.JsonRpcClient.Call(context.Background(), VotePoolQueryMethodName, queryMap, &queryVote)
+	if err != nil {
+		return nil, err
+	}
+	return queryVote.Votes, nil
 }
 
 func (e *Executor) BroadcastVote(v *votepool.Vote) error {

@@ -17,7 +17,7 @@ func NewBlockDao(db *gorm.DB) *BlockDao {
 
 func (d *BlockDao) GetLatestBlock() (*model.Block, error) {
 	block := model.Block{}
-	err := d.DB.Model(model.Block{}).Order("Height desc").Take(&block).Error
+	err := d.DB.Model(model.Block{}).Order("height desc").Take(&block).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}

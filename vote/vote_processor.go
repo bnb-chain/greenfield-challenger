@@ -13,7 +13,6 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
-	"github.com/bnb-chain/greenfield-challenger/keys"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/votepool"
@@ -21,25 +20,23 @@ import (
 )
 
 type VoteProcessor struct {
-	votePoolExecutor *VotePoolExecutor
-	daoManager       *dao.DaoManager
-	config           *config.Config
-	signer           *VoteSigner
-	executor         *executor.Executor
-	blsPublicKey     []byte
+	daoManager   *dao.DaoManager
+	config       *config.Config
+	signer       *VoteSigner
+	executor     *executor.Executor
+	blsPublicKey []byte
 	DataProvider
 }
 
-func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner, executor *executor.Executor,
-	votePoolExecutor *VotePoolExecutor, kind DataProvider) *VoteProcessor {
+func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner,
+	executor *executor.Executor, kind DataProvider) *VoteProcessor {
 	return &VoteProcessor{
-		config:           cfg,
-		daoManager:       dao,
-		signer:           signer,
-		executor:         executor,
-		votePoolExecutor: votePoolExecutor,
-		DataProvider:     kind,
-		blsPublicKey:     keys.GetBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
+		config:       cfg,
+		daoManager:   dao,
+		signer:       signer,
+		executor:     executor,
+		DataProvider: kind,
+		blsPublicKey: getBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
 	}
 }
 
@@ -80,7 +77,7 @@ func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 
 	// broadcast v
 	if err = retry.Do(func() error {
-		err = p.votePoolExecutor.BroadcastVote(v)
+		err = p.executor.BroadcastVote(v)
 		if err != nil {
 			return fmt.Errorf("failed to submit vote for event with challengeId: %d", event.ChallengeId)
 		}
@@ -172,10 +169,11 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 	for {
 		// skip current tx if reach the max retry.
 		if triedTimes > QueryVotepoolMaxRetry {
+			logging.Logger.Infof("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
 			return p.UpdateEventStatus(event.ChallengeId, model.NoEnoughVotesCollected)
 		}
 
-		queriedVotes, err := p.votePoolExecutor.QueryVotes(localVote.EventHash, votepool.DataAvailabilityChallengeEvent)
+		queriedVotes, err := p.executor.QueryVotes(localVote.EventHash, votepool.DataAvailabilityChallengeEvent)
 		if err != nil {
 			logging.Logger.Errorf("encounter error when query votes. will retry.")
 			return err
@@ -194,7 +192,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 				continue
 			}
 
-			if err := VerifySignature(v, localVote.EventHash); err != nil {
+			if err := verifySignature(v, localVote.EventHash); err != nil {
 				logging.Logger.Errorf("verify vote's signature failed,  err=%s", err)
 				validVotesCountPerReq--
 				continue
@@ -229,7 +227,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 			return nil
 		}
 		if !isLocalVoteIncluded {
-			err := p.votePoolExecutor.BroadcastVote(localVote)
+			err := p.executor.BroadcastVote(localVote)
 			if err != nil {
 				return err
 			}

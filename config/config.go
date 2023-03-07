@@ -36,8 +36,6 @@ type GreenfieldConfig struct {
 	RPCAddrs              []string `json:"rpc_addrs"`
 	GRPCAddrs             []string `json:"grpc_addrs"`
 	PrivateKey            string   `json:"private_key"`
-	ChainId               uint16   `json:"chain_id"`
-	StartHeight           uint64   `json:"start_height"`
 	GasLimit              uint64   `json:"gas_limit"`
 	ChainIdString         string   `json:"chain_id_string"`
 	DeduplicationInterval uint64   `json:"deduplication_interval"`
