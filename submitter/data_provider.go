@@ -43,7 +43,7 @@ func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventSt
 
 func (h *DataHandler) SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error) {
 	voteResult := challengetypes.CHALLENGE_FAILED
-	if event.Status == model.VerifiedValid {
+	if event.VerifyResult == model.CHALLENGE_SUCCEED {
 		voteResult = challengetypes.CHALLENGE_SUCCEED
 	}
 	return h.executor.SendAttestTx(event.ChallengeId, event.ObjectId, event.SpOperatorAddress,

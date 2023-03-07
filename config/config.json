@@ -9,7 +9,7 @@
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": "001c9151e8aba3789aab757e69c40e17225505fa65d79c8e34fe0facda5543de",
+    "private_key": "63af8936e8f7682e3c0fc262b15e0ad1eadc38a81c08f148d6f4f9b9e7e9060b",
     "chain_id": 1,
     "start_height": 1,
     "gas_limit": 100000,
@@ -19,11 +19,11 @@
   },
   "vote_pool_config": {
     "rpc_addr": "http://127.0.0.1:26750",
-    "bls_private_key": "0f7ff798880cc842423ebee5c78f8834ea959baca9518a6c64fab25bbbcbd933"
+    "bls_private_key": "51d3f51b8ed0283ebdccbd98ac52d9c686d32131e3d74b7098666fb8f79f778a"
   },
   "log_config": {
     "level": "DEBUG",
-    "filename": "",
+    "filename": "log.txt",
     "max_file_size_in_mb": 0,
     "max_backups_of_log_files": 0,
     "max_age_to_retain_log_files_in_days": 0,

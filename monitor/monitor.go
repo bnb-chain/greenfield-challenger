@@ -113,7 +113,7 @@ func (m *Monitor) poll() error {
 		return err
 	}
 	if err = m.monitorChallengeEvents(block, blockResults); err != nil {
-		logging.Logger.Errorf("encounter error when monitor cross-chain events at blockHeight=%d, err=%s", nextHeight, err.Error())
+		logging.Logger.Errorf("encounter error when monitor challenge events at blockHeight=%d, err=%s", nextHeight, err.Error())
 		return err
 	}
 	return nil
