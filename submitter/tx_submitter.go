@@ -121,13 +121,13 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 			if triedTimes > SubmitTxMaxRetry {
 				return s.UpdateEventStatus(event.ChallengeId, model.SubmitFailed)
 			}
+			logging.Logger.Infof("submit tx for challenge, id: %d", event.ChallengeId)
 			txHash, errTx := s.SubmitTx(event, valBitSet, aggregatedSignature)
 			if errTx != nil {
-				logging.Logger.Infof("tx submitted, hash: %s", txHash)
-			} else {
 				logging.Logger.Errorf("failed to submitted tx,  err: %s", errTx.Error())
+			} else {
+				logging.Logger.Infof("tx submitted, hash: %s", txHash)
 			}
-
 		}
 	}
 }

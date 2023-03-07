@@ -91,6 +91,13 @@ func (db *EventDao) UpdateEventStatusByChallengeId(challengeId uint64, status mo
 		Error
 }
 
+func (db *EventDao) UpdateEventStatusVerifyResultByChallengeId(challengeId uint64, status model.EventStatus, result model.VerifyResult) error {
+	return db.DB.Model(&model.Event{}).
+		Where("challenge_id = ?", challengeId).
+		Updates(model.Event{Status: status, VerifyResult: result}).
+		Error
+}
+
 func (db *EventDao) IsEventExistsBetween(objectId, spOperatorAddress string, lowChallengeId, highChallengeId uint64) (bool, error) {
 	var count int64
 	err := db.DB.Model(&model.Event{}).

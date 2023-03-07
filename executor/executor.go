@@ -275,7 +275,6 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 	if txRes.TxResponse.Code != 0 {
 		return "", fmt.Errorf("tx error, code=%d, log=%s", txRes.TxResponse.Code, txRes.TxResponse.RawLog)
 	}
-	fmt.Println(txRes.TxResponse.TxHash)
 	return txRes.TxResponse.TxHash, nil
 }
 

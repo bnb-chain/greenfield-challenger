@@ -121,13 +121,13 @@ func (p *Verifier) verifyForSingleEvent(event *model.Event) error {
 			rootHash := []byte(hash.CalcSHA256Hex(total))
 
 			if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[event.RedundancyIndex+1]) {
-				return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedValid)
+				return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.CHALLENGE_SUCCEED)
 			}
 
-		return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedInvalid)
+		return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.CHALLENGE_FAILED)
 	*/
 	if event.ChallengeId%3 == 0 {
-		return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedValid)
+		return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.CHALLENGE_SUCCEED)
 	}
-	return p.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.VerifiedInvalid)
+	return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.CHALLENGE_FAILED)
 }
