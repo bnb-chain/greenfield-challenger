@@ -12,19 +12,17 @@ import (
 )
 
 type TxSubmitter struct {
-	config           *config.Config
-	executor         *executor.Executor
-	votePoolExecutor *vote.VotePoolExecutor
+	config   *config.Config
+	executor *executor.Executor
 	DataProvider
 }
 
 func NewTxSubmitter(cfg *config.Config, executor *executor.Executor,
-	votePoolExecutor *vote.VotePoolExecutor, submitterKind DataProvider) *TxSubmitter {
+	submitterKind DataProvider) *TxSubmitter {
 	return &TxSubmitter{
-		config:           cfg,
-		executor:         executor,
-		votePoolExecutor: votePoolExecutor,
-		DataProvider:     submitterKind,
+		config:       cfg,
+		executor:     executor,
+		DataProvider: submitterKind,
 	}
 }
 
@@ -119,6 +117,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 		case <-ticker.C:
 			triedTimes++
 			if triedTimes > SubmitTxMaxRetry {
+				logging.Logger.Infof("failed to submit tx for challenge after retry, id: %d", event.ChallengeId)
 				return s.UpdateEventStatus(event.ChallengeId, model.SubmitFailed)
 			}
 			logging.Logger.Infof("submit tx for challenge, id: %d", event.ChallengeId)

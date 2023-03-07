@@ -46,13 +46,12 @@ func NewApp(cfg *config.Config) *App {
 		cfg.GreenfieldConfig.DeduplicationInterval, cfg.GreenfieldConfig.HeartbeatInterval)
 
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
-	votePoolExecutor := vote.NewVotePoolExecutor(cfg)
 
 	voteDataHandler := vote.NewDataHandler(daoManager, cfg.GreenfieldConfig.HeartbeatInterval)
-	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, votePoolExecutor, voteDataHandler)
+	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, voteDataHandler)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
-	txSubmitter := submitter.NewTxSubmitter(cfg, executor, votePoolExecutor, txDataHandler)
+	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
 
 	return &App{
 		eventMonitor:  monitor,

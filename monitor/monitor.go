@@ -139,8 +139,9 @@ func (m *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResu
 func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *ctypes.ResultBlockResults) error {
 	events := m.parseEvents(blockResults)
 	b := &model.Block{
-		Height:    uint64(block.Height),
-		BlockTime: block.Time.Unix(),
+		Height:      uint64(block.Height),
+		BlockTime:   block.Time.Unix(),
+		CreatedTime: time.Now().Unix(),
 	}
 	return m.daoManager.SaveBlockAndEvents(b, EntitiesToDtos(uint64(block.Height), events))
 }
