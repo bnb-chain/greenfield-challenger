@@ -32,14 +32,10 @@ func InitEventTable(db *gorm.DB) {
 
 type EventStatus int
 
-// Unprocessed for events that have not been challenged
-// ProcessedSucceed, ProcessedFailed for challenged events but not voted
-// VotedSucceed, VotedFailed for events that have been challenged AND voted
 const (
 	Unprocessed            EventStatus = iota // Event is just stored
 	Duplicated                                // Event is duplicated
-	VerifiedValid                             // Event has been verified, and the challenge is valid
-	VerifiedInvalid                           // Event has been verified, and the challenge is invalid
+	Verified                                  // Event has been verified, and verify result is stored in VerifyResult
 	SelfVoted                                 // Event has been voted locally
 	EnoughVotesCollected                      // Event has been voted for more than 2/3 validators
 	NoEnoughVotesCollected                    // Event cannot collect votes for more than 2/3 validators
