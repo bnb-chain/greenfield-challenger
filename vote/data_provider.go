@@ -39,9 +39,9 @@ func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
 	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
 	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
 	resultBz := make([]byte, 8)
-	if event.VerifyResult == model.CHALLENGE_SUCCEED {
+	if event.VerifyResult == model.HashMismatched {
 		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_SUCCEED))
-	} else if event.VerifyResult == model.CHALLENGE_FAILED {
+	} else if event.VerifyResult == model.HashMatched {
 		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_FAILED))
 	} else {
 		panic("cannot convert vote option")
@@ -58,14 +58,14 @@ func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
 }
 
 func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
-	events, err := h.daoManager.GetEarliestEventsByStatuses([]model.EventStatus{model.Verified}, batchSize, h.lastIdForSelfVote)
+	events, err := h.daoManager.GetEarliestEventsByStatusAndAfter(model.Verified, batchSize, h.lastIdForSelfVote)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]*model.Event, 0)
 	for _, e := range events {
-		if e.VerifyResult == model.CHALLENGE_SUCCEED || e.ChallengeId%h.heartbeatInterval == 0 {
+		if e.VerifyResult == model.HashMismatched || e.ChallengeId%h.heartbeatInterval == 0 {
 			result = append(result, e)
 		}
 		//it means if a challenge cannot be handled correctly, it will be skipped

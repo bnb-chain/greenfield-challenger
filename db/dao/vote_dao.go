@@ -23,14 +23,6 @@ func (db *VoteDao) SaveVote(vote *model.Vote) error {
 	return nil
 }
 
-func (db *VoteDao) SaveAllVotes(votes []*model.Vote) error {
-	err := db.DB.Create(votes).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
 	err := db.DB.
@@ -52,9 +44,4 @@ func (db *VoteDao) IsVoteExists(challengeId uint64, pubKey string) (bool, error)
 		return false, err
 	}
 	return count > 0, nil
-}
-
-func (db *VoteDao) DeleteVoteByChallengeId(challengeId uint64) error {
-	err := db.DB.Where("challenge_id = ?", challengeId).Delete(&model.Vote{}).Error
-	return err
 }
