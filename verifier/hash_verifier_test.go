@@ -2,55 +2,14 @@ package verifier
 
 import (
 	"bytes"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
-	"github.com/bnb-chain/greenfield-challenger/db/model"
-	"github.com/bnb-chain/greenfield-common/go/hash"
 	"testing"
 
-	"github.com/stretchr/testify/suite"
+	"github.com/bnb-chain/greenfield-common/go/hash"
+	"github.com/stretchr/testify/require"
 )
 
-type eventSuite struct {
-	suite.Suite
-	dao      *dao.EventDao
-	verifier *Verifier
-	db       *dao.Database
-}
-
-func TestEventSuite(t *testing.T) {
-	suite.Run(t, new(eventSuite))
-}
-
-func (s *eventSuite) SetupSuite() {
-	dbName := "challenger"
-	db, err := dao.RunDB(dbName)
-	s.Require().NoError(err)
-	s.db = db
-}
-
-func (s *eventSuite) TearDownSuite() {
-	err := s.db.StopDB()
-	s.Require().NoError(err)
-}
-
-func (s *eventSuite) SetupTest() {
-	model.InitBlockTable(s.db.DB)
-	model.InitEventTable(s.db.DB)
-
-	s.dao = dao.NewEventDao(s.db.DB)
-}
-
-func (s *eventSuite) TearDownTest() {
-	err := s.db.ClearDB()
-	s.Require().NoError(err)
-}
-
-func (s *eventSuite) TestHashing() {
-	// Create event, Add update event by challengeId
-	//event := model.Event{
-	//	ChallengeId: 0,
-	//	Status:      model.Unprocessed,
-	//}
+func TestHashing(t *testing.T) {
+	verifier := NewHashVerifier(nil, nil, nil, 100, 100)
 
 	hashesStr := []string{"test1", "test2", "test3", "test4", "test5", "test6", "test7"}
 	checksums := make([][]byte, 7)
@@ -63,9 +22,9 @@ func (s *eventSuite) TestHashing() {
 	// Valid testcase
 	validStr := []byte("test1")
 	println(checksums[0])
-	validRootHash, err := s.verifier.computeRootHash(0, validStr, checksums)
-	s.Require().NoError(err)
-	s.Require().Equal(validRootHash, rootHash)
+	validRootHash, err := verifier.computeRootHash(0, validStr, checksums)
+	require.NoError(t, err)
+	require.Equal(t, validRootHash, rootHash)
 
 	//s.verifier.compareHashAndUpdate(event.ChallengeId, validRootHash, rootHash)
 	//updatedValidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
@@ -74,9 +33,9 @@ func (s *eventSuite) TestHashing() {
 
 	// Invalid testcase
 	invalidStr := []byte("invalid")
-	invalidRootHash, err := s.verifier.computeRootHash(0, invalidStr, checksums)
-	s.Require().NoError(err)
-	s.Require().NotEqual(validRootHash, invalidRootHash)
+	invalidRootHash, err := verifier.computeRootHash(0, invalidStr, checksums)
+	require.NoError(t, err)
+	require.NotEqual(t, validRootHash, invalidRootHash)
 
 	//s.verifier.compareHashAndUpdate(event.ChallengeId, invalidRootHash, rootHash)
 	//updatedInvalidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
