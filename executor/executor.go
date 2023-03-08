@@ -17,6 +17,7 @@ import (
 	sdkclient "github.com/bnb-chain/greenfield-go-sdk/client/chain"
 	sdkkeys "github.com/bnb-chain/greenfield-go-sdk/keys"
 	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	sptypes "github.com/bnb-chain/greenfield/x/sp/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -221,6 +222,20 @@ func (e *Executor) QueryLatestAttestedChallenge() (uint64, error) {
 	}
 
 	return res.ChallengeId, nil
+}
+
+func (e *Executor) QueryStorageProviderEndpoint(address string) (string, error) {
+	client, err := e.gnfdClients.GetClient()
+	if err != nil {
+		return "", err
+	}
+
+	res, err := client.SpQueryClient.StorageProvider(context.Background(), &sptypes.QueryStorageProviderRequest{SpAddress: address})
+	if err != nil {
+		return "", err
+	}
+
+	return res.StorageProvider.Endpoint, nil
 }
 
 func (e *Executor) QueryVotes(eventHash []byte, eventType votepool.EventType) ([]*votepool.Vote, error) {
