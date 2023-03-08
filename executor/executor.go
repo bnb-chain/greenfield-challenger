@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	_ "encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
@@ -18,6 +19,7 @@ import (
 	sdkkeys "github.com/bnb-chain/greenfield-go-sdk/keys"
 	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	sptypes "github.com/bnb-chain/greenfield/x/sp/types"
+	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -186,7 +188,7 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 		return "", err
 	}
 
-	msgHeartbeat := challangetypes.NewMsgAttest(
+	msgAttest := challangetypes.NewMsgAttest(
 		acc,
 		challengeId,
 		sdkmath.NewUintFromString(objectId),
@@ -198,7 +200,7 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 	)
 
 	txRes, err := gnfdClient.BroadcastTx(
-		[]sdk.Msg{msgHeartbeat},
+		[]sdk.Msg{msgAttest},
 		nil,
 	)
 	if err != nil {
@@ -224,7 +226,7 @@ func (e *Executor) QueryLatestAttestedChallenge() (uint64, error) {
 	return res.ChallengeId, nil
 }
 
-func (e *Executor) QueryStorageProviderEndpoint(address string) (string, error) {
+func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 	client, err := e.gnfdClients.GetClient()
 	if err != nil {
 		return "", err
@@ -236,6 +238,44 @@ func (e *Executor) QueryStorageProviderEndpoint(address string) (string, error) 
 	}
 
 	return res.StorageProvider.Endpoint, nil
+}
+
+func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
+	client, err := e.gnfdClients.GetClient()
+	if err != nil {
+		return nil, err
+	}
+
+	headObjQueryReq := storagetypes.QueryHeadObjectRequest{
+		// TODO: Will be changed to use ObjectID instead so will have to wait
+		//BucketName:,
+		//ObjectName:,
+	}
+	res, err := client.StorageQueryClient.HeadObject(context.Background(), &headObjQueryReq)
+	if err != nil {
+		return nil, err
+	}
+	return res.ObjectInfo.Checksums, nil
+}
+
+func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, segmentIndex, redundancyIndex int) (*sp.ChallengeResult, error) {
+	spUrl, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	e.spClient.SetUrl(spUrl)
+
+	challengeInfo := sp.ChallengeInfo{
+		ObjectId:        objectId,
+		PieceIndex:      segmentIndex,
+		RedundancyIndex: redundancyIndex,
+	}
+	authInfo := sp.NewAuthInfo(false, "") // TODO: What to use for authinfo?
+	challengeRes, err := e.spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &challengeRes, nil
 }
 
 func (e *Executor) QueryVotes(eventHash []byte, eventType votepool.EventType) ([]*votepool.Vote, error) {
