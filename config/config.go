@@ -11,6 +11,7 @@ type Config struct {
 	VotePoolConfig   VotePoolConfig   `json:"vote_pool_config"`
 	LogConfig        LogConfig        `json:"log_config"`
 	AdminConfig      AdminConfig      `json:"admin_config"`
+	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
 }
 
@@ -109,4 +110,18 @@ func ParseConfigFromFile(filePath string) *Config {
 	config.Validate()
 
 	return &config
+}
+
+type AlertConfig struct {
+	Interval int64 `json:"interval"`
+
+	Identity       string `json:"identity"`
+	TelegramBotId  string `json:"telegram_bot_id"`
+	TelegramChatId string `json:"telegram_chat_id"`
+}
+
+func (cfg *AlertConfig) Validate() {
+	if cfg.Interval <= 0 {
+		panic("alert interval should be positive")
+	}
 }
