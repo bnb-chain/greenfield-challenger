@@ -1,6 +1,8 @@
 package verifier
 
 import (
+	"bytes"
+	"context"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -9,9 +11,9 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
+	"github.com/bnb-chain/greenfield-common/go/hash"
+	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 )
-
-const batchSize = 10
 
 type Verifier struct {
 	daoManager            *dao.DaoManager
@@ -78,56 +80,68 @@ func (p *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}
 	}
 
-	//TODO: replace with real logic, mock for test purpose
-	/*
-			// Call StorageProvider API to get piece hashes
-			challengeInfo := sp.ChallengeInfo{
-				ObjectId:        string(event.ObjectId),
-				PieceIndex:      int(event.SegmentIndex),
-				RedundancyIndex: int(event.RedundancyIndex),
-			}
-			// TODO: What to use for authinfo?
-			authInfo := sp.NewAuthInfo(false, "")
-			client, err := p.executor.GetGnfdClient()
-			spClient := p.executor.GetSPClient()
-			if err != nil {
-				return err
-			}
-			challengeRes, err := spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
-			if err != nil {
-				return err
-			}
+	// Call StorageProvider API to get piece hashes of the event
+	//challengeRes, err := p.getStorageObj(event)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//// Call blockchain for storageObj to get original hash
+	//headObjQueryReq := &storagetypes.QueryHeadObjectRequest{ // TODO: Will be changed to use ObjectID instead so will have to wait
+	//	//BucketName:,
+	//	//ObjectName:,
+	//}
+	//storageObj, err := client.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//checksum := storageObj.ObjectInfo.GetChecksums()
+	//segmentIndex := event.SegmentIndex
+	//pieceData, err := io.ReadAll(challengeRes.PieceData)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//rootHash, err := p.computeRootHash(segmentIndex, pieceData, checksum)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//originalHash := storageObj.ObjectInfo.Checksums[event.RedundancyIndex+1]
+	//p.compareHashAndUpdate(event.ChallengeId, rootHash, originalHash)
 
-			// Call blockchain for storage obj
-			// TODO: Will be changed to use ObjectID instead so will have to wait
-			headObjQueryReq := &storagetypes.QueryHeadObjectRequest{
-				//BucketName:,
-				//ObjectName:,
-			}
-			storageObj, err := client.StorageQueryClient.HeadObject(context.Background(), headObjQueryReq)
-			if err != nil {
-				return err
-			}
-			// Hash pieceData -> Replace pieceData hash in checksums -> Validate against original checksum stored on-chain
-			// RootHash = dataHash + piecesHash
-			newChecksums := storageObj.ObjectInfo.GetChecksums() // 0-6
-			bytePieceData, err := ioutil.ReadAll(challengeRes.PieceData)
-			if err != nil {
-				return err
-			}
-			hashPieceData := hash.CalcSHA256(bytePieceData)
-			newChecksums[event.SegmentIndex] = hashPieceData
-			total := bytes.Join(newChecksums, []byte(""))
-			rootHash := []byte(hash.CalcSHA256Hex(total))
+	return nil
+}
 
-			if bytes.Equal(rootHash, storageObj.ObjectInfo.Checksums[event.RedundancyIndex+1]) {
-				return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
-			}
-
-		return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMatched)
-	*/
-	if event.ChallengeId%3 == 0 {
-		return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
+func (p *Verifier) getStorageObj(event *model.Event) (*sp.ChallengeResult, error) {
+	spClient := p.executor.GetSPClient()
+	challengeInfo := sp.ChallengeInfo{
+		ObjectId:        event.ObjectId,
+		PieceIndex:      int(event.SegmentIndex),
+		RedundancyIndex: int(event.RedundancyIndex),
 	}
-	return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMatched)
+	authInfo := sp.NewAuthInfo(false, "") // TODO: What to use for authinfo?
+	challengeRes, err := spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &challengeRes, nil
+}
+
+func (p *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checksum [][]byte) ([]byte, error) {
+	// Checksum contains 7 piece hashes
+	// Hash the piece that is challenged, replace in original checksum, recompute new roothash
+	hashPieceData := hash.CalcSHA256(pieceData)
+	checksum[segmentIndex] = hashPieceData
+	total := bytes.Join(checksum, []byte(""))
+	rootHash := []byte(hash.CalcSHA256Hex(total))
+	return rootHash, nil
+}
+
+func (p *Verifier) compareHashAndUpdate(challengeId uint64, newHash []byte, originalHash []byte) error {
+	if bytes.Equal(newHash, originalHash) {
+		return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMatched)
+	}
+	return p.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
 }

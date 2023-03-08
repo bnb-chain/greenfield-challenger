@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-
-	"github.com/bnb-chain/greenfield-challenger/logging"
 )
 
 func SendTelegramMessage(identity string, botId string, chatId string, msg string) {
@@ -21,7 +19,7 @@ func SendTelegramMessage(identity string, botId string, chatId string, msg strin
 	}
 	_, err := http.PostForm(endPoint, formData)
 	if err != nil {
-		logging.Logger.Errorf("send telegram message error, bot_id=%s, chat_id=%s, msg=%s, err=%s \n", botId, chatId, msg, err.Error())
+		fmt.Printf("send telegram message error, bot_id=%s, chat_id=%s, msg=%s, err=%s \n", botId, chatId, msg, err.Error())
 		return
 	}
 }

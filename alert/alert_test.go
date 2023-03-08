@@ -1,9 +1,8 @@
 package alert
 
 import (
-	"testing"
-
 	"github.com/bnb-chain/greenfield-challenger/config"
+	"testing"
 )
 
 // Set botId, chatId in config
