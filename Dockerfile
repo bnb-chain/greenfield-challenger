@@ -33,6 +33,5 @@ USER 1000
 VOLUME [ $GREENFIELD_CHALLENGER_HOME ]
 
 # Run the app
-CMD ./build/greenfield-challenger --config-type $CONFIG_TYPE --config-path $CONFIG_FILE_PATH --aws-region $A
-WS_REGION --aws-secret-key $AWS_SECRET_KEY
+CMD ./build/greenfield-challenger --config-type $CONFIG_TYPE --config-path $CONFIG_FILE_PATH --aws-region $AWS_REGION --aws-secret-key $AWS_SECRET_KEY
 
