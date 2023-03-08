@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"os"
 )
 
@@ -114,35 +113,15 @@ func ParseConfigFromFile(filePath string) *Config {
 }
 
 type AlertConfig struct {
-	EnableAlert     bool  `json:"enable_alert"`
-	EnableHeartBeat bool  `json:"enable_heart_beat"`
-	Interval        int64 `json:"interval"`
+	Interval int64 `json:"interval"`
 
 	Identity       string `json:"identity"`
 	TelegramBotId  string `json:"telegram_bot_id"`
 	TelegramChatId string `json:"telegram_chat_id"`
-
-	BalanceThreshold     string `json:"balance_threshold"`
-	SequenceGapThreshold uint64 `json:"sequence_gap_threshold"`
 }
 
 func (cfg *AlertConfig) Validate() {
-	if !cfg.EnableAlert {
-		return
-	}
 	if cfg.Interval <= 0 {
 		panic("alert interval should be positive")
-	}
-	balanceThreshold, ok := big.NewInt(1).SetString(cfg.BalanceThreshold, 10)
-	if !ok {
-		panic("unrecognized balance_threshold")
-	}
-
-	if balanceThreshold.Cmp(big.NewInt(0)) <= 0 {
-		panic("balance_threshold should be positive")
-	}
-
-	if cfg.SequenceGapThreshold <= 0 {
-		panic("sequence_gap_threshold should be positive")
 	}
 }
