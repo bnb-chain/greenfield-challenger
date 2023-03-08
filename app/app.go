@@ -42,7 +42,7 @@ func NewApp(cfg *config.Config) *App {
 
 	monitor := monitor.NewMonitor(executor, daoManager)
 
-	hashVerifier := verifier.NewGreenfieldHashVerifier(cfg, daoManager, executor,
+	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor,
 		cfg.GreenfieldConfig.DeduplicationInterval, cfg.GreenfieldConfig.HeartbeatInterval)
 
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
