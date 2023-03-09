@@ -246,12 +246,8 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 		return nil, err
 	}
 
-	headObjQueryReq := storagetypes.QueryHeadObjectRequest{
-		// TODO: Will be changed to use ObjectID instead so will have to wait
-		//BucketName:,
-		//ObjectName:,
-	}
-	res, err := client.StorageQueryClient.HeadObject(context.Background(), &headObjQueryReq)
+	headObjQueryReq := storagetypes.QueryHeadObjectByIdRequest{ObjectId: objectId}
+	res, err := client.StorageQueryClient.HeadObjectById(context.Background(), &headObjQueryReq)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +266,7 @@ func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, se
 		PieceIndex:      segmentIndex,
 		RedundancyIndex: redundancyIndex,
 	}
-	authInfo := sp.NewAuthInfo(false, "") // TODO: What to use for authinfo?
+	authInfo := sp.NewAuthInfo(false, "") // TODO: fill auth info when sp api is ready
 	challengeRes, err := e.spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
 	if err != nil {
 		return nil, err

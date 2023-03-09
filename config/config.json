@@ -10,8 +10,6 @@
       "localhost:9090"
     ],
     "private_key": "63af8936e8f7682e3c0fc262b15e0ad1eadc38a81c08f148d6f4f9b9e7e9060b",
-    "chain_id": 1,
-    "start_height": 1,
     "gas_limit": 100000,
     "chain_id_string": "greenfield_9000-121",
     "deduplication_interval": 100,
