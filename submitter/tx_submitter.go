@@ -41,6 +41,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 func (s *TxSubmitter) process() error {
 	events, err := s.FetchEventsForSubmit()
 	if err != nil {
+		logging.Logger.Errorf("tx submitter failed to fetch events for submitting, err=%s", err.Error())
 		return err
 	}
 	if len(events) == 0 {
@@ -62,7 +63,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
 	votes, err := s.FetchVotesForAggregation(event.ChallengeId)
 	if err != nil {
-		logging.Logger.Errorf("failed to get votes for event with challenge id %d", event.ChallengeId)
+		logging.Logger.Errorf("failed to get votes for event with challenge id %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
 	validators, err := s.executor.QueryCachedLatestValidators()
