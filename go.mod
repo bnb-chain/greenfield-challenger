@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.44.159
-	github.com/bnb-chain/greenfield v0.0.0-20230303092413-58575b28af31
+	github.com/bnb-chain/greenfield v0.0.0-20230309023310-c6dab0deb3c6
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230227091017-b60c7936a1c6
 	github.com/bnb-chain/greenfield-go-sdk v0.0.5
 	github.com/cosmos/cosmos-sdk v0.46.7
@@ -166,7 +166,7 @@ require (
 
 replace (
 	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230228075616-68ac309b432c
-	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.0-20230303092413-58575b28af31
+	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.0-20230309023310-c6dab0deb3c6
 	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.0.7
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
