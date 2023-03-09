@@ -17,6 +17,7 @@ import (
 )
 
 type App struct {
+	executor      *executor.Executor
 	eventMonitor  *monitor.Monitor
 	hashVerifier  *verifier.Verifier
 	voteProcessor *vote.VoteProcessor
@@ -46,7 +47,6 @@ func NewApp(cfg *config.Config) *App {
 		cfg.GreenfieldConfig.DeduplicationInterval, cfg.GreenfieldConfig.HeartbeatInterval)
 
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
-
 	voteDataHandler := vote.NewDataHandler(daoManager, cfg.GreenfieldConfig.HeartbeatInterval)
 	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, voteDataHandler)
 
@@ -54,6 +54,7 @@ func NewApp(cfg *config.Config) *App {
 	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
 
 	return &App{
+		executor:      executor,
 		eventMonitor:  monitor,
 		hashVerifier:  hashVerifier,
 		voteProcessor: voteProcessor,
@@ -62,6 +63,7 @@ func NewApp(cfg *config.Config) *App {
 }
 
 func (a *App) Start() {
+	go a.executor.CacheValidatorsLoop()
 	go a.eventMonitor.ListenEventLoop()
 	go a.hashVerifier.VerifyHashLoop()
 	go a.voteProcessor.SignBroadcastVoteLoop()

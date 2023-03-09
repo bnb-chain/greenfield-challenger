@@ -26,10 +26,10 @@ func TestHashing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, validRootHash, rootHash)
 
-	//s.verifier.compareHashAndUpdate(event.ChallengeId, validRootHash, rootHash)
-	//updatedValidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
-	//s.Require().NoError(err)
-	//s.Require().Equal(updatedValidEvent.Status, model.VerifiedValidChallenge)
+	// s.verifier.compareHashAndUpdate(event.ChallengeId, validRootHash, rootHash)
+	// updatedValidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
+	// s.Require().NoError(err)
+	// s.Require().Equal(updatedValidEvent.Status, model.VerifiedValidChallenge)
 
 	// Invalid testcase
 	invalidStr := []byte("invalid")
@@ -37,8 +37,8 @@ func TestHashing(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, validRootHash, invalidRootHash)
 
-	//s.verifier.compareHashAndUpdate(event.ChallengeId, invalidRootHash, rootHash)
-	//updatedInvalidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
-	//s.Require().NoError(err)
-	//s.Require().Equal(updatedInvalidEvent.Status, model.VerifiedInvalidChallenge)
+	// s.verifier.compareHashAndUpdate(event.ChallengeId, invalidRootHash, rootHash)
+	// updatedInvalidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
+	// s.Require().NoError(err)
+	// s.Require().Equal(updatedInvalidEvent.Status, model.VerifiedInvalidChallenge)
 }

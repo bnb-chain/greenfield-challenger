@@ -2,8 +2,9 @@ package submitter
 
 import (
 	"fmt"
-	"github.com/bnb-chain/greenfield-challenger/alert"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/alert"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -20,7 +21,8 @@ type TxSubmitter struct {
 }
 
 func NewTxSubmitter(cfg *config.Config, executor *executor.Executor,
-	submitterKind DataProvider) *TxSubmitter {
+	submitterKind DataProvider,
+) *TxSubmitter {
 	return &TxSubmitter{
 		config:       cfg,
 		executor:     executor,

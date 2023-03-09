@@ -30,11 +30,14 @@ func NewMonitor(executor *executor.Executor, daoManager *dao.DaoManager) *Monito
 	}
 }
 
-func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) []*challengetypes.EventStartChallenge {
+func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) ([]*challengetypes.EventStartChallenge, error) {
 	events := make([]*challengetypes.EventStartChallenge, 0)
 	for _, tx := range blockRes.TxsResults {
 		for _, event := range tx.Events {
-			e := m.parseEvent(event)
+			e, err := m.parseEvent(event)
+			if err != nil {
+				return nil, err
+			}
 			if e != nil {
 				events = append(events, e)
 			}
@@ -42,15 +45,18 @@ func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) []*challengety
 	}
 
 	for _, event := range blockRes.EndBlockEvents {
-		e := m.parseEvent(event)
+		e, err := m.parseEvent(event)
+		if err != nil {
+			return nil, err
+		}
 		if e != nil {
 			events = append(events, e)
 		}
 	}
-	return events
+	return events, nil
 }
 
-func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChallenge {
+func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallenge, error) {
 	if event.Type == "bnbchain.greenfield.challenge.EventStartChallenge" {
 		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress, challengerAddress := "", "", "", "", "", ""
 		for _, attr := range event.Attributes {
@@ -70,16 +76,16 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 		}
 		challengeId, err := strconv.ParseInt(challengeIdStr, 10, 64)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		objectId := sdkmath.NewUintFromString(objectIdStr)
 		redundancyIndex, err := strconv.ParseInt(redundancyIndexStr, 10, 32)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		segmentIndex, err := strconv.ParseInt(segmentIndexStr, 10, 32)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		return &challengetypes.EventStartChallenge{
 			ChallengeId:       uint64(challengeId),
@@ -88,9 +94,9 @@ func (m Monitor) parseEvent(event abci.Event) *challengetypes.EventStartChalleng
 			SpOperatorAddress: spOpAddress,
 			RedundancyIndex:   int32(redundancyIndex),
 			ChallengerAddress: challengerAddress,
-		}
+		}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (m *Monitor) ListenEventLoop() {
@@ -119,14 +125,6 @@ func (m *Monitor) poll() error {
 	return nil
 }
 
-func (m *Monitor) getLatestPolledBlock() (*model.Block, error) {
-	block, err := m.daoManager.GetLatestBlock()
-	if err != nil {
-		return nil, err
-	}
-	return block, nil
-}
-
 func (m *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResults, *tmtypes.Block, error) {
 	logging.Logger.Infof("retrieve greenfield block at height=%d", height)
 	block, blockResults, err := m.executor.GetBlockAndBlockResultAtHeight(int64(height))
@@ -137,7 +135,10 @@ func (m *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResu
 }
 
 func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *ctypes.ResultBlockResults) error {
-	events := m.parseEvents(blockResults)
+	events, err := m.parseEvents(blockResults)
+	if err != nil {
+		return err
+	}
 	b := &model.Block{
 		Height:      uint64(block.Height),
 		BlockTime:   block.Time.Unix(),
@@ -147,7 +148,10 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 }
 
 func (m *Monitor) calNextHeight() (uint64, error) {
-	latestPolledBlock, err := m.getLatestPolledBlock()
+	latestPolledBlock, err := m.daoManager.GetLatestBlock()
+	if err != nil {
+		return 0, err
+	}
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logging.Logger.Errorf("failed to get latest block from db, error: %s", err.Error())
 		return 0, err

@@ -53,6 +53,9 @@ func NewExecutor(cfg *config.Config) *Executor {
 		sdkclient.WithGrpcDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
 	)
 	spClient, err := sp.NewSpClient("", sp.WithKeyManager(km))
+	if err != nil {
+		panic(err)
+	}
 	return &Executor{
 		gnfdClients: clients,
 		spClient:    spClient,
@@ -91,17 +94,12 @@ func (e *Executor) getRpcClient() (client.Client, error) {
 	return client.TendermintClient.RpcClient.TmClient, nil
 }
 
-func (e *Executor) GetGnfdClient() (*sdkclient.GreenfieldClient, error) {
+func (e *Executor) getGnfdClient() (*sdkclient.GreenfieldClient, error) {
 	client, err := e.gnfdClients.GetClient()
 	if err != nil {
 		return nil, err
 	}
 	return client.GreenfieldClient, nil
-}
-
-func (e *Executor) GetSPClient() *sp.SPClient {
-	client := e.spClient
-	return client
 }
 
 func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block, *ctypes.ResultBlockResults, error) {
@@ -151,7 +149,7 @@ func (e *Executor) QueryCachedLatestValidators() ([]*tmtypes.Validator, error) {
 	return validators, nil
 }
 
-func (e *Executor) UpdateCachedLatestValidatorsLoop() {
+func (e *Executor) CacheValidatorsLoop() {
 	ticker := time.NewTicker(UpdateCachedValidatorsInterval)
 	for range ticker.C {
 		validators, err := e.queryLatestValidators()
@@ -177,8 +175,9 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 
 func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress string,
 	voteResult challangetypes.VoteResult, challenger string,
-	voteAddressSet []uint64, aggregatedSig []byte) (string, error) {
-	gnfdClient, err := e.GetGnfdClient()
+	voteAddressSet []uint64, aggregatedSig []byte,
+) (string, error) {
+	gnfdClient, err := e.getGnfdClient()
 	if err != nil {
 		return "", err
 	}

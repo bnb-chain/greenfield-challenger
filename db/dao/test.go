@@ -27,7 +27,6 @@ type Database struct {
 
 // RunDB run docker of db for unit test
 func RunDB(dbName string) (*Database, error) {
-
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, err
@@ -137,7 +136,6 @@ func getConnection(pool *dockertest.Pool, host, port, dbName string) (*gorm.DB, 
 
 // StopDB stop and remove the docker of db for unit test
 func (d *Database) StopDB() error {
-
 	// For github environment, let github deal with it
 	if d.isGithub {
 		return nil
