@@ -118,6 +118,7 @@ func (p *VoteProcessor) CollectVotesLoop() {
 func (p *VoteProcessor) collectVotes() error {
 	events, err := p.FetchEventsForCollectVotes()
 	if err != nil {
+		logging.Logger.Errorf("vote processor failed to fetch events to collect votes, err=%s", err.Error())
 		return err
 	}
 	if len(events) == 0 {
@@ -165,6 +166,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 	validVotesTotalCount := 1 // assume local vote is valid
 	localVote, err := p.constructVoteAndSign(event)
 	if err != nil {
+		logging.Logger.Errorf("vote processor failed to construct vote and sign for event %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
 	for {
@@ -210,6 +212,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 			// check duplicate, the vote might have been saved in previous request.
 			exist, err := p.IsVoteExists(event.ChallengeId, hex.EncodeToString(v.PubKey[:]))
 			if err != nil {
+				logging.Logger.Errorf("vote processor failed to check if vote exists for event %d, err=%s", event.ChallengeId, err.Error())
 				return err
 			}
 			if exist {

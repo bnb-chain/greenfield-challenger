@@ -2,6 +2,7 @@ package vote
 
 import (
 	"encoding/hex"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -57,6 +58,7 @@ func AggregateSignatureAndValidatorBitSet(votes []*model.Vote, validators []*tmt
 
 	sigs, err := bls.MultipleSignaturesFromBytes(signatures)
 	if err != nil {
+		logging.Logger.Errorf("signature aggregator failed to generate multiple signatures from bytes, err=%s", err.Error())
 		return nil, valBitSet, err
 	}
 	return bls.AggregateSignatures(sigs).Marshal(), valBitSet, nil
