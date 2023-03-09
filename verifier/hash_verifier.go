@@ -3,6 +3,7 @@ package verifier
 import (
 	"bytes"
 	"encoding/hex"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 	"io"
 	"time"
 
@@ -48,6 +49,7 @@ func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
 	events, err := v.daoManager.EventDao.GetEarliestEventsByStatus(model.Unprocessed, 10)
 	if err != nil {
+		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification")
 		return err
 	}
 	if len(events) == 0 {
@@ -74,6 +76,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
 			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
 		if err != nil {
+			logging.Logger.Errorf("verifier failed to retrieve information for event %d", event.ChallengeId)
 			return err
 		}
 		if found {
@@ -84,6 +87,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// Call blockchain for object info to get original hash
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
 	if err != nil {
+		logging.Logger.Errorf("verifier failed to get on-chain object info for event %d", event.ChallengeId)
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
@@ -91,6 +95,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// Call StorageProvider API to get piece hashes of the event
 	spEndpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
 	if err != nil {
+		logging.Logger.Errorf("verifier failed to get piece hashes from StorageProvider for event %d", event.ChallengeId)
 		return err
 	}
 	challengeRes, err := v.executor.GetChallengeResultFromSp(spEndpoint, event.ObjectId,
@@ -101,18 +106,21 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	if err != nil {
+		logging.Logger.Errorf("verifier failed to read piece data for event %d", event.ChallengeId)
 		return err
 	}
 	spChecksums := make([][]byte, 0)
 	for _, h := range challengeRes.PiecesHash {
 		checksum, err := hex.DecodeString(h)
 		if err != nil {
+			logging.Logger.Errorf("verifier failed to decode piece hash for event %d", event.ChallengeId)
 			return err
 		}
 		spChecksums = append(checksums, checksum)
 	}
 	spRootHash, err := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
 	if err != nil {
+		logging.Logger.Errorf("verifier failed to compute root hash for event %d", event.ChallengeId)
 		return err
 	}
 
