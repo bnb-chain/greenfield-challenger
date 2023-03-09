@@ -54,6 +54,7 @@ func (p *VoteProcessor) SignBroadcastVoteLoop() {
 func (p *VoteProcessor) signAndBroadcast() error {
 	events, err := p.FetchEventsForSelfVote()
 	if err != nil {
+		logging.Logger.Errorf("vote processor failed to fetch events for self vote, err=%s", err.Error())
 		return err
 	}
 	if len(events) == 0 {
@@ -91,10 +92,12 @@ func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 	err = p.daoManager.EventDao.DB.Transaction(func(dbTx *gorm.DB) error {
 		err = p.UpdateEventStatus(event.ChallengeId, model.SelfVoted)
 		if err != nil {
+			logging.Logger.Errorf("vote processor failed to update event status after voting for event %d, err=%s", event.ChallengeId, err.Error())
 			return err
 		}
 		err = p.SaveVote(EntityToDto(v, event.ChallengeId))
 		if err != nil {
+			logging.Logger.Errorf("vote processor failed to save vote in db after voting for event %d, err=%s", event.ChallengeId, err.Error())
 			return err
 		}
 		return nil
@@ -148,6 +151,7 @@ func (p *VoteProcessor) collectForSingleEvent(event *model.Event) error {
 func (p *VoteProcessor) prepareEnoughValidVotesForEvent(event *model.Event) error {
 	validators, err := p.executor.QueryCachedLatestValidators()
 	if err != nil {
+		logging.Logger.Errorf("vote processor failed to query the latest validators, err=%s", err.Error())
 		return err
 	}
 	if len(validators) == 1 {
@@ -234,6 +238,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 		if !isLocalVoteIncluded {
 			err := p.executor.BroadcastVote(localVote)
 			if err != nil {
+				logging.Logger.Errorf("vote processor failed to broadcast vote for event %d, err=%s", event.ChallengeId, err.Error())
 				return err
 			}
 		}

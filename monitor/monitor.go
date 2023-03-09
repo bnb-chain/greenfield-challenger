@@ -106,10 +106,12 @@ func (m *Monitor) ListenEventLoop() {
 func (m *Monitor) poll() error {
 	nextHeight, err := m.calNextHeight()
 	if err != nil {
+		logging.Logger.Errorf("monitor failed to calculate next block height, err=%s", err.Error())
 		return err
 	}
 	blockResults, block, err := m.getBlockAndBlockResult(nextHeight)
 	if err != nil {
+		logging.Logger.Errorf("monitor failed to get block result for height %d, err=%s", nextHeight, err.Error())
 		return err
 	}
 	if err = m.monitorChallengeEvents(block, blockResults); err != nil {
@@ -122,6 +124,7 @@ func (m *Monitor) poll() error {
 func (m *Monitor) getLatestPolledBlock() (*model.Block, error) {
 	block, err := m.daoManager.GetLatestBlock()
 	if err != nil {
+		logging.Logger.Errorf("monitor failed to get the latest block, err=%s", err.Error())
 		return nil, err
 	}
 	return block, nil

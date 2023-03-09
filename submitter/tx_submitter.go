@@ -68,6 +68,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	}
 	validators, err := s.executor.QueryCachedLatestValidators()
 	if err != nil {
+		logging.Logger.Errorf("tx submitter failed to query the latest validators, err=%s", err.Error())
 		return err
 	}
 	aggregatedSignature, valBitSet, err := vote.AggregateSignatureAndValidatorBitSet(votes, validators)
