@@ -2,6 +2,7 @@ package vote
 
 import (
 	"encoding/binary"
+
 	"github.com/bnb-chain/greenfield-challenger/logging"
 
 	sdkmath "cosmossdk.io/math"

@@ -3,7 +3,6 @@ package verifier
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/bnb-chain/greenfield-challenger/logging"
 	"io"
 	"time"
 
