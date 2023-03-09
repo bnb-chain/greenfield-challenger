@@ -11,6 +11,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
 )
 
@@ -23,7 +24,8 @@ type Verifier struct {
 }
 
 func NewHashVerifier(cfg *config.Config, dao *dao.DaoManager, executor *executor.Executor,
-	deduplicationInterval, heartbeatInterval uint64) *Verifier {
+	deduplicationInterval, heartbeatInterval uint64,
+) *Verifier {
 	return &Verifier{
 		config:                cfg,
 		daoManager:            dao,
@@ -44,7 +46,7 @@ func (v *Verifier) VerifyHashLoop() {
 
 func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
-	events, err := v.daoManager.EventDao.GetEarliestEventByStatus(model.Unprocessed, 10)
+	events, err := v.daoManager.EventDao.GetEarliestEventsByStatus(model.Unprocessed, 10)
 	if err != nil {
 		return err
 	}
@@ -93,6 +95,9 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}
 	challengeRes, err := v.executor.GetChallengeResultFromSp(spEndpoint, event.ObjectId,
 		int(event.SegmentIndex), int(event.RedundancyIndex))
+	if err != nil {
+		return err
+	}
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	if err != nil {
@@ -112,7 +117,12 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}
 
 	// Update database after comparing
-	return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
+	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
+	if err != nil {
+		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
+			event.ChallengeId, err)
+	}
+	return err
 }
 
 func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checksums [][]byte) ([]byte, error) {

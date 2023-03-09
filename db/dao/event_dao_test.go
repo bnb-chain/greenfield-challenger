@@ -96,16 +96,16 @@ func (s *eventSuite) TestEventDao_GetEarliestEventByStatus() {
 	events := []*model.Event{event1, event2, event3}
 	_ = s.dao.SaveBlockAndEvents(block, events)
 
-	result, err := s.dao.GetEarliestEventByStatus(model.Unprocessed, 10)
+	result, err := s.dao.GetEarliestEventsByStatus(model.Unprocessed, 10)
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(len(result) == 2)
 
-	result, err = s.dao.GetEarliestEventByStatus(model.Unprocessed, 1)
+	result, err = s.dao.GetEarliestEventsByStatus(model.Unprocessed, 1)
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(len(result) == 1)
 	s.Require().True(result[0].ChallengeId == 1)
 
-	result, err = s.dao.GetEarliestEventByStatus(model.Verified, 10)
+	result, err = s.dao.GetEarliestEventsByStatus(model.Verified, 10)
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(len(result) == 1)
 	s.Require().True(result[0].ChallengeId == 100)

@@ -68,14 +68,14 @@ func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
 		if e.VerifyResult == model.HashMismatched || e.ChallengeId%h.heartbeatInterval == 0 {
 			result = append(result, e)
 		}
-		//it means if a challenge cannot be handled correctly, it will be skipped
+		// it means if a challenge cannot be handled correctly, it will be skipped
 		h.lastIdForSelfVote = e.ChallengeId
 	}
 	return result, nil
 }
 
 func (h *DataHandler) FetchEventsForCollectVotes() ([]*model.Event, error) {
-	return h.daoManager.GetEarliestEventByStatus(model.SelfVoted, batchSize)
+	return h.daoManager.GetEarliestEventsByStatus(model.SelfVoted, batchSize)
 }
 
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {

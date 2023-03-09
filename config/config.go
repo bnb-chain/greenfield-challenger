@@ -10,19 +10,8 @@ type Config struct {
 	GreenfieldConfig GreenfieldConfig `json:"greenfield_config"`
 	VotePoolConfig   VotePoolConfig   `json:"vote_pool_config"`
 	LogConfig        LogConfig        `json:"log_config"`
-	AdminConfig      AdminConfig      `json:"admin_config"`
 	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
-}
-
-type AdminConfig struct {
-	ListenAddr string `json:"listen_addr"`
-}
-
-func (cfg *AdminConfig) Validate() {
-	if cfg.ListenAddr == "" {
-		panic("listen address should not be empty")
-	}
 }
 
 type VotePoolConfig struct {
@@ -83,7 +72,6 @@ func (cfg *DBConfig) Validate() {
 }
 
 func (cfg *Config) Validate() {
-	cfg.AdminConfig.Validate()
 	cfg.LogConfig.Validate()
 	cfg.DBConfig.Validate()
 }
@@ -113,15 +101,7 @@ func ParseConfigFromFile(filePath string) *Config {
 }
 
 type AlertConfig struct {
-	Interval int64 `json:"interval"`
-
 	Identity       string `json:"identity"`
 	TelegramBotId  string `json:"telegram_bot_id"`
 	TelegramChatId string `json:"telegram_chat_id"`
-}
-
-func (cfg *AlertConfig) Validate() {
-	if cfg.Interval <= 0 {
-		panic("alert interval should be positive")
-	}
 }

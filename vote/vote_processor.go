@@ -5,8 +5,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/bnb-chain/greenfield-challenger/alert"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/alert"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -30,7 +31,8 @@ type VoteProcessor struct {
 }
 
 func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner,
-	executor *executor.Executor, kind DataProvider) *VoteProcessor {
+	executor *executor.Executor, kind DataProvider,
+) *VoteProcessor {
 	return &VoteProcessor{
 		config:       cfg,
 		daoManager:   dao,

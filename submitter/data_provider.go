@@ -30,7 +30,7 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 }
 
 func (h *DataHandler) FetchEventsForSubmit() ([]*model.Event, error) {
-	return h.daoManager.GetEarliestEventByStatus(model.EnoughVotesCollected, 10)
+	return h.daoManager.GetEarliestEventsByStatus(model.EnoughVotesCollected, batchSize)
 }
 
 func (h *DataHandler) FetchVotesForAggregation(challengeId uint64) ([]*model.Vote, error) {

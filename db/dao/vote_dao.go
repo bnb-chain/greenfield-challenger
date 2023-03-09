@@ -15,17 +15,17 @@ func NewVoteDao(db *gorm.DB) *VoteDao {
 	}
 }
 
-func (db *VoteDao) SaveVote(vote *model.Vote) error {
-	err := db.DB.Create(vote).Error
+func (d *VoteDao) SaveVote(vote *model.Vote) error {
+	err := d.DB.Create(vote).Error
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, error) {
+func (d *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
-	err := db.DB.
+	err := d.DB.
 		Where("challenge_id = ?", challengeId).
 		Find(&votes).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -34,14 +34,12 @@ func (db *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, err
 	return votes, nil
 }
 
-func (db *VoteDao) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
-	var count int64
-	err := db.DB.Model(&model.Vote{}).
-		Where("challenge_id = ?", challengeId).
-		Where("pub_key = ?", pubKey).
-		Count(&count).Error
-	if err != nil {
+func (d *VoteDao) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
+	exists := false
+	if err := d.DB.Raw(
+		"SELECT EXISTS(SELECT id FROM votes WHERE challenge_id = ? and pub_key = ?)",
+		challengeId, pubKey).Scan(&exists).Error; err != nil {
 		return false, err
 	}
-	return count > 0, nil
+	return exists, nil
 }
