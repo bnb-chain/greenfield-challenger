@@ -22,8 +22,7 @@ func TestHashing(t *testing.T) {
 	// Valid testcase
 	validStr := []byte("test1")
 	println(checksums[0])
-	validRootHash, err := verifier.computeRootHash(0, validStr, checksums)
-	require.NoError(t, err)
+	validRootHash := verifier.computeRootHash(0, validStr, checksums)
 	require.Equal(t, validRootHash, rootHash)
 
 	// s.verifier.compareHashAndUpdate(event.ChallengeId, validRootHash, rootHash)
@@ -33,8 +32,7 @@ func TestHashing(t *testing.T) {
 
 	// Invalid testcase
 	invalidStr := []byte("invalid")
-	invalidRootHash, err := verifier.computeRootHash(0, invalidStr, checksums)
-	require.NoError(t, err)
+	invalidRootHash := verifier.computeRootHash(0, invalidStr, checksums)
 	require.NotEqual(t, validRootHash, invalidRootHash)
 
 	// s.verifier.compareHashAndUpdate(event.ChallengeId, invalidRootHash, rootHash)

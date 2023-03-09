@@ -2,6 +2,7 @@ package vote
 
 import (
 	"encoding/hex"
+
 	"github.com/bnb-chain/greenfield-challenger/logging"
 
 	"github.com/ethereum/go-ethereum/common"
