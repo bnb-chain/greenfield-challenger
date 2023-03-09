@@ -2,6 +2,7 @@ package vote
 
 import (
 	"encoding/binary"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -60,6 +61,7 @@ func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
 func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
 	events, err := h.daoManager.GetEarliestEventsByStatusAndAfter(model.Verified, batchSize, h.lastIdForSelfVote)
 	if err != nil {
+		logging.Logger.Errorf("failed to fetch events for self vote, err=%s", err.Error())
 		return nil, err
 	}
 
