@@ -2,10 +2,13 @@ package verifier
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"io"
+	"sync"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -13,6 +16,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
+	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 )
 
 type Verifier struct {
@@ -56,14 +60,21 @@ func (v *Verifier) verifyHash() error {
 		return nil
 	}
 
+	var wg sync.WaitGroup
+	var firstErr error
 	for _, event := range events {
-		err = v.verifyForSingleEvent(event)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func(event *model.Event) {
+			defer wg.Done()
+			err := v.verifyForSingleEvent(event)
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}(event)
 	}
+	wg.Wait()
 
-	return nil
+	return firstErr
 }
 
 func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
@@ -96,10 +107,20 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		logging.Logger.Errorf("verifier failed to get piece hashes from StorageProvider for event %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
-	challengeRes, err := v.executor.GetChallengeResultFromSp(spEndpoint, event.ObjectId,
-		int(event.SegmentIndex), int(event.RedundancyIndex))
-	if err != nil {
+
+	challengeRes := &sp.ChallengeResult{}
+	err = retry.Do(func() error {
+		challengeRes, err = v.executor.GetChallengeResultFromSp(spEndpoint, event.ObjectId,
+			int(event.SegmentIndex), int(event.RedundancyIndex))
+		if err != nil {
+			return err
+		}
 		return err
+	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
+	if err != nil {
+		// after testing, we can make sure it is not client errors, treat it as sp side error
+		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%s", event.ChallengeId, err.Error())
+		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
@@ -135,8 +156,8 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 	return rootHash
 }
 
-func (v *Verifier) compareHashAndUpdate(challengeId uint64, newHash []byte, originalHash []byte) error {
-	if bytes.Equal(newHash, originalHash) {
+func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
+	if bytes.Equal(chainRootHash, spRootHash) {
 		return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMatched)
 	}
 	return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)

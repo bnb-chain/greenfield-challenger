@@ -6,7 +6,7 @@ import (
 
 type Event struct {
 	Id                int64
-	ChallengeId       uint64       `gorm:"NOT NULL;index:idx_challenge_id"`
+	ChallengeId       uint64       `gorm:"NOT NULL;uniqueIndex:idx_challenge_id"`
 	ObjectId          string       `gorm:"NOT NULL;index:idx_object_id_sp_addr"`
 	SegmentIndex      uint32       `gorm:"NOT NULL"`
 	SpOperatorAddress string       `gorm:"NOT NULL;index:idx_object_id_sp_addr"`

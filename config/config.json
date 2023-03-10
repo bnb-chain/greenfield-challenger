@@ -9,7 +9,7 @@
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": "63af8936e8f7682e3c0fc262b15e0ad1eadc38a81c08f148d6f4f9b9e7e9060b",
+    "private_key": "cf1366138ffd14328db680c57db7d56471017e57a5ae203ca0f3fa84cb0b8ebb",
     "gas_limit": 100000,
     "chain_id_string": "greenfield_9000-121",
     "deduplication_interval": 100,
@@ -17,7 +17,7 @@
   },
   "vote_pool_config": {
     "rpc_addr": "http://127.0.0.1:26750",
-    "bls_private_key": "51d3f51b8ed0283ebdccbd98ac52d9c686d32131e3d74b7098666fb8f79f778a"
+    "bls_private_key": "527a0e4711c2ac7d150069e0a0ecf9e9bb11538abed1467237122bb378ff089f"
   },
   "log_config": {
     "level": "DEBUG",
@@ -28,9 +28,6 @@
     "use_console_logger": true,
     "use_file_logger": false,
     "compress": false
-  },
-  "admin_config": {
-    "listen_addr": "0.0.0.0:8080"
   },
   "db_config": {
     "dialect": "mysql",
