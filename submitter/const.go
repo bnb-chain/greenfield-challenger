@@ -1,3 +1,3 @@
 package submitter
 
-const SubmitTxMaxRetry = 5
+const SubmitTxMaxRetry = 3
