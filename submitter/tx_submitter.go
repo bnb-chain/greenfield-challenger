@@ -138,7 +138,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 }
 
 func (s TxSubmitter) checkSubmitStatus(attested chan struct{}, errC chan error, challengeId uint64) {
-	ticker := time.NewTicker(common.RetryInterval)
+	ticker := time.NewTicker(common.RetryInterval / 3) // check faster than retry
 	defer ticker.Stop()
 	for range ticker.C {
 		attestedChallengeId, err := s.executor.QueryLatestAttestedChallenge()
@@ -146,7 +146,8 @@ func (s TxSubmitter) checkSubmitStatus(attested chan struct{}, errC chan error, 
 			errC <- err
 		}
 		if challengeId <= attestedChallengeId {
-			logging.Logger.Infof("challenge %d has already been attested ", challengeId)
+			logging.Logger.Infof("challenge %d has already been attested, current attested challenge %d",
+				challengeId, attestedChallengeId)
 			attested <- struct{}{}
 		}
 	}

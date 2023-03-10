@@ -11,5 +11,5 @@ var (
 	RtyAttem      = retry.Attempts(RtyAttemNum)
 	RtyDelay      = retry.Delay(time.Millisecond * 400)
 	RtyErr        = retry.LastErrorOnly(true)
-	RetryInterval = 3 * time.Second
+	RetryInterval = 2 * time.Second
 )

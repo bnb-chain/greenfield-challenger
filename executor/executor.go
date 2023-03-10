@@ -53,7 +53,7 @@ func NewExecutor(cfg *config.Config) *Executor {
 		sdkclient.WithKeyManager(km),
 		sdkclient.WithGrpcDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
 	)
-	spClient, err := sp.NewSpClient("", sp.WithKeyManager(km))
+	spClient, err := sp.NewSpClient("127.0.0.1", sp.WithKeyManager(km))
 	if err != nil {
 		panic(err)
 	}
