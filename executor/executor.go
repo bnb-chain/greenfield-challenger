@@ -7,6 +7,7 @@ import (
 	_ "encoding/json"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
@@ -34,7 +35,11 @@ type Executor struct {
 	spClient    *sp.SPClient
 	config      *config.Config
 	address     string
-	validators  []*tmtypes.Validator // used to cache validators
+
+	mtx                 sync.RWMutex
+	validators          []*tmtypes.Validator // used to cache validators
+	heartbeatInterval   uint64               // used to save challenge heartbeat interval
+	attestedChallengeId uint64               // used to save the last attested challenge id
 }
 
 func NewExecutor(cfg *config.Config) *Executor {
@@ -148,9 +153,19 @@ func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {
 }
 
 func (e *Executor) QueryCachedLatestValidators() ([]*tmtypes.Validator, error) {
-	if len(e.validators) != 0 {
-		return e.validators, nil
+	result := make([]*tmtypes.Validator, 0)
+
+	e.mtx.RLock()
+	for i, p := range e.validators {
+		v := *p
+		result[i] = &v
 	}
+	e.mtx.RUnlock()
+
+	if len(result) != 0 {
+		return result, nil
+	}
+
 	validators, err := e.queryLatestValidators()
 	if err != nil {
 		return nil, err
@@ -166,7 +181,9 @@ func (e *Executor) CacheValidatorsLoop() {
 			logging.Logger.Errorf("update latest greenfield validators error, err=%s", err)
 			continue
 		}
+		e.mtx.Lock()
 		e.validators = validators
+		e.mtx.Unlock()
 	}
 }
 
@@ -222,7 +239,7 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 	return txRes.TxResponse.TxHash, nil
 }
 
-func (e *Executor) QueryLatestAttestedChallenge() (uint64, error) {
+func (e *Executor) queryLatestAttestedChallengeId() (uint64, error) {
 	client, err := e.gnfdClients.GetClient()
 	if err != nil {
 		return 0, err
@@ -235,6 +252,83 @@ func (e *Executor) QueryLatestAttestedChallenge() (uint64, error) {
 	}
 
 	return res.ChallengeId, nil
+}
+
+func (e *Executor) QueryLatestAttestedChallengeId() (uint64, error) {
+	challengeId := uint64(0)
+
+	e.mtx.RLock()
+	challengeId = e.attestedChallengeId
+	e.mtx.Unlock()
+
+	if challengeId != 0 {
+		return challengeId, nil
+	}
+	challengeId, err := e.queryLatestAttestedChallengeId()
+	if err != nil {
+		return 0, err
+	}
+	return challengeId, nil
+}
+
+func (e *Executor) UpdateAttestedChallengeIdLoop() {
+	ticker := time.NewTicker(QueryAttestedChallengeInterval)
+	for range ticker.C {
+		challengeId, err := e.queryLatestAttestedChallengeId()
+		if err != nil {
+			logging.Logger.Errorf("update latest attested challenge error, err=%s", err)
+			continue
+		}
+		e.mtx.Lock()
+		e.attestedChallengeId = challengeId
+		e.mtx.Unlock()
+	}
+}
+
+func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
+	client, err := e.gnfdClients.GetClient()
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := client.ChallengeQueryClient.Params(context.Background(), &challangetypes.QueryParamsRequest{})
+	if err != nil {
+		logging.Logger.Errorf("executor failed to get latest heartbeat interval, err=%s", err.Error())
+		return 0, err
+	}
+
+	return res.Params.HeartbeatInterval, nil
+}
+
+func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
+	heartbeatInterval := uint64(0)
+
+	e.mtx.RLock()
+	heartbeatInterval = e.heartbeatInterval
+	e.mtx.Unlock()
+
+	if heartbeatInterval != 0 {
+		return heartbeatInterval, nil
+	}
+	heartbeatInterval, err := e.queryChallengeHeartbeatInterval()
+	if err != nil {
+		return 0, err
+	}
+	return heartbeatInterval, nil
+}
+
+func (e *Executor) UpdateHeartbeatIntervalLoop() {
+	ticker := time.NewTicker(QueryHeartbeatIntervalInterval)
+	for range ticker.C {
+		heartbeatInterval, err := e.queryChallengeHeartbeatInterval()
+		if err != nil {
+			logging.Logger.Errorf("update latest heartbeat interval error, err=%s", err)
+			continue
+		}
+		e.mtx.Lock()
+		e.heartbeatInterval = heartbeatInterval
+		e.mtx.Unlock()
+	}
 }
 
 func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {

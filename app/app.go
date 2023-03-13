@@ -43,15 +43,14 @@ func NewApp(cfg *config.Config) *App {
 
 	monitor := monitor.NewMonitor(executor, daoManager)
 
-	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor,
-		cfg.GreenfieldConfig.DeduplicationInterval, cfg.GreenfieldConfig.HeartbeatInterval)
+	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor, cfg.GreenfieldConfig.DeduplicationInterval)
 
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
-	voteDataHandler := vote.NewDataHandler(daoManager, cfg.GreenfieldConfig.HeartbeatInterval)
+	voteDataHandler := vote.NewDataHandler(daoManager)
 	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, voteDataHandler)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
-	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
+	txSubmitter := submitter.NewTxSubmitter(cfg, executor, daoManager, txDataHandler)
 
 	return &App{
 		executor:      executor,
@@ -63,6 +62,8 @@ func NewApp(cfg *config.Config) *App {
 }
 
 func (a *App) Start() {
+	go a.executor.UpdateAttestedChallengeIdLoop()
+	go a.executor.UpdateHeartbeatIntervalLoop()
 	go a.executor.CacheValidatorsLoop()
 	go a.eventMonitor.ListenEventLoop()
 	go a.hashVerifier.VerifyHashLoop()

@@ -13,7 +13,6 @@
     "gas_limit": 100000,
     "chain_id_string": "greenfield_9000-121",
     "deduplication_interval": 100,
-    "heartbeat_interval": 100
   },
   "vote_pool_config": {
     "rpc_addr": "http://127.0.0.1:26750",
