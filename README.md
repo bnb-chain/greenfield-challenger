@@ -63,36 +63,27 @@ make build
 1. Set your private key import method, deployment environment and gas limit.
 ```
   "greenfield_config": {
-    "key_type": "local_private_key" 
-    "aws_region": ""
-    "aws_secret_name": ""
+    "key_type": "local_private_key" or "aws_private_key" depending on your choice of import 
+    "aws_region": set this if you choose to import using aws
+    "aws_secret_name": set this if you choose to import using aws
     "rpc_addrs": [
       "http://0.0.0.0:26750"
     ],
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": your_validator_private_key
+    "private_key": validator_private_key
     "gas_limit": 100 (your tx gas limit)
     "chain_id_string": "greenfield_9000-121" (mainnet) or "greenfield_9000-1741" (testnet)    
     "deduplication_interval": 100 (skip processing event if recently processed within X events)
-    "heartbeat_interval": 100 (routine check every X events to see if this service is still alive)
   }
 ```
-
-`key_type:`"local_private_key" or "aws_private_key" depending on your choice of import
-
-`aws_region` set this if you choose to import using aws
-
-`aws_secret` set this if you choose to import using aws
-
-
 
 2. Set your relayer key and vote pool address. 
 ```
 "vote_pool_config": {
   "rpc_addr": "http://127.0.0.1:26750",
-  "bls_private_key": relayer key 
+  "bls_private_key": relayer_private_key 
 }
 ```
 
@@ -127,5 +118,4 @@ make build
   "telegram_bot_id": your_bot_id
   "telegram_chat_id": your_chat_id  
 }
-
 ```
