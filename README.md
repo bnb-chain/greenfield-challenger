@@ -1,6 +1,19 @@
 # Greenfield Challenger
 Greenfield ensures data integrity by routinely issuing storage providers challenge events to prove that the stored data is not tampered. This service allows end users to monitor the blockchain for challenge events and conduct verification upon downloading the hash pieces belonging to the stored object. 
 
+## How it works
+This off-chain application comprises of 4 working parts: Monitor, Verifier, Vote Processor and Tx Submitter. 
+1. The Monitor polls the blockchain for new challenge events and adds them to the local db for further processing.
+
+
+2. The Verifier would then retrieve the event from the db before querying the Storage Provider for the piece hashes and the Blockchain for the original hash. A root hash would be computed using the piece hashes received from the Storage Provider. Both the root hash and original hash would then be compared to check if they are equal before updating the db with the challenge results.
+
+
+3. The Vote Processor polls the db for locally verified events to prepare the votes before broadcasting them. It also queries for and saves all the broadcasted votes for this challenge event to check if a 2/3 consensus has been achieved before updating the db with the consensus results.
+
+
+4. The Tx Submitter polls the db for events that received enough consensus votes and sends a MsgAttest after aggregating the votes and signature. 
+
 # Run locally
 
 ## Run MySQL in Docker
