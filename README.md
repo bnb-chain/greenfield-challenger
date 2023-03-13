@@ -9,7 +9,7 @@ This off-chain application comprises of 4 working parts: Monitor, Verifier, Vote
 2. The Verifier would then retrieve the event from the db before querying the Storage Provider for the piece hashes and the Blockchain for the original hash. A root hash would be computed using the piece hashes received from the Storage Provider. Both the root hash and original hash would then be compared to check if they are equal before updating the db with the challenge results.
 
 
-3. The Vote Processor polls the db for locally verified events to prepare the votes before broadcasting them. It also queries for and saves all the broadcasted votes for this challenge event to check if a 2/3 consensus has been achieved before updating the db with the consensus results.
+3. The Vote Processor polls the db for locally verified events to prepare the votes before broadcasting them. It also queries for and saves all the broadcasted votes for the challenge events to check if a 2/3 consensus has been achieved before updating the db with the consensus results.
 
 
 4. The Tx Submitter polls the db for events that received enough consensus votes and sends a MsgAttest after aggregating the votes and signature. 
@@ -57,52 +57,75 @@ fmt.Println(common.Bytes2Hex(s.Relayer.GetPrivKey().Bytes()))
 make build
 ./build/greenfield-challenger --config-type local --config-path ./config/config.json
 ```
+# Deployment
 
 ## Config
+1. Set your private key import method, deployment environment and gas limit.
 ```
-{
   "greenfield_config": {
-    "key_type": local private key
-    "aws_region": service region that contains the key to import
-    "aws_secret_name": service secret name contains the key to import
+    "key_type": "local_private_key" 
+    "aws_region": ""
+    "aws_secret_name": ""
     "rpc_addrs": [
       "http://0.0.0.0:26750"
     ],
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": validator private key
-    "gas_limit": gas limit
-    "chain_id_string": deployment env chain id
-    "deduplication_interval": interval before the same event can be processed again
-    "heartbeat_interval": routine check to see if this service is still alive
-  },
-  "vote_pool_config": {
-    "rpc_addr": "http://127.0.0.1:26750",
-    "bls_private_key": relayer key 
-  },
-  "log_config": {
-    "level": "DEBUG",
-    "filename": "log.txt",
-    "max_file_size_in_mb": file size threshold
-    "max_backups_of_log_files": backup count threshold
-    "max_age_to_retain_log_files_in_days": backup age threshold
-    "use_console_logger": true,
-    "use_file_logger": false,
-    "compress": false
-  },
-  "admin_config": {
-    "listen_addr": "0.0.0.0:8080"
-  },
-  "db_config": {
-    "dialect": db type
-    "db_path": db path
-  },
-  "alert_config": {
-    "interval": interval before next msg can be sent
-    "identity": telegram bot msg sender identity
-    "telegram_bot_id": telegram bot id
-    "telegram_chat_id": telegram bot chat id  
+    "private_key": your_validator_private_key
+    "gas_limit": 100 (your tx gas limit)
+    "chain_id_string": "greenfield_9000-121" (mainnet) or "greenfield_9000-1741" (testnet)    
+    "deduplication_interval": 100 (skip processing event if recently processed within X events)
+    "heartbeat_interval": 100 (routine check every X events to see if this service is still alive)
   }
+```
+
+`key_type:`"local_private_key" or "aws_private_key" depending on your choice of import
+
+`aws_region` set this if you choose to import using aws
+
+`aws_secret` set this if you choose to import using aws
+
+
+
+2. Set your relayer key and vote pool address. 
+```
+"vote_pool_config": {
+  "rpc_addr": "http://127.0.0.1:26750",
+  "bls_private_key": relayer key 
 }
+```
+
+3. Set your log and backup preferences. 
+```
+"log_config": {
+  "level": "DEBUG",
+  "filename": "log.txt",
+  "max_file_size_in_mb": 100 (file size threshold)  
+  "max_backups_of_log_files": 2 (backup count threshold)
+  "max_age_to_retain_log_files_in_days": 10 (backup age threshold)
+  "use_console_logger": true,
+  "use_file_logger": false,
+  "compress": false
+}
+```
+
+4. Config your database settings. 
+```
+"db_config": {
+  "dialect": "mysql",
+  "db_path": "root:root@tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
+}
+```
+
+5. Set alert config to send a telegram message when the application exceeds the max retries for certain operations. 
+
+```
+"alert_config": {
+  "interval": 300
+  "identity": your_bot_identity
+  "telegram_bot_id": your_bot_id
+  "telegram_chat_id": your_chat_id  
+}
+
 ```
