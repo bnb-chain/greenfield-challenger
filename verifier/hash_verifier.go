@@ -24,18 +24,16 @@ type Verifier struct {
 	config                *config.Config
 	executor              *executor.Executor
 	deduplicationInterval uint64
-	heartbeatInterval     uint64
 }
 
 func NewHashVerifier(cfg *config.Config, dao *dao.DaoManager, executor *executor.Executor,
-	deduplicationInterval, heartbeatInterval uint64,
+	deduplicationInterval uint64,
 ) *Verifier {
 	return &Verifier{
 		config:                cfg,
 		daoManager:            dao,
 		executor:              executor,
 		deduplicationInterval: deduplicationInterval,
-		heartbeatInterval:     heartbeatInterval,
 	}
 }
 
@@ -78,20 +76,8 @@ func (v *Verifier) verifyHash() error {
 }
 
 func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
-	// skip event if
-	// 1) no challenger field and
-	// 2) the event is not for heartbeat
-	// 3) the event with same storage provider and object id has been processed recently and
-	if event.ChallengerAddress == "" && event.ChallengeId%v.heartbeatInterval != 0 {
-		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
-			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
-		if err != nil {
-			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%s", event.ChallengeId, err.Error())
-			return err
-		}
-		if found {
-			return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Duplicated)
-		}
+	if err := v.preCheck(event); err != nil {
+		return err
 	}
 
 	// Call blockchain for object info to get original hash
@@ -145,6 +131,44 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 			event.ChallengeId, err)
 	}
 	return err
+}
+
+func (v *Verifier) preCheck(event *model.Event) error {
+	// event will be skipped if
+	// 1) the challenge with bigger id has been attested
+	attestedId, err := v.executor.QueryLatestAttestedChallengeId()
+	if err != nil {
+		return err
+	}
+	if attestedId <= event.ChallengeId {
+		logging.Logger.Infof("verifier skips the event %d, attested id=%d", event.ChallengeId, attestedId)
+		return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+	}
+
+	// event is duplicated if
+	// 1) no challenger field and
+	// 2) the event is not for heartbeat
+	// 3) the event with same storage provider and object id has been processed recently and
+	heartbeatInterval, err := v.executor.QueryChallengeHeartbeatInterval()
+	if err != nil {
+		return err
+	}
+	if heartbeatInterval == 0 {
+		panic("heartbeat interval should not zero, potential bug")
+	}
+	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 {
+		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
+			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
+		if err != nil {
+			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%s", event.ChallengeId, err.Error())
+			return err
+		}
+		if found {
+			return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Duplicated)
+		}
+	}
+
+	return nil
 }
 
 func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checksums [][]byte) []byte {

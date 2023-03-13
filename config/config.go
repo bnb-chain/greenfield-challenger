@@ -29,7 +29,6 @@ type GreenfieldConfig struct {
 	GasLimit              uint64   `json:"gas_limit"`
 	ChainIdString         string   `json:"chain_id_string"`
 	DeduplicationInterval uint64   `json:"deduplication_interval"`
-	HeartbeatInterval     uint64   `json:"heartbeat_interval"`
 }
 
 type LogConfig struct {

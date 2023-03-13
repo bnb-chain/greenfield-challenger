@@ -9,7 +9,7 @@ import (
 )
 
 func TestHashing(t *testing.T) {
-	verifier := NewHashVerifier(nil, nil, nil, 100, 100)
+	verifier := NewHashVerifier(nil, nil, nil, 100)
 
 	hashesStr := []string{"test1", "test2", "test3", "test4", "test5", "test6", "test7"}
 	checksums := make([][]byte, 7)

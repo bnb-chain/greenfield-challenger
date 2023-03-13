@@ -73,6 +73,10 @@ func (p *VoteProcessor) signAndBroadcast() error {
 }
 
 func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
+	if err := p.preCheck(event); err != nil {
+		return err
+	}
+
 	v, err := p.constructVoteAndSign(event)
 	if err != nil {
 		return err
@@ -105,6 +109,20 @@ func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 		return err
 	}
 
+	return nil
+}
+
+func (p *VoteProcessor) preCheck(event *model.Event) error {
+	// event will be skipped if
+	// 1) the challenge with bigger id has been attested
+	attestedId, err := p.executor.QueryLatestAttestedChallengeId()
+	if err != nil {
+		return err
+	}
+	if attestedId <= event.ChallengeId {
+		logging.Logger.Infof("voter skips the event %d, attested id=%d", event.ChallengeId, attestedId)
+		return p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+	}
 	return nil
 }
 
