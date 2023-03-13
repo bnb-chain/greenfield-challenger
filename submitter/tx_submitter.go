@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/alert"
+	"github.com/bnb-chain/greenfield-challenger/db/dao"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -15,16 +16,18 @@ import (
 )
 
 type TxSubmitter struct {
-	config   *config.Config
-	executor *executor.Executor
+	config     *config.Config
+	daoManager *dao.DaoManager
+	executor   *executor.Executor
 	DataProvider
 }
 
-func NewTxSubmitter(cfg *config.Config, executor *executor.Executor,
+func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, daoManager *dao.DaoManager,
 	submitterKind DataProvider,
 ) *TxSubmitter {
 	return &TxSubmitter{
 		config:       cfg,
+		daoManager:   daoManager,
 		executor:     executor,
 		DataProvider: submitterKind,
 	}
@@ -62,6 +65,10 @@ func (s *TxSubmitter) process() error {
 }
 
 func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
+	if err := s.preCheck(event); err != nil {
+		return err
+	}
+
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
 	votes, err := s.FetchVotesForAggregation(event.ChallengeId)
 	if err != nil {
@@ -77,30 +84,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 		return err
 	}
 
-	//relayerBlsPubKeys, err := s.executor.GetValidatorsBlsPublicKey()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//relayerPubKey := util.BlsPubKeyFromPrivKeyStr(s.votePoolExecutor.GetBlsPrivateKey())
-	//relayerIdx := util.IndexOf(hex.EncodeToString(relayerPubKey), relayerBlsPubKeys)
-	//firstInturnRelayerIdx := int(event.Height) % len(relayerBlsPubKeys)
-	//txRelayStartTime := tx.TxTime + s.config.RelayConfig.GreenfieldToBSCRelayingDelayTime
-	//logging.Logger.Infof("tx will be relayed starting at %d", txRelayStartTime)
-	//
-	//var indexDiff int
-	//if relayerIdx >= firstInturnRelayerIdx {
-	//	indexDiff = relayerIdx - firstInturnRelayerIdx
-	//} else {
-	//	indexDiff = len(relayerBlsPubKeys) - (firstInturnRelayerIdx - relayerIdx)
-	//}
-	//curRelayerRelayingStartTime := int64(0)
-	//if indexDiff == 0 {
-	//	curRelayerRelayingStartTime = txRelayStartTime
-	//} else {
-	//	curRelayerRelayingStartTime = txRelayStartTime + s.config.RelayConfig.FirstInTurnRelayerRelayingWindow + int64(indexDiff-1)*s.config.RelayConfig.InTurnRelayerRelayingWindow
-	//}
-	//logging.Logger.Infof("current relayer starts relaying from %d", curRelayerRelayingStartTime)
+	// TODO: determinate the turn
 
 	// submit transaction
 	attested := make(chan struct{})
@@ -137,11 +121,25 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	}
 }
 
+func (s *TxSubmitter) preCheck(event *model.Event) error {
+	// event will be skipped if
+	// 1) the challenge with bigger id has been attested
+	attestedId, err := s.executor.QueryLatestAttestedChallengeId()
+	if err != nil {
+		return err
+	}
+	if attestedId <= event.ChallengeId {
+		logging.Logger.Infof("submitter skips the event %d, attested id=%d", event.ChallengeId, attestedId)
+		return s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+	}
+	return nil
+}
+
 func (s TxSubmitter) checkSubmitStatus(attested chan struct{}, errC chan error, challengeId uint64) {
 	ticker := time.NewTicker(common.RetryInterval / 3) // check faster than retry
 	defer ticker.Stop()
 	for range ticker.C {
-		attestedChallengeId, err := s.executor.QueryLatestAttestedChallenge()
+		attestedChallengeId, err := s.executor.QueryLatestAttestedChallengeId()
 		if err != nil {
 			errC <- err
 		}

@@ -29,10 +29,9 @@ type DataHandler struct {
 	lastIdForSelfVote uint64 // some events' status will do not change anymore, so we need to skip them
 }
 
-func NewDataHandler(daoManager *dao.DaoManager, heartbeatInterval uint64) *DataHandler {
+func NewDataHandler(daoManager *dao.DaoManager) *DataHandler {
 	return &DataHandler{
-		daoManager:        daoManager,
-		heartbeatInterval: heartbeatInterval,
+		daoManager: daoManager,
 	}
 }
 
