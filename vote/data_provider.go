@@ -48,12 +48,18 @@ func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
 		panic("cannot convert vote option")
 	}
 
+	spOperatorBz := sdk.MustAccAddressFromHex(event.SpOperatorAddress).Bytes()
+	challengerBz := make([]byte, 0)
+	if event.ChallengerAddress != "" {
+		challengerBz = sdk.MustAccAddressFromHex(event.ChallengerAddress).Bytes()
+	}
+
 	bs := make([]byte, 0)
 	bs = append(bs, challengeIdBz...)
 	bs = append(bs, objectIdBz...)
 	bs = append(bs, resultBz...)
-	bs = append(bs, []byte(event.SpOperatorAddress)...)
-	bs = append(bs, []byte(event.ChallengerAddress)...)
+	bs = append(bs, spOperatorBz...)
+	bs = append(bs, challengerBz...)
 	hash := sdk.Keccak256Hash(bs)
 	return hash
 }
