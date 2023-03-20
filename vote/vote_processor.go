@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/avast/retry-go/v4"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/alert"
