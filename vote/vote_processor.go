@@ -9,7 +9,6 @@ import (
 
 	"github.com/bnb-chain/greenfield-challenger/alert"
 
-	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -192,7 +191,9 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 	for {
 		// skip current tx if reach the max retry.
 		if triedTimes > QueryVotepoolMaxRetry {
-			alert.SendTelegramMessage(p.config.AlertConfig.Identity, p.config.AlertConfig.TelegramChatId, p.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId))
+			if p.config.AlertConfig.EnableAlert {
+				alert.SendTelegramMessage(p.config.AlertConfig.Identity, p.config.AlertConfig.TelegramChatId, p.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId))
+			}
 			logging.Logger.Infof("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
 			return p.UpdateEventStatus(event.ChallengeId, model.NoEnoughVotesCollected)
 		}

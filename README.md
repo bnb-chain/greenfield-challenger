@@ -113,9 +113,9 @@ make build
 
 ```
 "alert_config": {
-  "interval": 300
-  "identity": your_bot_identity
-  "telegram_bot_id": your_bot_id
+  "enable_alert": false,
+  "identity": your_bot_identity,
+  "telegram_bot_id": your_bot_id,
   "telegram_chat_id": your_chat_id  
 }
 ```

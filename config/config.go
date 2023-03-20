@@ -100,6 +100,7 @@ func ParseConfigFromFile(filePath string) *Config {
 }
 
 type AlertConfig struct {
+	EnableAlert    bool   `json:"enable_alert"`
 	Identity       string `json:"identity"`
 	TelegramBotId  string `json:"telegram_bot_id"`
 	TelegramChatId string `json:"telegram_chat_id"`

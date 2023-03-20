@@ -33,6 +33,7 @@
     "db_path": "root:root@tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
   },
   "alert_config": {
+    "enable_alert": true,
     "interval": 300,
     "identity": "your_identity",
     "telegram_bot_id": "your_bot_id",

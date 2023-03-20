@@ -106,7 +106,9 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 		case <-ticker.C:
 			triedTimes++
 			if triedTimes > SubmitTxMaxRetry {
-				alert.SendTelegramMessage(s.config.AlertConfig.Identity, s.config.AlertConfig.TelegramChatId, s.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to submit tx for challenge after retry, id: %d", event.ChallengeId))
+				if s.config.AlertConfig.EnableAlert {
+					alert.SendTelegramMessage(s.config.AlertConfig.Identity, s.config.AlertConfig.TelegramChatId, s.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to submit tx for challenge after retry, id: %d", event.ChallengeId))
+				}
 				logging.Logger.Infof("failed to submit tx for challenge after retry, id: %d", event.ChallengeId)
 				return s.UpdateEventStatus(event.ChallengeId, model.SubmitFailed)
 			}
