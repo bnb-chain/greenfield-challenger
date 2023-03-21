@@ -128,8 +128,8 @@ func (s *TxSubmitter) preCheck(event *model.Event) error {
 	if err != nil {
 		return err
 	}
-	if attestedId <= event.ChallengeId {
-		logging.Logger.Infof("submitter skips the event %d, attested id=%d", event.ChallengeId, attestedId)
+	if attestedId >= event.ChallengeId {
+		logging.Logger.Infof("submitter skips the challenge %d, attested id=%d", event.ChallengeId, attestedId)
 		return s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
 	}
 	return nil
