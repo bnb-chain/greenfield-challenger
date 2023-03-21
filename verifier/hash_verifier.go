@@ -110,18 +110,18 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
+	piecesHash := challengeRes.PiecesHash
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to read piece data for event %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
 	spChecksums := make([][]byte, 0)
-	for _, h := range challengeRes.PiecesHash {
+	for _, h := range piecesHash {
 		checksum, err := hex.DecodeString(h)
 		if err != nil {
-			logging.Logger.Errorf("verifier failed to decode piece hash for event %d, err=%s", event.ChallengeId, err.Error())
-			return err
+			panic(err)
 		}
-		spChecksums = append(checksums, checksum)
+		spChecksums = append(spChecksums, checksum)
 	}
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
 	// Update database after comparing
@@ -173,10 +173,10 @@ func (v *Verifier) preCheck(event *model.Event) error {
 
 func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checksums [][]byte) []byte {
 	// Hash the piece that is challenged, replace original checksum, recompute new root hash
-	dataHash := hash.CalcSHA256(pieceData)
+	dataHash := hash.GenerateChecksum(pieceData)
 	checksums[segmentIndex] = dataHash
 	total := bytes.Join(checksums, []byte(""))
-	rootHash := []byte(hash.CalcSHA256Hex(total))
+	rootHash := hash.GenerateChecksum(total)
 	return rootHash
 }
 
