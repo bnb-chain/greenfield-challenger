@@ -140,8 +140,8 @@ func (v *Verifier) preCheck(event *model.Event) error {
 	if err != nil {
 		return err
 	}
-	if attestedId <= event.ChallengeId {
-		logging.Logger.Infof("verifier skips the event %d, attested id=%d", event.ChallengeId, attestedId)
+	if attestedId >= event.ChallengeId {
+		logging.Logger.Infof("verifier skips the challenge %d, attested id=%d", event.ChallengeId, attestedId)
 		return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
 	}
 
@@ -156,7 +156,7 @@ func (v *Verifier) preCheck(event *model.Event) error {
 	if heartbeatInterval == 0 {
 		panic("heartbeat interval should not zero, potential bug")
 	}
-	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 {
+	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
 		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
 			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
 		if err != nil {
