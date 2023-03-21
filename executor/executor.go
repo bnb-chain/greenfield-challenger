@@ -259,7 +259,7 @@ func (e *Executor) QueryLatestAttestedChallengeId() (uint64, error) {
 
 	e.mtx.RLock()
 	challengeId = e.attestedChallengeId
-	e.mtx.Unlock()
+	e.mtx.RUnlock()
 
 	if challengeId != 0 {
 		return challengeId, nil
@@ -305,7 +305,7 @@ func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
 
 	e.mtx.RLock()
 	heartbeatInterval = e.heartbeatInterval
-	e.mtx.Unlock()
+	e.mtx.RUnlock()
 
 	if heartbeatInterval != 0 {
 		return heartbeatInterval, nil
