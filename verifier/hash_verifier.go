@@ -173,11 +173,11 @@ func (v *Verifier) preCheck(event *model.Event) error {
 
 func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checksums [][]byte) []byte {
 	// Hash the piece that is challenged, replace original checksum, recompute new root hash
-	dataHash := hash.CalcSHA256(pieceData)
+	dataHash := hash.GenerateChecksum(pieceData)
 	checksums[segmentIndex] = dataHash
 	total := bytes.Join(checksums, []byte(""))
-	rootHash := hash.CalcSHA256Hex(total)
-	return []byte(rootHash)
+	rootHash := hash.GenerateChecksum(total)
+	return rootHash
 }
 
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
