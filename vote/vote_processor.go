@@ -119,8 +119,8 @@ func (p *VoteProcessor) preCheck(event *model.Event) error {
 	if err != nil {
 		return err
 	}
-	if attestedId <= event.ChallengeId {
-		logging.Logger.Infof("voter skips the event %d, attested id=%d", event.ChallengeId, attestedId)
+	if attestedId >= event.ChallengeId {
+		logging.Logger.Infof("voter skips the challenge %d, attested id=%d", event.ChallengeId, attestedId)
 		return p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
 	}
 	return nil
