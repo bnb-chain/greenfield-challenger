@@ -46,7 +46,7 @@ func NewApp(cfg *config.Config) *App {
 	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor, cfg.GreenfieldConfig.DeduplicationInterval)
 
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
-	voteDataHandler := vote.NewDataHandler(daoManager)
+	voteDataHandler := vote.NewDataHandler(daoManager, executor)
 	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, voteDataHandler)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
