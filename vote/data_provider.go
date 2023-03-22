@@ -2,6 +2,7 @@ package vote
 
 import (
 	"encoding/binary"
+	"github.com/bnb-chain/greenfield-challenger/executor"
 
 	"github.com/bnb-chain/greenfield-challenger/logging"
 
@@ -25,13 +26,14 @@ type DataProvider interface {
 
 type DataHandler struct {
 	daoManager        *dao.DaoManager
-	heartbeatInterval uint64
+	executor          *executor.Executor
 	lastIdForSelfVote uint64 // some events' status will do not change anymore, so we need to skip them
 }
 
-func NewDataHandler(daoManager *dao.DaoManager) *DataHandler {
+func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *DataHandler {
 	return &DataHandler{
 		daoManager: daoManager,
+		executor:   executor,
 	}
 }
 
@@ -64,10 +66,14 @@ func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
 		logging.Logger.Errorf("failed to fetch events for self vote, err=%s", err.Error())
 		return nil, err
 	}
-
+	heartbeatInterval, err := h.executor.QueryChallengeHeartbeatInterval()
+	if err != nil {
+		logging.Logger.Errorf("error querying heartbeat interval, err=%s", err.Error())
+		return nil, err
+	}
 	result := make([]*model.Event, 0)
 	for _, e := range events {
-		if e.VerifyResult == model.HashMismatched || e.ChallengeId%h.heartbeatInterval == 0 {
+		if e.VerifyResult == model.HashMismatched || e.ChallengeId%heartbeatInterval == 0 {
 			result = append(result, e)
 		}
 		// it means if a challenge cannot be handled correctly, it will be skipped
