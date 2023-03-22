@@ -83,6 +83,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// Call blockchain for object info to get original hash
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
 	if err != nil {
+		v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Skipped, model.Unknown)
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
