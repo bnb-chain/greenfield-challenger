@@ -85,7 +85,10 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such object") {
-			v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Skipped, model.Unknown)
+			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Skipped, model.Unknown)
+			if err != nil {
+				return err
+			}
 		}
 		return err
 	}
