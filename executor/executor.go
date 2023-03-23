@@ -153,9 +153,8 @@ func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {
 }
 
 func (e *Executor) QueryCachedLatestValidators() ([]*tmtypes.Validator, error) {
-	result := make([]*tmtypes.Validator, 0)
-
 	e.mtx.Lock()
+	result := make([]*tmtypes.Validator, 0)
 	if len(e.validators) > 0 {
 		for i, p := range e.validators {
 			v := *p
