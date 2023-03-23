@@ -67,7 +67,7 @@ func (a *App) Start() {
 	go a.executor.CacheValidatorsLoop()
 	go a.eventMonitor.ListenEventLoop()
 	go a.hashVerifier.VerifyHashLoop()
-	go a.voteProcessor.SignBroadcastVoteLoop()
+	go a.voteProcessor.SignVoteLoop()
 	go a.voteProcessor.CollectVotesLoop()
 	a.txSubmitter.SubmitTransactionLoop()
 }
