@@ -70,7 +70,8 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	}
 
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
-	votes, err := s.FetchVotesForAggregation(event.ChallengeId)
+	eventHash := s.DataProvider.CalculateEventHash(event)
+	votes, err := s.FetchVotesForAggregation(eventHash)
 	if err != nil {
 		logging.Logger.Errorf("failed to get votes for event with challenge id %d, err=%s", event.ChallengeId, err.Error())
 		return err

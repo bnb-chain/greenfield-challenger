@@ -16,12 +16,12 @@ import (
 const batchSize = 10
 
 type DataProvider interface {
-	CalculateEventHash(*model.Event) [32]byte
+	CalculateEventHash(*model.Event) []byte
 	FetchEventsForSelfVote() ([]*model.Event, error)
-	FetchEventsForCollectVotes() ([]*model.Event, error)
+	FetchEventsForCollateVotes() ([]*model.Event, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SaveVote(vote *model.Vote) error
-	IsVoteExists(challengeId uint64, pubKey string) (bool, error)
+	IsVoteExists(eventHash []byte, pubKey []byte) (bool, error)
 }
 
 type DataHandler struct {
@@ -37,7 +37,7 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 	}
 }
 
-func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
+func (h *DataHandler) CalculateEventHash(event *model.Event) []byte {
 	challengeIdBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
 	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
@@ -57,7 +57,7 @@ func (h *DataHandler) CalculateEventHash(event *model.Event) [32]byte {
 	bs = append(bs, []byte(event.SpOperatorAddress)...)
 	bs = append(bs, []byte(event.ChallengerAddress)...)
 	hash := sdk.Keccak256Hash(bs)
-	return hash
+	return hash[:]
 }
 
 func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
@@ -82,8 +82,12 @@ func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
 	return result, nil
 }
 
-func (h *DataHandler) FetchEventsForCollectVotes() ([]*model.Event, error) {
-	return h.daoManager.GetEarliestEventsByStatus(model.SelfVoted, batchSize)
+func (h *DataHandler) FetchEventsForCollateVotes() ([]*model.Event, error) {
+	block, err := h.daoManager.GetLatestBlock()
+	if err != nil {
+		return nil, err
+	}
+	return h.daoManager.GetUnexpiredEvents(block.Height)
 }
 
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
@@ -94,6 +98,6 @@ func (h *DataHandler) SaveVote(vote *model.Vote) error {
 	return h.daoManager.SaveVote(vote)
 }
 
-func (h *DataHandler) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
-	return h.daoManager.IsVoteExists(challengeId, pubKey)
+func (h *DataHandler) IsVoteExists(eventHash []byte, pubKey []byte) (bool, error) {
+	return h.daoManager.IsVoteExists(eventHash, pubKey)
 }

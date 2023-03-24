@@ -53,6 +53,16 @@ func (d *EventDao) GetEarliestEventsByStatus(status model.EventStatus, limit int
 	return events, nil
 }
 
+func (d *EventDao) GetUnexpiredEvents(currentHeight uint64) ([]*model.Event, error) {
+	events := []*model.Event{}
+	err := d.DB.Where("expired_height < ?", currentHeight).
+		Find(&events).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	return events, nil
+}
+
 func (d *EventDao) GetEarliestEventsByStatusAndAfter(status model.EventStatus, limit int, minChallengeId uint64) ([]*model.Event, error) {
 	events := []*model.Event{}
 	err := d.DB.Where("status = ?", status).

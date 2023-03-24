@@ -23,10 +23,10 @@ func (d *VoteDao) SaveVote(vote *model.Vote) error {
 	return nil
 }
 
-func (d *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, error) {
+func (d *VoteDao) GetVotesByEventHash(eventHash []byte) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
 	err := d.DB.
-		Where("challenge_id = ?", challengeId).
+		Where("event_hash = ?", eventHash).
 		Find(&votes).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
@@ -34,11 +34,11 @@ func (d *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, erro
 	return votes, nil
 }
 
-func (d *VoteDao) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
+func (d *VoteDao) IsVoteExists(eventHash []byte, pubKey []byte) (bool, error) {
 	exists := false
 	if err := d.DB.Raw(
-		"SELECT EXISTS(SELECT id FROM votes WHERE challenge_id = ? and pub_key = ?)",
-		challengeId, pubKey).Scan(&exists).Error; err != nil {
+		"SELECT EXISTS(SELECT id FROM votes WHERE event_hash = ? and pub_key = ?)",
+		eventHash, pubKey).Scan(&exists).Error; err != nil {
 		return false, err
 	}
 	return exists, nil

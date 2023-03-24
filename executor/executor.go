@@ -384,7 +384,7 @@ func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, se
 	return &challengeRes, nil
 }
 
-func (e *Executor) QueryVotes(eventHash []byte, eventType votepool.EventType) ([]*votepool.Vote, error) {
+func (e *Executor) QueryVotes(eventType votepool.EventType) ([]*votepool.Vote, error) {
 	client, err := e.gnfdClients.GetClient()
 	if err != nil {
 		return nil, err
@@ -392,11 +392,11 @@ func (e *Executor) QueryVotes(eventHash []byte, eventType votepool.EventType) ([
 
 	queryMap := make(map[string]interface{})
 	queryMap[VotePoolQueryParameterEventType] = int(eventType)
-	queryMap[VotePoolQueryParameterEventHash] = eventHash
+	queryMap[VotePoolQueryParameterEventHash] = nil
 	var queryVote coretypes.ResultQueryVote
 	_, err = client.JsonRpcClient.Call(context.Background(), VotePoolQueryMethodName, queryMap, &queryVote)
 	if err != nil {
-		logging.Logger.Errorf("executor failed to query votes for event hash %s event type %s, err=%s", string(eventHash), string(eventType), err.Error())
+		logging.Logger.Errorf("executor failed to query votes for event type %s, err=%s", string(eventType), err.Error())
 		return nil, err
 	}
 	return queryVote.Votes, nil

@@ -69,11 +69,11 @@ func (s *voteSuite) TestVoteDao_IsVoteExists() {
 	vote := s.createVote()
 	_ = s.dao.SaveVote(vote)
 
-	result, err := s.dao.IsVoteExists(vote.ChallengeId, vote.PubKey)
+	result, err := s.dao.IsVoteExists(vote.EventHash, vote.PubKey)
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(result)
 
-	result, err = s.dao.IsVoteExists(vote.ChallengeId, vote.PubKey+"fake")
+	result, err = s.dao.IsVoteExists(vote.EventHash, vote.PubKey+"fake")
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(!result)
 }

@@ -16,6 +16,7 @@ type Event struct {
 	Status            EventStatus  `gorm:"NOT NULL;index:idx_status"`
 	VerifyResult      VerifyResult `gorm:"NOT NULL;"`
 	CreatedTime       int64        `gorm:"NOT NULL"`
+	ExpiredHeight     uint64       `gorm:"NOT NULL"`
 }
 
 func (*Event) TableName() string {

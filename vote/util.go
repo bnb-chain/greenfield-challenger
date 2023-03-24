@@ -10,7 +10,6 @@ import (
 	"github.com/prysmaticlabs/prysm/crypto/bls"
 	"github.com/prysmaticlabs/prysm/crypto/bls/blst"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
 	"github.com/willf/bitset"
 
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -26,12 +25,12 @@ func getBlsPubKeyFromPrivKeyStr(privKeyStr string) []byte {
 }
 
 // verifySignature verifies vote signature
-func verifySignature(vote *votepool.Vote, eventHash []byte) error {
+func verifySignature(vote *model.Vote, eventHash []byte) error {
 	blsPubKey, err := bls.PublicKeyFromBytes(vote.PubKey[:])
 	if err != nil {
 		return errors.Wrap(err, "convert public key from bytes to bls failed")
 	}
-	sig, err := bls.SignatureFromBytes(vote.Signature[:])
+	sig, err := bls.SignatureFromBytes([]byte(vote.Signature))
 	if err != nil {
 		return errors.Wrap(err, "invalid signature")
 	}
@@ -47,7 +46,7 @@ func AggregateSignatureAndValidatorBitSet(votes []*model.Vote, validators []*tmt
 	voteAddrSet := make(map[string]struct{}, len(votes))
 	valBitSet := bitset.New(ValidatorsCapacity)
 	for _, v := range votes {
-		voteAddrSet[v.PubKey] = struct{}{}
+		voteAddrSet[string(v.PubKey)] = struct{}{}
 		signatures = append(signatures, common.Hex2Bytes(v.Signature))
 	}
 

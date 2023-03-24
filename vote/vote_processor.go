@@ -88,7 +88,7 @@ func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 		if err != nil {
 			return err
 		}
-		err = p.SaveVote(EntityToDto(v, event.ChallengeId))
+		err = p.SaveVote(EntityToDto(v))
 		if err != nil {
 			return err
 		}
@@ -115,19 +115,19 @@ func (p *VoteProcessor) preCheck(event *model.Event) error {
 	return nil
 }
 
-func (p *VoteProcessor) CollectVotesLoop() {
+func (p *VoteProcessor) CollateVotesLoop() {
 	for {
-		err := p.collectVotes()
+		err := p.collateVotes()
 		if err != nil {
 			time.Sleep(RetryInterval)
 		}
 	}
 }
 
-func (p *VoteProcessor) collectVotes() error {
-	events, err := p.FetchEventsForCollectVotes()
+func (p *VoteProcessor) collateVotes() error {
+	events, err := p.FetchEventsForCollateVotes()
 	if err != nil {
-		logging.Logger.Errorf("vote processor failed to fetch events to collect votes, err=%s", err.Error())
+		logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%s", err.Error())
 		return err
 	}
 	if len(events) == 0 {
@@ -136,7 +136,7 @@ func (p *VoteProcessor) collectVotes() error {
 	}
 
 	for _, event := range events {
-		err = p.collectForSingleEvent(event)
+		err = p.collateForSingleEvent(event)
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func (p *VoteProcessor) collectVotes() error {
 	return nil
 }
 
-func (p *VoteProcessor) collectForSingleEvent(event *model.Event) error {
+func (p *VoteProcessor) collateForSingleEvent(event *model.Event) error {
 	err := p.prepareEnoughValidVotesForEvent(event)
 	if err != nil {
 		return err
@@ -202,7 +202,8 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 			return fmt.Errorf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
 		}
 
-		queriedVotes, err := p.executor.QueryVotes(localVote.EventHash, votepool.DataAvailabilityChallengeEvent)
+		eventHash := p.DataProvider.CalculateEventHash(event)
+		queriedVotes, err := p.daoManager.GetVotesByEventHash(eventHash[:])
 		if err != nil {
 			logging.Logger.Errorf("encounter error when query votes. will retry.")
 			return err
@@ -231,7 +232,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 			}
 
 			// check duplicate, the vote might have been saved in previous request.
-			exist, err := p.IsVoteExists(event.ChallengeId, hex.EncodeToString(v.PubKey[:]))
+			exist, err := p.IsVoteExists(eventHash[:], v.PubKey[:])
 			if err != nil {
 				logging.Logger.Errorf("vote processor failed to check if vote exists for event %d, err=%s", event.ChallengeId, err.Error())
 				return err
@@ -241,7 +242,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 				continue
 			}
 			// a vote result persisted into DB should be valid, unique.
-			err = p.SaveVote(EntityToDto(v, event.ChallengeId))
+			err = p.SaveVote(v)
 			if err != nil {
 				return err
 			}
@@ -272,7 +273,7 @@ func (p *VoteProcessor) constructVoteAndSign(event *model.Event) (*votepool.Vote
 	return &v, nil
 }
 
-func (p *VoteProcessor) isVotePubKeyValid(v *votepool.Vote, validators []*tmtypes.Validator) bool {
+func (p *VoteProcessor) isVotePubKeyValid(v *model.Vote, validators []*tmtypes.Validator) bool {
 	for _, validator := range validators {
 		if bytes.Equal(v.PubKey[:], validator.RelayerBlsKey[:]) {
 			return true
