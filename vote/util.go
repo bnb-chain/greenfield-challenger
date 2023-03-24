@@ -1,7 +1,11 @@
 package vote
 
 import (
+	sdkmath "cosmossdk.io/math"
+	"encoding/binary"
 	"encoding/hex"
+	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/bnb-chain/greenfield-challenger/logging"
 
@@ -62,4 +66,27 @@ func AggregateSignatureAndValidatorBitSet(votes []*model.Vote, validators []*tmt
 		return nil, valBitSet, err
 	}
 	return bls.AggregateSignatures(sigs).Marshal(), valBitSet, nil
+}
+
+func CalculateEventHash(event *model.Event) []byte {
+	challengeIdBz := make([]byte, 8)
+	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
+	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
+	resultBz := make([]byte, 8)
+	if event.VerifyResult == model.HashMismatched {
+		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_SUCCEED))
+	} else if event.VerifyResult == model.HashMatched {
+		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_FAILED))
+	} else {
+		panic("cannot convert vote option")
+	}
+
+	bs := make([]byte, 0)
+	bs = append(bs, challengeIdBz...)
+	bs = append(bs, objectIdBz...)
+	bs = append(bs, resultBz...)
+	bs = append(bs, []byte(event.SpOperatorAddress)...)
+	bs = append(bs, []byte(event.ChallengerAddress)...)
+	hash := sdk.Keccak256Hash(bs)
+	return hash[:]
 }

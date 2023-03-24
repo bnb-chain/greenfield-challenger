@@ -1,10 +1,6 @@
 package model
 
 import (
-	sdkmath "cosmossdk.io/math"
-	"encoding/binary"
-	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"gorm.io/gorm"
 )
 
@@ -57,26 +53,3 @@ const (
 	HashMatched                        // The challenge failed, hashes are matched
 	HashMismatched VerifyResult = 2    // The challenge succeed, hashed are not matched
 )
-
-func (e *Event) CalculateEventHash(event *Event) []byte {
-	challengeIdBz := make([]byte, 8)
-	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
-	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
-	resultBz := make([]byte, 8)
-	if event.VerifyResult == HashMismatched {
-		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_SUCCEED))
-	} else if event.VerifyResult == HashMatched {
-		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_FAILED))
-	} else {
-		panic("cannot convert vote option")
-	}
-
-	bs := make([]byte, 0)
-	bs = append(bs, challengeIdBz...)
-	bs = append(bs, objectIdBz...)
-	bs = append(bs, resultBz...)
-	bs = append(bs, []byte(event.SpOperatorAddress)...)
-	bs = append(bs, []byte(event.ChallengerAddress)...)
-	hash := sdk.Keccak256Hash(bs)
-	return hash[:]
-}
