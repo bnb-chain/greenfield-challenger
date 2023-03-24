@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bnb-chain/greenfield-challenger/alert"
-
 	"github.com/avast/retry-go/v4"
+	"github.com/bnb-chain/greenfield-challenger/alert"
 	"github.com/bnb-chain/greenfield-challenger/common"
+
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -43,17 +43,17 @@ func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigne
 	}
 }
 
-// SignBroadcastVoteLoop Will sign using the bls private key, broadcast the vote to votepool
-func (p *VoteProcessor) SignBroadcastVoteLoop() {
+// SignVoteLoop will sign using the bls private key, broadcast the vote to votepool
+func (p *VoteProcessor) SignVoteLoop() {
 	for {
-		err := p.signAndBroadcast()
+		err := p.sign()
 		if err != nil {
 			time.Sleep(RetryInterval)
 		}
 	}
 }
 
-func (p *VoteProcessor) signAndBroadcast() error {
+func (p *VoteProcessor) sign() error {
 	events, err := p.FetchEventsForSelfVote()
 	if err != nil {
 		return err
@@ -82,18 +82,7 @@ func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 		return err
 	}
 
-	// broadcast v
-	if err = retry.Do(func() error {
-		err = p.executor.BroadcastVote(v)
-		if err != nil {
-			return fmt.Errorf("failed to submit vote for event with challengeId: %d", event.ChallengeId)
-		}
-		return nil
-	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr); err != nil {
-		return err
-	}
-
-	// After vote submitted to vote pool, persist vote Data and update the status of event to 'SELF_VOTED'.
+	// persist vote and update the status of event to 'SELF_VOTED'.
 	err = p.daoManager.EventDao.DB.Transaction(func(dbTx *gorm.DB) error {
 		err = p.UpdateEventStatus(event.ChallengeId, model.SelfVoted)
 		if err != nil {
@@ -189,9 +178,22 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 		logging.Logger.Errorf("vote processor failed to construct vote and sign for event %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
+	// broadcast local vote
+	if err = retry.Do(func() error {
+		err = p.executor.BroadcastVote(localVote)
+		if err != nil {
+			return fmt.Errorf("failed to broadcast vote for event with challengeId: %d", event.ChallengeId)
+		}
+		return nil
+	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr); err != nil {
+		return err
+	}
+
 	for {
+		time.Sleep(RetryInterval) // sleep a while for waiting the vote is p2p-ed in the network
 		// skip current tx if reach the max retry.
 		if triedTimes > QueryVotepoolMaxRetry {
+			logging.Logger.Errorf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
 			alert.SendTelegramMessage(p.config.AlertConfig.Identity, p.config.AlertConfig.TelegramChatId, p.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId))
 			err := p.UpdateEventStatus(event.ChallengeId, model.NoEnoughVotesCollected)
 			if err != nil {
@@ -253,6 +255,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 		if !isLocalVoteIncluded {
 			err := p.executor.BroadcastVote(localVote)
 			if err != nil {
+				logging.Logger.Errorf("vote processor failed to broadcast vote for event %d, err=%s", event.ChallengeId, err.Error())
 				return err
 			}
 		}
