@@ -20,6 +20,7 @@ type App struct {
 	executor      *executor.Executor
 	eventMonitor  *monitor.Monitor
 	hashVerifier  *verifier.Verifier
+	voteCollector *vote.VoteCollector
 	voteProcessor *vote.VoteProcessor
 	txSubmitter   *submitter.TxSubmitter
 }
@@ -47,6 +48,7 @@ func NewApp(cfg *config.Config) *App {
 
 	signer := vote.NewVoteSigner(ethcommon.Hex2Bytes(cfg.VotePoolConfig.BlsPrivateKey))
 	voteDataHandler := vote.NewDataHandler(daoManager, executor)
+	voteCollector := vote.NewVoteCollector(cfg, daoManager, executor, voteDataHandler)
 	voteProcessor := vote.NewVoteProcessor(cfg, daoManager, signer, executor, voteDataHandler)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
@@ -56,6 +58,7 @@ func NewApp(cfg *config.Config) *App {
 		executor:      executor,
 		eventMonitor:  monitor,
 		hashVerifier:  hashVerifier,
+		voteCollector: voteCollector,
 		voteProcessor: voteProcessor,
 		txSubmitter:   txSubmitter,
 	}
@@ -67,7 +70,8 @@ func (a *App) Start() {
 	go a.executor.CacheValidatorsLoop()
 	go a.eventMonitor.ListenEventLoop()
 	go a.hashVerifier.VerifyHashLoop()
+	go a.voteCollector.CollectVotesLoop()
 	go a.voteProcessor.SignVoteLoop()
-	go a.voteProcessor.CollectVotesLoop()
+	go a.voteProcessor.CollateVotesLoop()
 	a.txSubmitter.SubmitTransactionLoop()
 }

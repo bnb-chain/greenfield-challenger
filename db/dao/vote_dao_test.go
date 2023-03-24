@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -43,10 +44,9 @@ func (s *voteSuite) TearDownTest() {
 
 func (s *voteSuite) createVote() *model.Vote {
 	return &model.Vote{
-		Id:          0,
-		ChallengeId: 100,
-		PubKey:      "pubkey",
-		EventHash:   common.HexToHash("hash").Bytes(),
+		Id:        0,
+		PubKey:    []byte("pubkey"),
+		EventHash: common.HexToHash("hash").Bytes(),
 	}
 }
 
@@ -56,13 +56,13 @@ func (s *voteSuite) TestVoteDao_SaveVote() {
 	s.Require().NoError(err, "failed to save")
 }
 
-func (s *voteSuite) TestVoteDao_GetVotesByChallengeId() {
+func (s *voteSuite) TestVoteDao_GetVotesByEventHash() {
 	vote := s.createVote()
 	_ = s.dao.SaveVote(vote)
 
-	result, err := s.dao.GetVotesByChallengeId(vote.ChallengeId)
+	result, err := s.dao.GetVotesByEventHash(vote.EventHash)
 	s.Require().NoError(err, "failed to query")
-	s.Require().True(result[0].ChallengeId == vote.ChallengeId)
+	s.Require().True(bytes.Equal(result[0].EventHash, vote.EventHash))
 }
 
 func (s *voteSuite) TestVoteDao_IsVoteExists() {
@@ -73,7 +73,7 @@ func (s *voteSuite) TestVoteDao_IsVoteExists() {
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(result)
 
-	result, err = s.dao.IsVoteExists(vote.EventHash, vote.PubKey+"fake")
+	result, err = s.dao.IsVoteExists(vote.EventHash, []byte(string(vote.PubKey)+"fake"))
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(!result)
 }
