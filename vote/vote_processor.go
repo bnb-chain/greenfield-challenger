@@ -88,7 +88,9 @@ func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
 		if err != nil {
 			return err
 		}
-		err = p.SaveVote(EntityToDto(v))
+		localVote := EntityToDto(v)
+		localVote.ChallengeId = event.ChallengeId
+		err = p.SaveVote(localVote)
 		if err != nil {
 			return err
 		}
