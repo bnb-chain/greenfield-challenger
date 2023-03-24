@@ -204,7 +204,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 			return fmt.Errorf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
 		}
 
-		eventHash := p.DataProvider.CalculateEventHash(event)
+		eventHash := event.CalculateEventHash(event)
 		queriedVotes, err := p.daoManager.GetVotesByEventHash(eventHash[:])
 		if err != nil {
 			logging.Logger.Errorf("encounter error when query votes. will retry.")
@@ -270,7 +270,7 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 func (p *VoteProcessor) constructVoteAndSign(event *model.Event) (*votepool.Vote, error) {
 	var v votepool.Vote
 	v.EventType = votepool.DataAvailabilityChallengeEvent
-	eventHash := p.CalculateEventHash(event)
+	eventHash := event.CalculateEventHash(event)
 	p.signer.SignVote(&v, eventHash[:])
 	return &v, nil
 }
