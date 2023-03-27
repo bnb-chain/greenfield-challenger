@@ -58,7 +58,7 @@ func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) ([]*challenget
 
 func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallenge, error) {
 	if event.Type == "bnbchain.greenfield.challenge.EventStartChallenge" {
-		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress, challengerAddress := "", "", "", "", "", ""
+		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress, challengerAddress, expiredHeightStr := "", "", "", "", "", "", ""
 		for _, attr := range event.Attributes {
 			if string(attr.Key) == "challenge_id" {
 				challengeIdStr = strings.Trim(string(attr.Value), `"`)
@@ -72,6 +72,8 @@ func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallen
 				spOpAddress = strings.Trim(string(attr.Value), `"`)
 			} else if string(attr.Key) == "challenger_address" {
 				challengerAddress = strings.Trim(string(attr.Value), `"`)
+			} else if string(attr.Key) == "expired_height" {
+				expiredHeightStr = strings.Trim(string(attr.Value), `"`)
 			}
 		}
 		challengeId, err := strconv.ParseInt(challengeIdStr, 10, 64)
@@ -87,6 +89,7 @@ func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallen
 		if err != nil {
 			return nil, err
 		}
+		expiredHeight, err := strconv.ParseInt(expiredHeightStr, 10, 64)
 		return &challengetypes.EventStartChallenge{
 			ChallengeId:       uint64(challengeId),
 			ObjectId:          objectId,
@@ -94,6 +97,7 @@ func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallen
 			SpOperatorAddress: spOpAddress,
 			RedundancyIndex:   int32(redundancyIndex),
 			ChallengerAddress: challengerAddress,
+			ExpiredHeight:     uint64(expiredHeight),
 		}, nil
 	}
 	return nil, nil

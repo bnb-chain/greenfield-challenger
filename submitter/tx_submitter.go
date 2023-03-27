@@ -57,7 +57,7 @@ func (s *TxSubmitter) process() error {
 	for _, event := range events {
 		err = s.submitForSingleEvent(event)
 		if err != nil {
-			return err
+			continue
 		}
 	}
 
@@ -65,7 +65,11 @@ func (s *TxSubmitter) process() error {
 }
 
 func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
-	if err := s.preCheck(event); err != nil {
+	currentHeight, err := s.executor.GetLatestBlockHeight()
+	if err != nil {
+		return err
+	}
+	if err := s.preCheck(event, currentHeight); err != nil {
 		return err
 	}
 
@@ -122,16 +126,9 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	}
 }
 
-func (s *TxSubmitter) preCheck(event *model.Event) error {
-	// event will be skipped if
-	// 1) the challenge with bigger id has been attested
-	attestedId, err := s.executor.QueryLatestAttestedChallengeId()
-	if err != nil {
-		return err
-	}
-	if attestedId >= event.ChallengeId {
-		logging.Logger.Infof("submitter skips the challenge %d, attested id=%d", event.ChallengeId, attestedId)
-		return s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+func (s *TxSubmitter) preCheck(event *model.Event, currentHeight uint64) error {
+	if event.ExpiredHeight > currentHeight {
+		return fmt.Errorf("event %d has expired", event.ChallengeId)
 	}
 	return nil
 }
