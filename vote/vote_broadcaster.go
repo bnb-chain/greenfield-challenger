@@ -98,8 +98,7 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 
 	err = p.executor.BroadcastVote(localVote)
 	if err != nil {
-		fmt.Errorf("failed to broadcast vote for event with challengeId: %d", event.ChallengeId)
-		return err
+		return fmt.Errorf("failed to broadcast vote for event with challengeId: %d", event.ChallengeId)
 	}
 	return nil
 }
