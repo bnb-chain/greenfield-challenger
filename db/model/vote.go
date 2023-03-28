@@ -10,7 +10,7 @@ type Vote struct {
 	PubKey      []byte `gorm:"NOT NULL;index:idx_pub_key"`
 	Signature   string `gorm:"NOT NULL"`
 	EventType   uint32 `gorm:"NOT NULL"`
-	EventHash   []byte `gorm:"NOT NULL"`
+	EventHash   []byte `gorm:"NOT NULLl;index:idx_event_hash"`
 	CreatedTime int64  `gorm:"NOT NULL"`
 }
 

@@ -65,11 +65,7 @@ func (s *TxSubmitter) process() error {
 }
 
 func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
-	currentHeight, err := s.executor.GetLatestBlockHeight()
-	if err != nil {
-		return err
-	}
-	if err := s.preCheck(event, currentHeight); err != nil {
+	if err := s.preCheck(event); err != nil {
 		return err
 	}
 
@@ -126,7 +122,11 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	}
 }
 
-func (s *TxSubmitter) preCheck(event *model.Event, currentHeight uint64) error {
+func (s *TxSubmitter) preCheck(event *model.Event) error {
+	currentHeight, err := s.executor.GetLatestBlockHeight()
+	if err != nil {
+		return err
+	}
 	if event.ExpiredHeight > currentHeight {
 		return fmt.Errorf("event %d has expired", event.ChallengeId)
 	}

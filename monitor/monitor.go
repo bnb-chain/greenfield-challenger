@@ -90,6 +90,9 @@ func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallen
 			return nil, err
 		}
 		expiredHeight, err := strconv.ParseInt(expiredHeightStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 		return &challengetypes.EventStartChallenge{
 			ChallengeId:       uint64(challengeId),
 			ObjectId:          objectId,

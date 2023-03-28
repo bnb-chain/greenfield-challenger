@@ -61,13 +61,20 @@ func (p *VoteCollator) collateVotes() error {
 		if p.cachedChallengeId[event.ChallengeId] {
 			continue
 		}
-		err = p.collateForSingleEvent(event)
-		if err != nil {
-			return err
-		}
+		go p.collateForSingleEvent(event)
 	}
-
 	return nil
+}
+
+func (p *VoteCollator) collateForSingleEventLoop(event *model.Event) {
+	for {
+		err := p.collateForSingleEvent(event)
+		if err != nil {
+			time.Sleep(RetryInterval)
+			continue
+		}
+		break
+	}
 }
 
 func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {

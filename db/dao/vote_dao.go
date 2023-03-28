@@ -35,17 +35,6 @@ func (d *VoteDao) SaveVoteAndUpdateEvent(vote *model.Vote, event *model.Event) e
 	})
 }
 
-func (d *VoteDao) GetVotesByChallengeId(eventHash []byte) ([]*model.Vote, error) {
-	votes := make([]*model.Vote, 0)
-	err := d.DB.
-		Where("event_hash = ?", eventHash).
-		Find(&votes).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, err
-	}
-	return votes, nil
-}
-
 func (d *VoteDao) GetVotesByEventHash(eventHash []byte) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
 	err := d.DB.

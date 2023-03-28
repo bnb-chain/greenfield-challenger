@@ -18,6 +18,7 @@ import (
 
 type App struct {
 	executor        *executor.Executor
+	heightTracker   *vote.HeightTracker
 	eventMonitor    *monitor.Monitor
 	hashVerifier    *verifier.Verifier
 	voteCollector   *vote.VoteCollector
@@ -43,6 +44,7 @@ func NewApp(cfg *config.Config) *App {
 
 	executor := executor.NewExecutor(cfg)
 
+	heightTracker := vote.NewHeightTracker(executor)
 	monitor := monitor.NewMonitor(executor, daoManager)
 
 	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor, cfg.GreenfieldConfig.DeduplicationInterval)
@@ -58,6 +60,7 @@ func NewApp(cfg *config.Config) *App {
 
 	return &App{
 		executor:        executor,
+		heightTracker:   heightTracker,
 		eventMonitor:    monitor,
 		hashVerifier:    hashVerifier,
 		voteCollector:   voteCollector,
@@ -71,6 +74,7 @@ func (a *App) Start() {
 	go a.executor.UpdateAttestedChallengeIdLoop()
 	go a.executor.UpdateHeartbeatIntervalLoop()
 	go a.executor.CacheValidatorsLoop()
+	go a.heightTracker.GetHeightLoop()
 	go a.eventMonitor.ListenEventLoop()
 	go a.hashVerifier.VerifyHashLoop()
 	go a.voteCollector.CollectVotesLoop()
