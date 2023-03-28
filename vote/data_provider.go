@@ -13,7 +13,7 @@ const batchSize = 10
 
 type DataProvider interface {
 	FetchEventsForSelfVote() ([]*model.Event, error)
-	FetchEventsForCollateVotes() ([]*model.Event, error)
+	FetchEventsForCollate(expiredHeight uint64) ([]*model.Event, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SaveVote(vote *model.Vote) error
 	IsVoteExists(eventHash []byte, pubKey []byte) (bool, error)
@@ -54,12 +54,8 @@ func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
 	return result, nil
 }
 
-func (h *DataHandler) FetchEventsForCollateVotes() ([]*model.Event, error) {
-	block, err := h.daoManager.GetLatestBlock()
-	if err != nil {
-		return nil, err
-	}
-	return h.daoManager.GetUnexpiredEvents(block.Height)
+func (h *DataHandler) FetchEventsForCollate(currentHeight uint64) ([]*model.Event, error) {
+	return h.daoManager.GetUnexpiredAndSelfVotedEvents(currentHeight)
 }
 
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {

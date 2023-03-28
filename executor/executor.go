@@ -40,6 +40,7 @@ type Executor struct {
 	validators          []*tmtypes.Validator // used to cache validators
 	heartbeatInterval   uint64               // used to save challenge heartbeat interval
 	attestedChallengeId uint64               // used to save the last attested challenge id
+	height              uint64
 }
 
 func NewExecutor(cfg *config.Config) *Executor {
@@ -136,7 +137,13 @@ func (e *Executor) GetLatestBlockHeight() (latestHeight uint64, err error) {
 		logging.Logger.Errorf("executor failed to get greenfield clients, err=%s", err.Error())
 		return 0, err
 	}
-	return uint64(client.Height), nil
+	latestHeight = uint64(client.Height)
+	e.height = latestHeight
+	return latestHeight, nil
+}
+
+func (e *Executor) GetCachedBlockHeight() (latestHeight uint64) {
+	return e.height
 }
 
 func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {

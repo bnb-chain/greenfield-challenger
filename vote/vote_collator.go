@@ -2,26 +2,20 @@ package vote
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"fmt"
 	"time"
 
-	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/alert"
-	"github.com/bnb-chain/greenfield-challenger/common"
-
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
-	"gorm.io/gorm"
 )
 
-type VoteProcessor struct {
+type VoteCollator struct {
 	daoManager   *dao.DaoManager
 	config       *config.Config
 	signer       *VoteSigner
@@ -30,10 +24,10 @@ type VoteProcessor struct {
 	DataProvider
 }
 
-func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner,
+func NewVoteCollator(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner,
 	executor *executor.Executor, kind DataProvider,
-) *VoteProcessor {
-	return &VoteProcessor{
+) *VoteCollator {
+	return &VoteCollator{
 		config:       cfg,
 		daoManager:   dao,
 		signer:       signer,
@@ -43,81 +37,7 @@ func NewVoteProcessor(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigne
 	}
 }
 
-// SignVoteLoop will sign using the bls private key, broadcast the vote to votepool
-func (p *VoteProcessor) SignVoteLoop() {
-	for {
-		err := p.sign()
-		if err != nil {
-			time.Sleep(RetryInterval)
-		}
-	}
-}
-
-func (p *VoteProcessor) sign() error {
-	events, err := p.FetchEventsForSelfVote()
-	if err != nil {
-		return err
-	}
-	if len(events) == 0 {
-		time.Sleep(RetryInterval)
-		return nil
-	}
-
-	for _, event := range events {
-		err = p.signForSingleEvent(event)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (p *VoteProcessor) signForSingleEvent(event *model.Event) error {
-	if err := p.preCheck(event); err != nil {
-		return err
-	}
-
-	v, err := p.constructVoteAndSign(event)
-	if err != nil {
-		return err
-	}
-
-	// persist vote and update the status of event to 'SELF_VOTED'.
-	err = p.daoManager.EventDao.DB.Transaction(func(dbTx *gorm.DB) error {
-		err = p.UpdateEventStatus(event.ChallengeId, model.SelfVoted)
-		if err != nil {
-			return err
-		}
-		localVote := EntityToDto(v)
-		localVote.ChallengeId = event.ChallengeId
-		err = p.SaveVote(localVote)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (p *VoteProcessor) preCheck(event *model.Event) error {
-	// event will be skipped if
-	// 1) the challenge with bigger id has been attested
-	attestedId, err := p.executor.QueryLatestAttestedChallengeId()
-	if err != nil {
-		return err
-	}
-	if attestedId >= event.ChallengeId {
-		logging.Logger.Infof("voter skips the challenge %d, attested id=%d", event.ChallengeId, attestedId)
-		return p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
-	}
-	return nil
-}
-
-func (p *VoteProcessor) CollateVotesLoop() {
+func (p *VoteCollator) CollateVotesLoop() {
 	for {
 		err := p.collateVotes()
 		if err != nil {
@@ -126,8 +46,9 @@ func (p *VoteProcessor) CollateVotesLoop() {
 	}
 }
 
-func (p *VoteProcessor) collateVotes() error {
-	events, err := p.FetchEventsForCollateVotes()
+func (p *VoteCollator) collateVotes() error {
+	currentHeight := p.executor.GetCachedBlockHeight()
+	events, err := p.FetchEventsForCollate(currentHeight)
 	if err != nil {
 		logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%s", err.Error())
 		return err
@@ -147,7 +68,7 @@ func (p *VoteProcessor) collateVotes() error {
 	return nil
 }
 
-func (p *VoteProcessor) collateForSingleEvent(event *model.Event) error {
+func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 	err := p.prepareEnoughValidVotesForEvent(event)
 	if err != nil {
 		return err
@@ -156,7 +77,7 @@ func (p *VoteProcessor) collateForSingleEvent(event *model.Event) error {
 }
 
 // prepareEnoughValidVotesForEvent fetches and validate votes result, store in vote table
-func (p *VoteProcessor) prepareEnoughValidVotesForEvent(event *model.Event) error {
+func (p *VoteCollator) prepareEnoughValidVotesForEvent(event *model.Event) error {
 	validators, err := p.executor.QueryCachedLatestValidators()
 	if err != nil {
 		return err
@@ -172,24 +93,9 @@ func (p *VoteProcessor) prepareEnoughValidVotesForEvent(event *model.Event) erro
 }
 
 // queryMoreThanTwoThirdVotesForEvent queries votes from votePool
-func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, validators []*tmtypes.Validator) error {
+func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, validators []*tmtypes.Validator) error {
 	triedTimes := 0
-	validVotesTotalCount := 1 // assume local vote is valid
-	localVote, err := p.constructVoteAndSign(event)
-	if err != nil {
-		logging.Logger.Errorf("vote processor failed to construct vote and sign for event %d, err=%s", event.ChallengeId, err.Error())
-		return err
-	}
-	// broadcast local vote
-	if err = retry.Do(func() error {
-		err = p.executor.BroadcastVote(localVote)
-		if err != nil {
-			return fmt.Errorf("failed to broadcast vote for event with challengeId: %d", event.ChallengeId)
-		}
-		return nil
-	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr); err != nil {
-		return err
-	}
+	validVotesTotalCount := 0
 
 	for {
 		time.Sleep(RetryInterval) // sleep a while for waiting the vote is p2p-ed in the network
@@ -211,7 +117,6 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 			return err
 		}
 		validVotesCountPerReq := len(queriedVotes)
-		isLocalVoteIncluded := false
 
 		for _, v := range queriedVotes {
 			if !p.isVotePubKeyValid(v, validators) {
@@ -220,15 +125,8 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 				continue
 			}
 
-			if err := verifySignature(v, localVote.EventHash); err != nil {
-				logging.Logger.Errorf("verify vote's signature failed,  err=%s", err)
-				validVotesCountPerReq--
-				continue
-			}
-
 			// it is local vote
 			if bytes.Equal(v.PubKey[:], p.blsPublicKey) {
-				isLocalVoteIncluded = true
 				validVotesCountPerReq--
 				continue
 			}
@@ -255,27 +153,13 @@ func (p *VoteProcessor) queryMoreThanTwoThirdVotesForEvent(event *model.Event, v
 		if validVotesTotalCount > len(validators)*2/3 {
 			return nil
 		}
-		if !isLocalVoteIncluded {
-			err := p.executor.BroadcastVote(localVote)
-			if err != nil {
-				logging.Logger.Errorf("vote processor failed to broadcast vote for event %d, err=%s", event.ChallengeId, err.Error())
-				return err
-			}
-		}
+
 		triedTimes++
 		continue
 	}
 }
 
-func (p *VoteProcessor) constructVoteAndSign(event *model.Event) (*votepool.Vote, error) {
-	var v votepool.Vote
-	v.EventType = votepool.DataAvailabilityChallengeEvent
-	eventHash := CalculateEventHash(event)
-	p.signer.SignVote(&v, eventHash[:])
-	return &v, nil
-}
-
-func (p *VoteProcessor) isVotePubKeyValid(v *model.Vote, validators []*tmtypes.Validator) bool {
+func (p *VoteCollator) isVotePubKeyValid(v *model.Vote, validators []*tmtypes.Validator) bool {
 	for _, validator := range validators {
 		if bytes.Equal(v.PubKey[:], validator.RelayerBlsKey[:]) {
 			return true

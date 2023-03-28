@@ -63,6 +63,17 @@ func (d *EventDao) GetUnexpiredEvents(currentHeight uint64) ([]*model.Event, err
 	return events, nil
 }
 
+func (d *EventDao) GetUnexpiredAndSelfVotedEvents(currentHeight uint64) ([]*model.Event, error) {
+	events := []*model.Event{}
+	err := d.DB.Where("expired_height < ?", currentHeight).
+		Where("status = ?", model.SelfVoted).
+		Find(&events).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	return events, nil
+}
+
 func (d *EventDao) GetEarliestEventsByStatusAndAfter(status model.EventStatus, limit int, minChallengeId uint64) ([]*model.Event, error) {
 	events := []*model.Event{}
 	err := d.DB.Where("status = ?", status).

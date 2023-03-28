@@ -141,17 +141,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 }
 
 func (v *Verifier) preCheck(event *model.Event) error {
-	// event will be skipped if
-	// 1) the challenge with bigger id has been attested
-	attestedId, err := v.executor.QueryLatestAttestedChallengeId()
-	if err != nil {
-		return err
-	}
-	if attestedId >= event.ChallengeId {
-		logging.Logger.Infof("verifier skips the challenge %d, attested id=%d", event.ChallengeId, attestedId)
-		return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
-	}
-
 	// event is duplicated if
 	// 1) no challenger field and
 	// 2) the event is not for heartbeat
