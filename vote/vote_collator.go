@@ -61,7 +61,7 @@ func (p *VoteCollator) collateVotes() error {
 		if p.cachedChallengeId[event.ChallengeId] {
 			continue
 		}
-		go p.collateForSingleEvent(event)
+		go p.collateForSingleEventLoop(event)
 	}
 	return nil
 }
