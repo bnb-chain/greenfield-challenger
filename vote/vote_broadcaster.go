@@ -118,7 +118,9 @@ func (p *VoteBroadcaster) constructVoteAndSign(event *model.Event) (*votepool.Vo
 	v.EventType = votepool.DataAvailabilityChallengeEvent
 	eventHash := CalculateEventHash(event)
 	p.signer.SignVote(&v, eventHash[:])
-	p.daoManager.SaveVote(EntityToDto(&v))
-	p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.SelfVoted)
+	err := p.daoManager.SaveVoteAndUpdateEvent(EntityToDto(&v), event)
+	if err != nil {
+		return nil, err
+	}
 	return &v, nil
 }

@@ -23,6 +23,18 @@ func (d *VoteDao) SaveVote(vote *model.Vote) error {
 	return nil
 }
 
+func (d *VoteDao) SaveVoteAndUpdateEvent(vote *model.Vote, event *model.Event) error {
+	return d.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(vote).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(event).Update("status", model.SelfVoted).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 func (d *VoteDao) GetVotesByChallengeId(eventHash []byte) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
 	err := d.DB.
