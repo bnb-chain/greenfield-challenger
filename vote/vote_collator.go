@@ -3,10 +3,8 @@ package vote
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"time"
 
-	"github.com/bnb-chain/greenfield-challenger/alert"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -16,11 +14,12 @@ import (
 )
 
 type VoteCollator struct {
-	daoManager   *dao.DaoManager
-	config       *config.Config
-	signer       *VoteSigner
-	executor     *executor.Executor
-	blsPublicKey []byte
+	daoManager        *dao.DaoManager
+	config            *config.Config
+	signer            *VoteSigner
+	executor          *executor.Executor
+	blsPublicKey      []byte
+	cachedChallengeId map[uint64]bool
 	DataProvider
 }
 
@@ -59,6 +58,9 @@ func (p *VoteCollator) collateVotes() error {
 	}
 
 	for _, event := range events {
+		if p.cachedChallengeId[event.ChallengeId] {
+			continue
+		}
 		err = p.collateForSingleEvent(event)
 		if err != nil {
 			return err
@@ -69,6 +71,7 @@ func (p *VoteCollator) collateVotes() error {
 }
 
 func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
+	p.cachedChallengeId[event.ChallengeId] = true
 	err := p.prepareEnoughValidVotesForEvent(event)
 	if err != nil {
 		return err
@@ -95,20 +98,11 @@ func (p *VoteCollator) prepareEnoughValidVotesForEvent(event *model.Event) error
 // queryMoreThanTwoThirdVotesForEvent queries votes from votePool
 func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, validators []*tmtypes.Validator) error {
 	triedTimes := 0
-	validVotesTotalCount := 0
+	validVotesTotalCount := 1 // assume local vote is valid
 
 	for {
 		time.Sleep(RetryInterval) // sleep a while for waiting the vote is p2p-ed in the network
 		// skip current tx if reach the max retry.
-		if triedTimes > QueryVotepoolMaxRetry {
-			logging.Logger.Errorf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
-			alert.SendTelegramMessage(p.config.AlertConfig.Identity, p.config.AlertConfig.TelegramChatId, p.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId))
-			err := p.UpdateEventStatus(event.ChallengeId, model.NoEnoughVotesCollected)
-			if err != nil {
-				return err
-			}
-			return fmt.Errorf("failed to collect votes for challenge after retry, id: %d", event.ChallengeId)
-		}
 
 		eventHash := CalculateEventHash(event)
 		queriedVotes, err := p.daoManager.GetVotesByEventHash(eventHash[:])
@@ -127,6 +121,12 @@ func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, va
 
 			// it is local vote
 			if bytes.Equal(v.PubKey[:], p.blsPublicKey) {
+				validVotesCountPerReq--
+				continue
+			}
+
+			if err := verifySignature(v, eventHash); err != nil {
+				logging.Logger.Errorf("verify vote's signature failed,  err=%s", err)
 				validVotesCountPerReq--
 				continue
 			}
