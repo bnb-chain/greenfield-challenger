@@ -138,6 +138,7 @@ func (e *Executor) GetLatestBlockHeight() (latestHeight uint64, err error) {
 		return 0, err
 	}
 	latestHeight = uint64(client.Height)
+	logging.Logger.Infof("Current latest block height: %d", latestHeight)
 
 	e.mtx.Lock()
 	e.height = latestHeight
