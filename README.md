@@ -150,5 +150,5 @@ Please make sure your contributions adhere to our coding guidelines:
 
 ## License
 The repo is licensed under the
-[GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html),
-also included in our repository in the `COPYING.LESSER` file.
+[GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.en.html), also
+included in our repository in the `COPYING` file.
