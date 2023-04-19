@@ -45,8 +45,8 @@ func (s *voteSuite) TearDownTest() {
 func (s *voteSuite) createVote() *model.Vote {
 	return &model.Vote{
 		Id:        0,
-		PubKey:    []byte("pubkey"),
-		EventHash: common.HexToHash("hash").Bytes(),
+		PubKey:    "pubkey",
+		EventHash: common.HexToHash("hash").String(),
 	}
 }
 
@@ -62,7 +62,7 @@ func (s *voteSuite) TestVoteDao_GetVotesByEventHash() {
 
 	result, err := s.dao.GetVotesByEventHash(vote.EventHash)
 	s.Require().NoError(err, "failed to query")
-	s.Require().True(bytes.Equal(result[0].EventHash, vote.EventHash))
+	s.Require().True(bytes.Equal([]byte(result[0].EventHash), []byte(vote.EventHash)))
 }
 
 func (s *voteSuite) TestVoteDao_IsVoteExists() {
@@ -73,7 +73,7 @@ func (s *voteSuite) TestVoteDao_IsVoteExists() {
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(result)
 
-	result, err = s.dao.IsVoteExists(vote.EventHash, []byte(string(vote.PubKey)+"fake"))
+	result, err = s.dao.IsVoteExists(vote.EventHash, string(vote.PubKey)+"fake")
 	s.Require().NoError(err, "failed to query")
 	s.Require().True(!result)
 }

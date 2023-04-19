@@ -9,14 +9,12 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 )
 
-const batchSize = 10
-
 type DataProvider interface {
-	FetchEventsForSelfVote() ([]*model.Event, error)
-	FetchEventsForCollate(expiredHeight uint64) ([]*model.Event, error)
+	FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, error)
+	FetchEventsForCollate(currentHeight uint64) ([]*model.Event, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SaveVote(vote *model.Vote) error
-	IsVoteExists(eventHash []byte, pubKey []byte) (bool, error)
+	IsVoteExists(eventHash string, pubKey string) (bool, error)
 }
 
 type DataHandler struct {
@@ -32,15 +30,18 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 	}
 }
 
-func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
-	events, err := h.daoManager.GetEarliestEventsByStatusAndAfter(model.Verified, batchSize, h.lastIdForSelfVote)
+func (h *DataHandler) FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, error) {
+	// TODO: Revert this
+	events, err := h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.Verified)
+	//events, err := h.daoManager.GetUnexpiredEventsByVerifyResult(BatchSize, currentHeight, model.HashMismatched)
 	if err != nil {
-		logging.Logger.Errorf("failed to fetch events for self vote, err=%s", err.Error())
+		logging.Logger.Errorf("failed to fetch events for self vote, err=%+v", err.Error())
 		return nil, err
 	}
 	heartbeatInterval, err := h.executor.QueryChallengeHeartbeatInterval()
+	logging.Logger.Infof("heartbeat interval is %d", heartbeatInterval)
 	if err != nil {
-		logging.Logger.Errorf("error querying heartbeat interval, err=%s", err.Error())
+		logging.Logger.Errorf("error querying heartbeat interval, err=%+v", err.Error())
 		return nil, err
 	}
 	result := make([]*model.Event, 0)
@@ -55,7 +56,7 @@ func (h *DataHandler) FetchEventsForSelfVote() ([]*model.Event, error) {
 }
 
 func (h *DataHandler) FetchEventsForCollate(currentHeight uint64) ([]*model.Event, error) {
-	return h.daoManager.GetUnexpiredAndSelfVotedEvents(currentHeight)
+	return h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.SelfVoted)
 }
 
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
@@ -66,6 +67,6 @@ func (h *DataHandler) SaveVote(vote *model.Vote) error {
 	return h.daoManager.SaveVote(vote)
 }
 
-func (h *DataHandler) IsVoteExists(eventHash []byte, pubKey []byte) (bool, error) {
+func (h *DataHandler) IsVoteExists(eventHash string, pubKey string) (bool, error) {
 	return h.daoManager.IsVoteExists(eventHash, pubKey)
 }

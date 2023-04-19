@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -14,13 +15,12 @@ import (
 )
 
 type VoteBroadcaster struct {
-	daoManager         *dao.DaoManager
-	config             *config.Config
-	signer             *VoteSigner
-	executor           *executor.Executor
-	blsPublicKey       []byte
-	blockHeightChan    chan uint64
-	cachedChallengeIds map[uint64]bool
+	daoManager      *dao.DaoManager
+	config          *config.Config
+	signer          *VoteSigner
+	executor        *executor.Executor
+	blsPublicKey    []byte
+	cachedLocalVote map[uint64]*votepool.Vote
 	DataProvider
 }
 
@@ -28,87 +28,95 @@ func NewVoteBroadcaster(cfg *config.Config, dao *dao.DaoManager, signer *VoteSig
 	executor *executor.Executor, kind DataProvider,
 ) *VoteBroadcaster {
 	return &VoteBroadcaster{
-		config:             cfg,
-		daoManager:         dao,
-		signer:             signer,
-		executor:           executor,
-		DataProvider:       kind,
-		blockHeightChan:    nil,
-		cachedChallengeIds: nil,
-		blsPublicKey:       getBlsPubKeyFromPrivKeyStr(cfg.VotePoolConfig.BlsPrivateKey),
+		config:          cfg,
+		daoManager:      dao,
+		signer:          signer,
+		executor:        executor,
+		DataProvider:    kind,
+		cachedLocalVote: nil,
+		blsPublicKey:    executor.BlsPubKey,
 	}
 }
 
 func (p *VoteBroadcaster) BroadcastVotesLoop() {
-	ticker := time.NewTicker(BroadcastVotesInterval)
-	for range ticker.C {
-		err := p.broadcastVotes()
+	// Event lasts for 300 blocks, 2x for redundancy
+	p.cachedLocalVote = make(map[uint64]*votepool.Vote, common.CacheSize)
+	broadcastCount := 0
+	for {
+		currentHeight := p.executor.GetCachedBlockHeight()
+		// Ask about this function
+		events, err := p.DataProvider.FetchEventsForSelfVote(currentHeight)
 		if err != nil {
-			time.Sleep(RetryInterval)
-		}
-	}
-}
-
-func (p *VoteBroadcaster) broadcastVotes() error {
-	currentHeight := p.executor.GetCachedBlockHeight()
-	events, err := p.daoManager.GetUnexpiredEvents(currentHeight)
-	if err != nil {
-		logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%s", err.Error())
-		return err
-	}
-	if len(events) == 0 {
-		time.Sleep(RetryInterval)
-		return nil
-	}
-
-	for _, event := range events {
-		if p.cachedChallengeIds[event.ChallengeId] {
+			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			continue
 		}
-		localVote, err := p.constructVoteAndSign(event)
-		if err != nil {
-			logging.Logger.Errorf("broadcaster ran into error trying to construct vote for event %d, err=%s", event.ChallengeId, err.Error())
+		if len(events) == 0 {
+			time.Sleep(RetryInterval)
+			continue
+		}
+
+		for _, event := range events {
+			localVote := p.cachedLocalVote[event.ChallengeId]
+
+			if localVote == nil {
+				localVote, err = p.constructVoteAndSign(event)
+				if err != nil {
+					if strings.Contains(err.Error(), "Duplicate") {
+						logging.Logger.Errorf("[non-blocking error] broadcaster was trying to save a duplicated vote after clearing cache for challengeId: %d, err=%+v", event.ChallengeId, err.Error())
+					} else {
+						logging.Logger.Errorf("broadcaster ran into error trying to construct vote for challengeId: %d, err=%+v", event.ChallengeId, err.Error())
+						continue
+					}
+				}
+				p.cachedLocalVote[event.ChallengeId] = localVote
+			}
+
+			err = p.broadcastForSingleEvent(localVote, event)
+			if err != nil {
+				continue
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		broadcastCount++
+		if broadcastCount == common.CacheClearIterations {
+			// Clear cachedLocalVote every N loops, preCheck cannot catch events expired in between iterations
+			p.cachedLocalVote = make(map[uint64]*votepool.Vote, common.CacheSize)
+			broadcastCount = 0
+		}
+
+		time.Sleep(RetryInterval)
+	}
+}
+
+func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, event *model.Event) error {
+	err := p.preCheck(event)
+	if err != nil {
+		if err.Error() == common.ErrEventExpired.Error() {
+			// TODO: Revert this (need to check)
+			//_ = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+			delete(p.cachedLocalVote, event.ChallengeId)
 			return err
 		}
-		go p.broadcastForSingleEventLoop(localVote, event)
-	}
-	return nil
-}
-
-func (p *VoteBroadcaster) broadcastForSingleEventLoop(localVote *votepool.Vote, event *model.Event) {
-	p.cachedChallengeIds[event.ChallengeId] = true
-
-	for {
-		err := p.broadcastForSingleEvent(localVote, event)
-		if err != nil {
-			if strings.Contains(err.Error(), "event expired") {
-				break
-			}
-			time.Sleep(RetryInterval)
-		}
-	}
-}
-
-// fetch unexpired and not selfvoted
-func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, event *model.Event) error {
-	err := p.preCheck(event) // check if event expired to end loop
-	if err != nil {
 		return err
 	}
 
+	logging.Logger.Infof("broadcaster starting time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	err = p.executor.BroadcastVote(localVote)
 	if err != nil {
-		return fmt.Errorf("failed to broadcast vote for event with challengeId: %d", event.ChallengeId)
+		return fmt.Errorf("failed to broadcast vote for challengeId: %d", event.ChallengeId)
 	}
+	logging.Logger.Infof("vote broadcasted for challengeId: %d, height: %d", event.ChallengeId, event.Height)
 	return nil
 }
 
 func (p *VoteBroadcaster) preCheck(event *model.Event) error {
 	currentHeight := p.executor.GetCachedBlockHeight()
 	if currentHeight > event.ExpiredHeight {
-		delete(p.cachedChallengeIds, event.ChallengeId)
-		return fmt.Errorf("event expired")
+		logging.Logger.Infof("broadcaster for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
+		return common.ErrEventExpired
 	}
+
 	return nil
 }
 
@@ -117,9 +125,9 @@ func (p *VoteBroadcaster) constructVoteAndSign(event *model.Event) (*votepool.Vo
 	v.EventType = votepool.DataAvailabilityChallengeEvent
 	eventHash := CalculateEventHash(event)
 	p.signer.SignVote(&v, eventHash[:])
-	err := p.daoManager.SaveVoteAndUpdateEvent(EntityToDto(&v), event)
+	err := p.daoManager.SaveVoteAndUpdateEventStatus(EntityToDto(&v, event.ChallengeId), event.ChallengeId)
 	if err != nil {
-		return nil, err
+		return &v, err
 	}
 	return &v, nil
 }

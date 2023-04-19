@@ -126,7 +126,7 @@ func (m *Monitor) poll() error {
 		return err
 	}
 	if err = m.monitorChallengeEvents(block, blockResults); err != nil {
-		logging.Logger.Errorf("encounter error when monitor challenge events at blockHeight=%d, err=%s", nextHeight, err.Error())
+		logging.Logger.Errorf("encounter error when monitor challenge events at blockHeight=%d, err=%+v", nextHeight, err.Error())
 		return err
 	}
 	return nil
@@ -151,17 +151,34 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 		BlockTime:   block.Time.Unix(),
 		CreatedTime: time.Now().Unix(),
 	}
-	return m.daoManager.SaveBlockAndEvents(b, EntitiesToDtos(uint64(block.Height), events))
+	err = m.daoManager.SaveBlockAndEvents(b, EntitiesToDtos(uint64(block.Height), events))
+	for _, event := range events {
+		logging.Logger.Debugf("monitor event saved for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Monitor) calNextHeight() (uint64, error) {
 	latestPolledBlock, err := m.daoManager.GetLatestBlock()
-	if err != nil {
-		return 0, err
-	}
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logging.Logger.Errorf("failed to get latest block from db, error: %s", err.Error())
-		return 0, err
+		latestHeight, err := m.executor.GetLatestBlockHeight()
+		if err != nil {
+			logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
+			return 0, err
+		}
+		return latestHeight, err
+	}
+	if latestPolledBlock.Height == 0 { // a fresh database
+		latestHeight, err := m.executor.GetLatestBlockHeight()
+		if err != nil {
+			logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
+			return m.executor.GetCachedBlockHeight(), err
+		}
+		return latestHeight, nil
 	}
 	nextHeight := latestPolledBlock.Height + 1
 

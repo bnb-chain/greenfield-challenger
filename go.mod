@@ -13,6 +13,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/ory/dockertest v3.3.5+incompatible
+	github.com/panjf2000/ants/v2 v2.7.2
 	github.com/pkg/errors v0.9.1
 	github.com/prysmaticlabs/prysm v0.0.0-20220124113610-e26cde5e091b
 	github.com/spf13/pflag v1.0.5
@@ -23,7 +24,7 @@ require (
 	google.golang.org/grpc v1.53.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gorm.io/driver/mysql v1.4.5
-	gorm.io/gorm v1.24.5
+	gorm.io/gorm v1.24.6
 )
 
 require (
@@ -103,6 +104,7 @@ require (
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
@@ -122,7 +124,6 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
-	github.com/regen-network/cosmos-proto v0.3.1 // indirect
 	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
@@ -161,15 +162,16 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gorm.io/driver/sqlite v1.4.4 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace (
 	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230228075616-68ac309b432c
-	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.0.10
-	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.0.7
+	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.1.0
+	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.1.0
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210702154020-550e1cd83ec1
-	github.com/tendermint/tendermint => github.com/bnb-chain/greenfield-tendermint v0.0.2
+	github.com/tendermint/tendermint => github.com/bnb-chain/greenfield-tendermint v0.0.3
 )

@@ -7,10 +7,10 @@ import (
 type Vote struct {
 	Id          int64
 	ChallengeId uint64 `gorm:"NOT NULL;index:idx_challenge_id"`
-	PubKey      []byte `gorm:"NOT NULL"`
-	Signature   string `gorm:"NOT NULL"`
+	PubKey      string `gorm:"NOT NULL;uniqueIndex:idx_pubkey_eventhash;size:96"`
+	Signature   string `gorm:"NOT NULL;size:192"`
 	EventType   uint32 `gorm:"NOT NULL"`
-	EventHash   []byte `gorm:"NOT NULLl;index:idx_event_hash"`
+	EventHash   string `gorm:"NOT NULL;uniqueIndex:idx_pubkey_eventhash;size:64"`
 	CreatedTime int64  `gorm:"NOT NULL"`
 }
 
