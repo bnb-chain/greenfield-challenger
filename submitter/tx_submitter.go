@@ -37,7 +37,7 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, daoManager 
 func (s *TxSubmitter) SubmitTransactionLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
-	submitCount := 0
+	submitLoopCount := 0
 	for {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
@@ -61,9 +61,9 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			time.Sleep(50 * time.Millisecond)
 		}
 		// clear event hash every N attempts
-		submitCount++
-		if submitCount == common.CacheClearIterations {
-			submitCount = 0
+		submitLoopCount++
+		if submitLoopCount == common.CacheClearIterations {
+			submitLoopCount = 0
 			s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
 		}
 		time.Sleep(common.RetryInterval)

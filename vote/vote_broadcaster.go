@@ -41,7 +41,7 @@ func NewVoteBroadcaster(cfg *config.Config, dao *dao.DaoManager, signer *VoteSig
 func (p *VoteBroadcaster) BroadcastVotesLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	p.cachedLocalVote = make(map[uint64]*votepool.Vote, common.CacheSize)
-	broadcastCount := 0
+	broadcastLoopCount := 0
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
 		// Ask about this function
@@ -78,11 +78,11 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 			time.Sleep(50 * time.Millisecond)
 		}
 
-		broadcastCount++
-		if broadcastCount == common.CacheClearIterations {
+		broadcastLoopCount++
+		if broadcastLoopCount == common.CacheClearIterations {
 			// Clear cachedLocalVote every N loops, preCheck cannot catch events expired in between iterations
 			p.cachedLocalVote = make(map[uint64]*votepool.Vote, common.CacheSize)
-			broadcastCount = 0
+			broadcastLoopCount = 0
 		}
 
 		time.Sleep(RetryInterval)
@@ -93,8 +93,10 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 	err := p.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
-			// TODO: Revert this (need to check)
-			//_ = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+			err = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			if err != nil {
+				return fmt.Errorf("failed to update event status for challengeId: %d", event.ChallengeId)
+			}
 			delete(p.cachedLocalVote, event.ChallengeId)
 			return err
 		}

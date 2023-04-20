@@ -112,6 +112,7 @@ func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, va
 		err := p.preCheck(event)
 		if err != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
+				err = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
 				return err
 			}
 			return err

@@ -108,8 +108,7 @@ func (a *App) Start() {
 	go a.voteCollector.CollectVotesLoop()
 	go a.voteBroadcaster.BroadcastVotesLoop()
 	go a.voteCollator.CollateVotesLoop()
-	go a.txSubmitter.SubmitTransactionLoop()
-	a.dbWiper.DBWipeLoop()
+	a.txSubmitter.SubmitTransactionLoop()
 }
 
 func getDBPass(cfg *config.DBConfig) string {

@@ -13,7 +13,7 @@ import (
 
 func initFlags() {
 	flag.String(config.FlagConfigPath, "", "config file path")
-	flag.String(config.FlagConfigType, "aws_private_key", "config type, local_private_key or aws_private_key")
+	flag.String(config.FlagConfigType, "local_private_key", "config type, local_private_key or aws_private_key")
 	flag.String(config.FlagConfigAwsRegion, "", "aws region")
 	flag.String(config.FlagConfigAwsSecretKey, "", "aws secret key")
 	flag.String(config.FlagConfigPrivateKey, "", "challenger private key")

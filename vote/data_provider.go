@@ -31,9 +31,9 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 }
 
 func (h *DataHandler) FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, error) {
-	// TODO: Revert this
-	events, err := h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.Verified)
-	//events, err := h.daoManager.GetUnexpiredEventsByVerifyResult(BatchSize, currentHeight, model.HashMismatched)
+	// TODO: Revert this if debugging
+	//events, err := h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.Verified)
+	events, err := h.daoManager.GetUnexpiredEventsByVerifyResult(BatchSize, currentHeight, model.HashMismatched)
 	if err != nil {
 		logging.Logger.Errorf("failed to fetch events for self vote, err=%+v", err.Error())
 		return nil, err

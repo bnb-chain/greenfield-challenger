@@ -40,7 +40,6 @@ func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventSt
 }
 
 func (h *DataHandler) SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error) {
-	// TODO: Check if needed since MsgAttest is only submitted when HashMismatched
 	voteResult := challengetypes.CHALLENGE_FAILED
 	if event.VerifyResult == model.HashMismatched {
 		voteResult = challengetypes.CHALLENGE_SUCCEED

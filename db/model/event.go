@@ -42,7 +42,7 @@ const (
 	EnoughVotesCollected                    // Event has been voted for more than 2/3 validators
 	Submitted                               // Event has been submitted for tx
 	SubmitFailed                            // Event cannot be submitted for tx
-	Skipped                                 // Event has been processed
+	Expired                                 // Event has been expired
 )
 
 type VerifyResult int
