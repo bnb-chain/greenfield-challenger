@@ -8,12 +8,12 @@ for any bug bounty. We advise you to be careful and experiment on the network at
 
 
 ## Main Components
-This off-chain application comprises of 6 main goroutines: Monitor, Verifier, Vote Collector, Vote Broadcaster, Vote Collator and Tx Submitter.
+This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote Collector, Vote Broadcaster, Vote Collator and Tx Submitter.
 
 1. The Monitor polls the blockchain for new blocks to parse for challenge events and adds them to the local db.
 
 
-2. The Verifier is charge of verifying the integrity of the stored data. The process involves querying the Storage Provider for the piece hashes and the Blockchain for the original hash. A root hash would be computed using the piece hashes received from the Storage Provider. Both the root hash and original hash would then be compared to check if they are equal before updating the db with the challenge results.
+2. The Verifier is in charge of verifying the integrity of the stored data. The process involves querying the Storage Provider for the piece hashes and the Blockchain for the original hash. A root hash would be computed using the piece hashes received from the Storage Provider. Both the root hash and original hash would then be compared to check if they are equal before updating the db with the challenge results.
 
 
 3. The Vote Broadcaster retrieves events that failed the verification process and were found to have mismatched hashes. A vote would be constructed and signed before being broadcasted to the blockchain where other Challenger services would be querying from to collect enough votes for a 2/3 consensus.
