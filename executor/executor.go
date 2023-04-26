@@ -440,7 +440,7 @@ func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, se
 		PieceIndex:      segmentIndex,
 		RedundancyIndex: redundancyIndex,
 	}
-	authInfo := sp.NewAuthInfo(false, "") // TODO: fill auth info when sp api is ready
+	authInfo := sp.NewAuthInfo(false, "") // TODO: fill auth info when sp api is ready, prove this request is from validator
 	challengeRes, err := e.spClient.ChallengeSP(context.Background(), challengeInfo, authInfo)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query challenge result info from sp client for objectId %s, err=%+v", objectId, err.Error())

@@ -50,5 +50,5 @@ type VerifyResult int
 const (
 	Unknown        VerifyResult = iota // Event not been verified
 	HashMatched                        // The challenge failed, hashes are matched
-	HashMismatched VerifyResult = 2    // The challenge succeed, hashed are not matched
+	HashMismatched                     // The challenge succeed, hashed are not matched
 )
