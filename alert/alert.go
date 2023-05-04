@@ -21,7 +21,7 @@ func SendTelegramMessage(identity string, botId string, chatId string, msg strin
 	}
 	_, err := http.PostForm(endPoint, formData)
 	if err != nil {
-		logging.Logger.Errorf("send telegram message error, bot_id=%s, chat_id=%s, msg=%s, err=%s \n", botId, chatId, msg, err.Error())
+		logging.Logger.Errorf("send telegram message error, bot_id=%s, chat_id=%s, msg=%s, err=%+v \n", botId, chatId, msg, err.Error())
 		return
 	}
 }

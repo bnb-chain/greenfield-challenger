@@ -8,17 +8,24 @@ for any bug bounty. We advise you to be careful and experiment on the network at
 
 
 ## Main Components
-This off-chain application mainly comprises of 4 working parts: Monitor, Verifier, Vote Processor and Tx Submitter. 
-1. The Monitor polls the blockchain for new challenge events and adds them to the local db for further processing.
+This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote Collector, Vote Broadcaster, Vote Collator and Tx Submitter.
+
+1. The Monitor polls the blockchain for new blocks to parse for challenge events and adds them to the local db.
 
 
-2. The Verifier would then retrieve the event from the db before querying the Storage Provider for the piece hashes and the Blockchain for the original hash. A root hash would be computed using the piece hashes received from the Storage Provider. Both the root hash and original hash would then be compared to check if they are equal before updating the db with the challenge results.
+2. The Verifier is in charge of verifying the integrity of the stored data. The process involves querying the Storage Provider for the piece hashes and the Blockchain for the original hash. A root hash would be computed using the piece hashes received from the Storage Provider. Both the root hash and original hash would then be compared to check if they are equal before updating the db with the challenge results.
 
 
-3. The Vote Processor polls the db for locally verified events to prepare the votes before broadcasting them. It also queries for and saves all the broadcasted votes for the challenge events to check if a 2/3 consensus has been achieved before updating the db with the consensus results.
+3. The Vote Broadcaster retrieves events that failed the verification process and were found to have mismatched hashes. A vote would be constructed and signed before being broadcasted to the blockchain where other Challenger services would be querying from to collect enough votes for a 2/3 consensus.
 
 
-4. The Tx Submitter polls the db for events that received enough consensus votes and sends a MsgAttest after aggregating the votes and signature. 
+4. The Vote Collector polls the blockchain for votes that were broadcasted by other Challenger services and adds them to the local db. Votes will undergo validation before they are stored.  
+
+
+5. The Vote Collator retrieves events that failed the verification process to calculate an event hash. Every ChallengeId has a unique event hash and it would be used to identify votes that were saved in the local db by the Vote Collector. It will then query and collate the votes for a 2/3 consensus before changing the event status to allow the Tx Submitter to process it.  
+
+
+6. The Tx Submitter polls the db for events that received enough consensus votes and sends a MsgAttest to the blockchain after aggregating the votes and signature. The blockchain will validate the votes and if the attestation passes. the storage provider will then be slashed for failing to protect the integrity of the data that they were tasked to store.    
 
 ## Deployment
 
@@ -26,27 +33,28 @@ This off-chain application mainly comprises of 4 working parts: Monitor, Verifie
 1. Set your private key import method (via file or aws secret), deployment environment and gas limit.
 ```
   "greenfield_config": {
-    "key_type": "local_private_key" or "aws_private_key" depending on your choice of import 
-    "aws_region": set this if you choose to import using aws
-    "aws_secret_name": set this if you choose to import using aws
+    "key_type": "local_private_key" or "aws_private_key" depending on whether you are storing the keys on aws or locally in this json file
+    "aws_region": set this if you chose "aws_private_key"
+    "aws_secret_name": set this if you chose "aws_private_key"
+    "aws_bls_secret_name": set this if you chose "aws_private_key"
+    "private_key": set this if you chose "local_private_key"
+    "bls_private_key": set this if you chose "local_private_key" 
     "rpc_addrs": [
       "http://0.0.0.0:26750"
     ],
     "grpc_addrs": [
       "localhost:9090"
     ],
-    "private_key": challenger_private_key
     "gas_limit": 100 (your tx gas limit)
     "chain_id_string": chain id of the network, e.g., "greenfield_9000-121"  
     "deduplication_interval": 100 (skip processing event if recently processed within X events)
   }
 ```
 
-2. Set bls key of your validator.
+2. Set rpc addr for vote pool
 ```
 "vote_pool_config": {
   "rpc_addr": "http://127.0.0.1:26750",
-  "bls_private_key": relayer_private_key 
 }
 ```
 
@@ -68,7 +76,15 @@ This off-chain application mainly comprises of 4 working parts: Monitor, Verifie
 ```
 "db_config": {
   "dialect": "mysql",
-  "db_path": "root:root@tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
+  "db_path": "tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
+  "key_type": "local_private_key" or "aws_private_key" depending on whether you are storing the keys on aws or locally in this json file
+  "aws_region": set this if you chose "aws_private_key"
+  "aws_secret_name": set this if you chose "aws_private_key"
+  "username": set this if you chose "local_private_key"
+  "password": set this if you chose "local_private_key"
+  "max_idle_conns": 20, (set depending on your db performance)
+  "max_open_conns": 40, (set depending on your db performance)
+  "debug_mode": false  
 }
 ```
 

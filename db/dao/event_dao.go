@@ -41,11 +41,11 @@ func (d *EventDao) GetLatestEventByStatus(status model.EventStatus) (*model.Even
 	return &e, nil
 }
 
-func (d *EventDao) GetEarliestEventsByStatus(status model.EventStatus, limit int) ([]*model.Event, error) {
+func (d *EventDao) GetUnexpiredEventsByStatus(currentHeight uint64, status model.EventStatus) ([]*model.Event, error) {
 	events := []*model.Event{}
-	err := d.DB.Where("status = ?", status).
+	err := d.DB.Where("expired_height > ?", currentHeight).
+		Where("status = ?", status).
 		Order("challenge_id asc").
-		Limit(limit).
 		Find(&events).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
@@ -53,10 +53,10 @@ func (d *EventDao) GetEarliestEventsByStatus(status model.EventStatus, limit int
 	return events, nil
 }
 
-func (d *EventDao) GetEarliestEventsByStatusAndAfter(status model.EventStatus, limit int, minChallengeId uint64) ([]*model.Event, error) {
+func (d *EventDao) GetUnexpiredEventsByVerifyResult(limit int, currentHeight uint64, verifyResult model.VerifyResult) ([]*model.Event, error) {
 	events := []*model.Event{}
-	err := d.DB.Where("status = ?", status).
-		Where("challenge_id >= ?", minChallengeId).
+	err := d.DB.Where("verify_result = ?", verifyResult).
+		Where("expired_height > ?", currentHeight).
 		Order("challenge_id asc").
 		Limit(limit).
 		Find(&events).Error
@@ -97,4 +97,8 @@ func (d *EventDao) IsEventExistsBetween(objectId, spOperatorAddress string, lowC
 		return false, err
 	}
 	return exists, nil
+}
+
+func (d *EventDao) DeleteEventsBefore(unixTimestamp int64) error {
+	return d.DB.Model(&model.Event{}).Where("created_time < ?", unixTimestamp).Delete(&model.Event{}).Error
 }
