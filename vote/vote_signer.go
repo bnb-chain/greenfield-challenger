@@ -15,7 +15,7 @@ type VoteSigner struct {
 func NewVoteSigner(pk []byte) *VoteSigner {
 	privKey, err := blst.SecretKeyFromBytes(pk)
 	if err != nil {
-		logging.Logger.Errorf("vote signer failed to generate key from bytes, err=%s", err.Error())
+		logging.Logger.Errorf("vote signer failed to generate key from bytes, err=%+v", err.Error())
 		panic(err)
 	}
 	pubKey := privKey.PublicKey()

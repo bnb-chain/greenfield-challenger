@@ -23,3 +23,7 @@ func (d *BlockDao) GetLatestBlock() (*model.Block, error) {
 	}
 	return &block, nil
 }
+
+func (d *BlockDao) DeleteBlocksBefore(unixTimestamp int64) error {
+	return d.DB.Model(&model.Block{}).Where("created_time < ?", unixTimestamp).Delete(&model.Block{}).Error
+}

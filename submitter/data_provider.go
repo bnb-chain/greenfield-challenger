@@ -8,11 +8,9 @@ import (
 	"github.com/willf/bitset"
 )
 
-const batchSize = 10
-
 type DataProvider interface {
-	FetchEventsForSubmit() ([]*model.Event, error)
-	FetchVotesForAggregation(challengeId uint64) ([]*model.Vote, error)
+	FetchEventsForSubmit(currentHeight uint64) ([]*model.Event, error)
+	FetchVotesForAggregation(eventHash string) ([]*model.Vote, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error)
 }
@@ -29,12 +27,12 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 	}
 }
 
-func (h *DataHandler) FetchEventsForSubmit() ([]*model.Event, error) {
-	return h.daoManager.GetEarliestEventsByStatus(model.EnoughVotesCollected, batchSize)
+func (h *DataHandler) FetchEventsForSubmit(currentHeight uint64) ([]*model.Event, error) {
+	return h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.EnoughVotesCollected)
 }
 
-func (h *DataHandler) FetchVotesForAggregation(challengeId uint64) ([]*model.Vote, error) {
-	return h.daoManager.GetVotesByChallengeId(challengeId)
+func (h *DataHandler) FetchVotesForAggregation(eventHash string) ([]*model.Vote, error) {
+	return h.daoManager.GetVotesByEventHash(eventHash)
 }
 
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
