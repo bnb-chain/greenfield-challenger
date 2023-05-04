@@ -53,11 +53,9 @@ func NewApp(cfg *config.Config) *App {
 	dbConfig.SetMaxIdleConns(cfg.DBConfig.MaxIdleConns)
 	dbConfig.SetMaxOpenConns(cfg.DBConfig.MaxOpenConns)
 
-	if cfg.DBConfig.DebugMode {
-		err = ResetDB(db, &model.Block{}, &model.Event{}, &model.Vote{})
-		if err != nil {
-			logging.Logger.Errorf("reset db error, err=%+v", err.Error())
-		}
+	err = ResetDB(db, &model.Block{}, &model.Event{}, &model.Vote{})
+	if err != nil {
+		logging.Logger.Errorf("reset db error, err=%+v", err.Error())
 	}
 
 	model.InitBlockTable(db)
