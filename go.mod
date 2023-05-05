@@ -6,9 +6,9 @@ require (
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.44.159
-	github.com/bnb-chain/greenfield v0.0.0-20230309023310-c6dab0deb3c6
-	github.com/bnb-chain/greenfield-common/go v0.0.0-20230227091017-b60c7936a1c6
-	github.com/bnb-chain/greenfield-go-sdk v0.0.5
+	github.com/bnb-chain/greenfield v0.0.10
+	github.com/bnb-chain/greenfield-common/go v0.0.0-20230407104542-ed19e3666522
+	github.com/bnb-chain/greenfield-go-sdk v0.0.9
 	github.com/cosmos/cosmos-sdk v0.46.7
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
@@ -104,7 +104,6 @@ require (
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
@@ -162,7 +161,6 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/sqlite v1.4.4 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
