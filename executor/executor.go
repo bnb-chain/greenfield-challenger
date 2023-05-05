@@ -28,7 +28,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/viper"
-	"github.com/tendermint/tendermint/rpc/client"
+	tmclient "github.com/tendermint/tendermint/rpc/client"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -136,21 +136,13 @@ func getGreenfieldBlsPrivateKey(cfg *config.GreenfieldConfig) string {
 	return cfg.BlsPrivateKey
 }
 
-func (e *Executor) getRpcClient() (client.Client, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get rpc client, err=%+v", err.Error())
-		return nil, err
-	}
+func (e *Executor) getRpcClient() (tmclient.Client, error) {
+	client := e.gnfdClients.GetClient()
 	return client.TendermintClient.RpcClient.TmClient, nil
 }
 
 func (e *Executor) getGnfdClient() (*sdkclient.GreenfieldClient, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get greenfield client, err=%+v", err.Error())
-		return nil, err
-	}
+	client := e.gnfdClients.GetClient()
 	return client.GreenfieldClient, nil
 }
 
@@ -173,11 +165,7 @@ func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block,
 }
 
 func (e *Executor) GetLatestBlockHeight() (latestHeight uint64, err error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		logging.Logger.Errorf("executor failed to get greenfield clients, err=%+v", err.Error())
-		return 0, err
-	}
+	client := e.gnfdClients.GetClient()
 	latestHeight = uint64(client.Height)
 
 	e.mtx.Lock()
@@ -295,10 +283,7 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 }
 
 func (e *Executor) queryLatestAttestedChallengeId() (uint64, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return 0, err
-	}
+	client := e.gnfdClients.GetClient()
 
 	res, err := client.ChallengeQueryClient.LatestAttestedChallenge(context.Background(), &challangetypes.QueryLatestAttestedChallengeRequest{})
 	if err != nil {
@@ -341,10 +326,7 @@ func (e *Executor) UpdateAttestedChallengeIdLoop() {
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return 0, err
-	}
+	client := e.gnfdClients.GetClient()
 
 	res, err := client.ChallengeQueryClient.Params(context.Background(), &challangetypes.QueryParamsRequest{})
 	if err != nil {
@@ -398,10 +380,7 @@ func (e *Executor) GetHeightLoop() {
 }
 
 func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return "", err
-	}
+	client := e.gnfdClients.GetClient()
 
 	res, err := client.SpQueryClient.StorageProvider(context.Background(), &sptypes.QueryStorageProviderRequest{SpAddress: address})
 	if err != nil {
@@ -413,10 +392,7 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 }
 
 func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return nil, err
-	}
+	client := e.gnfdClients.GetClient()
 
 	headObjQueryReq := storagetypes.QueryHeadObjectByIdRequest{ObjectId: objectId}
 	res, err := client.StorageQueryClient.HeadObjectById(context.Background(), &headObjQueryReq)
@@ -450,16 +426,13 @@ func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, se
 }
 
 func (e *Executor) QueryVotes(eventType votepool.EventType) ([]*votepool.Vote, error) {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return nil, err
-	}
+	client := e.gnfdClients.GetClient()
 
 	queryMap := make(map[string]interface{})
 	queryMap[VotePoolQueryParameterEventType] = int(eventType)
 	queryMap[VotePoolQueryParameterEventHash] = nil
 	var queryVote coretypes.ResultQueryVote
-	_, err = client.JsonRpcClient.Call(context.Background(), VotePoolQueryMethodName, queryMap, &queryVote)
+	_, err := client.JsonRpcClient.Call(context.Background(), VotePoolQueryMethodName, queryMap, &queryVote)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query votes for event type %s, err=%+v", string(eventType), err.Error())
 		return nil, err
@@ -468,13 +441,10 @@ func (e *Executor) QueryVotes(eventType votepool.EventType) ([]*votepool.Vote, e
 }
 
 func (e *Executor) BroadcastVote(v *votepool.Vote) error {
-	client, err := e.gnfdClients.GetClient()
-	if err != nil {
-		return err
-	}
+	client := e.gnfdClients.GetClient()
 	broadcastMap := make(map[string]interface{})
 	broadcastMap[VotePoolBroadcastParameterKey] = *v
-	_, err = client.JsonRpcClient.Call(context.Background(), VotePoolBroadcastMethodName, broadcastMap, &ctypes.ResultBroadcastVote{})
+	_, err := client.JsonRpcClient.Call(context.Background(), VotePoolBroadcastMethodName, broadcastMap, &ctypes.ResultBroadcastVote{})
 	if err != nil {
 		logging.Logger.Errorf("executor failed to broadcast vote to votepool for event hash %s event type %s, err=%+v", string(v.EventHash), string(v.EventType), err.Error())
 		return err
