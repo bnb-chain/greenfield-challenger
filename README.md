@@ -1,5 +1,5 @@
 # Greenfield Challenger
-Greenfield ensures data integrity by routinely issuing storage providers challenge events to prove that the stored data is not tampered. This service allows end users to monitor the blockchain for challenge events and conduct verification upon downloading the hash pieces belonging to the stored object. 
+Greenfield ensures data integrity by routinely issuing storage providers challenge events to prove that the stored data is not tampered with. This service allows end users to monitor the blockchain for challenge events and perform verification.   
 
 ## Disclaimer
 **The software and related documentation are under active development, all subject to potential future change without
@@ -82,8 +82,8 @@ This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote 
   "aws_secret_name": set this if you chose "aws_private_key"
   "username": set this if you chose "local_private_key"
   "password": set this if you chose "local_private_key"
-  "max_idle_conns": 20, (set depending on your db performance)
-  "max_open_conns": 40, (set depending on your db performance)
+  "max_idle_conns": 20, (set according to your db performance)
+  "max_open_conns": 40, (set according to your db performance)
   "debug_mode": false  
 }
 ```

@@ -16,9 +16,6 @@
     "chain_id_string": "greenfield_9000-121",
     "deduplication_interval": 100
   },
-  "vote_pool_config": {
-    "rpc_addr": "https://gnfd-dev.qa.bnbchain.world:443/"
-  },
   "log_config": {
     "level": "DEBUG",
     "filename": "log.txt",

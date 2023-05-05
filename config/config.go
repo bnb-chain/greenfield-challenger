@@ -8,14 +8,9 @@ import (
 
 type Config struct {
 	GreenfieldConfig GreenfieldConfig `json:"greenfield_config"`
-	VotePoolConfig   VotePoolConfig   `json:"vote_pool_config"`
 	LogConfig        LogConfig        `json:"log_config"`
 	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
-}
-
-type VotePoolConfig struct {
-	RPCAddr string `json:"rpc_addr"`
 }
 
 type GreenfieldConfig struct {
