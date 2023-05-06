@@ -383,6 +383,9 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 	client := e.gnfdClients.GetClient()
 
 	res, err := client.SpQueryClient.StorageProvider(context.Background(), &sptypes.QueryStorageProviderRequest{SpAddress: address})
+	logging.Logger.Infof("response %s", res)
+	logging.Logger.Infof("response sp endpoint %s", res.StorageProvider.Endpoint)
+	logging.Logger.Infof("response get sp endpoint %s", res.GetStorageProvider().Endpoint)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query storage provider %s, err=%+v", address, err.Error())
 		return "", err
