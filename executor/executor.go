@@ -10,9 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -78,7 +75,7 @@ func NewExecutor(cfg *config.Config) *Executor {
 		client, err := gnfdClient.New(
 			cfg.GreenfieldConfig.ChainIdString,
 			addr,
-			gnfdClient.Option{DefaultAccount: km, GrpcDialOption: grpc.WithTransportCredentials(insecure.NewCredentials())},
+			gnfdClient.Option{DefaultAccount: km},
 		)
 		if err != nil {
 			logging.Logger.Errorf("executor failed to initiate with greenfield clients, err=%s", err.Error())
@@ -296,14 +293,14 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 	return txRes.TxResponse.TxHash, nil
 }
 
-func (e *Executor) QueryInturnAttestationSubmitter() (string, error) {
+func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryInturnAttestationSubmitterResponse, error) {
 	client := e.GetGnfdClient()
 	res, err := client.InturnAttestationSubmitter(context.Background(), &challangetypes.QueryInturnAttestationSubmitterRequest{})
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get inturn attestation submitter, err=%+v", err.Error())
-		return "", err
+		return nil, err
 	}
-	return res.BlsPubKey, nil
+	return res, nil
 }
 
 func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challangetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption types2.TxOption) (bool, error) {

@@ -4,18 +4,17 @@ import (
 	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
-	"github.com/bnb-chain/greenfield/sdk/types"
-	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	"time"
-
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-challenger/vote"
+	"github.com/bnb-chain/greenfield/sdk/types"
+	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 )
 
 type TxSubmitter struct {
@@ -42,18 +41,6 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 	s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
 	submitLoopCount := 0
 	for {
-		for {
-			// blsPubKey of current submitter
-			blsPubKey, err := s.executor.QueryInturnAttestationSubmitter()
-			if err != nil {
-				logging.Logger.Errorf("tx submitter failed to query inturn attestation submitter, err=%+v", err.Error())
-				continue
-			}
-			if blsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
-				break
-			}
-		}
-
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		logging.Logger.Infof("tx submitter fetched %d events for submit", len(events))
@@ -67,8 +54,24 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			continue
 		}
 
+		attestPeriodEnd := uint64(0)
+		for {
+			// blsPubKey of current submitter
+			res, err := s.executor.QueryInturnAttestationSubmitter()
+			if err != nil {
+				logging.Logger.Errorf("tx submitter failed to query inturn attestation submitter, err=%+v", err.Error())
+				continue
+			}
+			attestPeriodEnd = res.SubmitInterval.GetEnd()
+			if res.BlsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
+				break
+			}
+			time.Sleep(common.RetryInterval)
+			continue
+		}
+
 		for _, event := range events {
-			err = s.submitForSingleEvent(event)
+			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
 				logging.Logger.Errorf("tx submitter err=%+v, timestamp: %s", err.Error(), time.Now().Format("15:04:05.000000"))
 				continue
@@ -85,7 +88,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 	}
 }
 
-func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
+func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd uint64) error {
 	logging.Logger.Infof("submitter process started for event with challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	if err := s.preCheck(event); err != nil {
 		return err
@@ -117,6 +120,9 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	// TODO: check TxOption
 	submittedAttempts := 0
 	for {
+		if time.Now().Unix() > int64(attestPeriodEnd) {
+			return fmt.Errorf("submit interval ended for submitter. failed to submit in time for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+		}
 		if submittedAttempts > common.MaxSubmitAttempts {
 			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 		}
