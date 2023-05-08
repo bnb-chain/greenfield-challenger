@@ -1,8 +1,11 @@
 package submitter
 
 import (
+	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
+	"github.com/bnb-chain/greenfield/sdk/types"
+	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -39,6 +42,18 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 	s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
 	submitLoopCount := 0
 	for {
+		for {
+			// blsPubKey of current submitter
+			blsPubKey, err := s.executor.QueryInturnAttestationSubmitter()
+			if err != nil {
+				logging.Logger.Errorf("tx submitter failed to query inturn attestation submitter, err=%+v", err.Error())
+				continue
+			}
+			if blsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
+				break
+			}
+		}
+
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		logging.Logger.Infof("tx submitter fetched %d events for submit", len(events))
@@ -99,25 +114,45 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 	}
 
 	// submit transaction
-	txHash, errTx := s.SubmitTx(event, valBitSet, aggregatedSignature)
-	if errTx != nil {
-		logging.Logger.Errorf("failed to submit tx for challengeId: %d,  err: %s", event.ChallengeId, errTx.Error())
-	} else {
-		logging.Logger.Infof("submitter tx submitted for challengeId: %d, txHash: %s ,timestamp: %s", event.ChallengeId, txHash, time.Now().Format("15:04:05.000000"))
+	// TODO: check TxOption
+	submittedAttempts := 0
+	for {
+		if submittedAttempts > common.MaxSubmitAttempts {
+			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+		}
+		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), challengetypes.CHALLENGE_SUCCEED, valBitSet.Bytes(), aggregatedSignature, types.TxOption{})
+		if err != nil {
+			submittedAttempts++
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		if attestRes != true {
+			submittedAttempts++
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		break
 	}
-	time.Sleep(100 * time.Millisecond)
 
 	// check if attested
-	err = s.checkSubmitStatus(event.ChallengeId)
-	if err != nil {
-		return err
+	checkAttestedAttempts := 0
+	for {
+		if checkAttestedAttempts > common.MaxCheckAttestedAttempts {
+			return fmt.Errorf("submitter exceeded max check attested attempts for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+		}
+		err = s.checkSubmitStatus(event.ChallengeId)
+		if err != nil {
+			checkAttestedAttempts++
+			time.Sleep(5000 * time.Millisecond)
+			continue
+		}
+		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
+		if err != nil {
+			return err
+		}
+		logging.Logger.Infof("attestation completed for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+		return nil
 	}
-	err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
-	if err != nil {
-		return err
-	}
-	logging.Logger.Infof("attestation completed for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
-	return nil
 }
 
 func (s *TxSubmitter) preCheck(event *model.Event) error {
@@ -130,14 +165,16 @@ func (s *TxSubmitter) preCheck(event *model.Event) error {
 }
 
 func (s *TxSubmitter) checkSubmitStatus(challengeId uint64) error {
-	attestedChallengeId, err := s.executor.QueryLatestAttestedChallengeId()
-	logging.Logger.Infof("latest attested challengeId: %d", attestedChallengeId)
+	attestedChallengeIds, err := s.executor.QueryLatestAttestedChallengeIds()
+	logging.Logger.Infof("latest attested challengeId: %d", attestedChallengeIds)
 	if err != nil {
 		return err
 	}
-	if challengeId == attestedChallengeId {
-		logging.Logger.Infof("attestation verified for challengeId: %d, current attested challenge: %d, timestamp: %s", challengeId, attestedChallengeId, time.Now().Format("15:04:05.000000"))
-		return nil
+	for _, attestedChallengeId := range attestedChallengeIds {
+		if attestedChallengeId == challengeId {
+			logging.Logger.Infof("check submit status succeeded for challengeId: %d, timestamp: %s", challengeId, time.Now().Format("15:04:05.000000"))
+			return nil
+		}
 	}
 	return fmt.Errorf("checking submit status for challengeId: %d, not attested on blockchain yet, timestamp: %s", challengeId, time.Now().Format("15:04:05.000000"))
 }

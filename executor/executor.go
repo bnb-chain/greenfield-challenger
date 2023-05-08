@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	_ "encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -295,6 +296,31 @@ func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress 
 	return txRes.TxResponse.TxHash, nil
 }
 
+func (e *Executor) QueryInturnAttestationSubmitter() (string, error) {
+	client := e.GetGnfdClient()
+	res, err := client.InturnAttestationSubmitter(context.Background(), &challangetypes.QueryInturnAttestationSubmitterRequest{})
+	if err != nil {
+		logging.Logger.Errorf("executor failed to get inturn attestation submitter, err=%+v", err.Error())
+		return "", err
+	}
+	return res.BlsPubKey, nil
+}
+
+func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challangetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption types2.TxOption) (bool, error) {
+	client := e.GetGnfdClient()
+	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
+	if err != nil {
+		logging.Logger.Errorf("executor failed to attest challenge, err=%+v", err.Error())
+		return false, err
+	}
+	if res.Code != 0 {
+		logging.Logger.Errorf("executor failed to attest challenge, code=%d, log=%s", strconv.Itoa(int(res.Code)), res.Logs.String())
+		return false, err
+	}
+	logging.Logger.Infof("executor attest challenge success, challengeId=%d", challengeId)
+	return true, nil
+}
+
 func (e *Executor) queryLatestAttestedChallengeIds() ([]uint64, error) {
 	client := e.GetGnfdClient()
 
@@ -307,7 +333,7 @@ func (e *Executor) queryLatestAttestedChallengeIds() ([]uint64, error) {
 	return res, nil
 }
 
-func (e *Executor) QueryLatestAttestedChallengeId() ([]uint64, error) {
+func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
 	// TODO: check this
 	e.mtx.RLock()
 	challengeIds := e.attestedChallengeIds
@@ -422,7 +448,7 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 	return res.Checksums, nil
 }
 
-func (e *Executor) GetChallengeResultFromSp(endpoint string, objectId string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
+func (e *Executor) GetChallengeResultFromSp(objectId string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
 	client := e.GetGnfdClient()
 
 	challengeInfoRequest := types.ChallengeInfo{
@@ -517,4 +543,8 @@ func (e *Executor) GetTmRpcClient() tmrpcclient.Client {
 // TODO: implement this
 func (e *Executor) GetTmJsonRpcClient() *tmjsonrpcclient.Client {
 	return e.tmJsonRpcClients[0]
+}
+
+func (e *Executor) GetAddr() string {
+	return e.address
 }
