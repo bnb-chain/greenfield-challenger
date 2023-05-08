@@ -338,17 +338,15 @@ func (e *Executor) UpdateAttestedChallengeIdLoop() {
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
-	//  TODO: check this
-	//client := e.GetGnfdClient()
-	//q := challangetypes.QueryParamsRequest{}
-	//res, err := client.Params(context.Background(), &q)
-	//if err != nil {
-	//	logging.Logger.Errorf("executor failed to get latest heartbeat interval, err=%+v", err.Error())
-	//	return 0, err
-	//}
-	//
-	//return res.Params.HeartbeatInterval, nil
-	return 1000, nil
+	client := e.GetGnfdClient()
+	q := challangetypes.QueryParamsRequest{}
+	res, err := client.ChallengeParams(context.Background(), &q)
+	if err != nil {
+		logging.Logger.Errorf("executor failed to get latest heartbeat interval, err=%+v", err.Error())
+		return 0, err
+	}
+
+	return res.Params.HeartbeatInterval, nil
 }
 
 func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
