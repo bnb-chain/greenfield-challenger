@@ -2,9 +2,9 @@ package verifier
 
 import (
 	"bytes"
+	"github.com/bnb-chain/greenfield-go-sdk/pkg/utils"
 	"testing"
 
-	"github.com/bnb-chain/greenfield-common/go/hash"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,10 +14,10 @@ func TestHashing(t *testing.T) {
 	hashesStr := []string{"test1", "test2", "test3", "test4", "test5", "test6", "test7"}
 	checksums := make([][]byte, 7)
 	for i, v := range hashesStr {
-		checksums[i] = hash.CalcSHA256([]byte(v))
+		checksums[i] = utils.CalcSHA256([]byte(v))
 	}
 	rootHash := bytes.Join(checksums, []byte(""))
-	rootHash = []byte(hash.CalcSHA256Hex(rootHash))
+	rootHash = []byte(utils.CalcSHA256Hex(rootHash))
 
 	// Valid testcase
 	validStr := []byte("test1")

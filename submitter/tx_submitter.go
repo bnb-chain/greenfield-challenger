@@ -126,7 +126,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		if attestRes != true {
+		if !attestRes {
 			submittedAttempts++
 			time.Sleep(100 * time.Millisecond)
 			continue
