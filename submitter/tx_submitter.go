@@ -117,7 +117,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	}
 
 	// submit transaction
-	// TODO: check TxOption
+	// TODO: check TxOption, remove logs
 	submittedAttempts := 0
 	for {
 		logging.Logger.Infof("current time: %d, attestPeriodEnd: %d", time.Now().Unix(), attestPeriodEnd)
