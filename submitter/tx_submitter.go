@@ -41,18 +41,6 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 	s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
 	submitLoopCount := 0
 	for {
-		currentHeight := s.executor.GetCachedBlockHeight()
-		events, err := s.FetchEventsForSubmit(currentHeight)
-		logging.Logger.Infof("tx submitter fetched %d events for submit", len(events))
-		if err != nil {
-			logging.Logger.Errorf("tx submitter failed to fetch events for submitting, err=%+v", err.Error())
-			continue
-		}
-		if len(events) == 0 {
-			time.Sleep(common.RetryInterval)
-			continue
-		}
-
 		attestPeriodEnd := uint64(0)
 		for {
 			// blsPubKey of current submitter
@@ -66,6 +54,18 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 				logging.Logger.Infof("tx submitter is currently inturn for submitting until: %s, current timestamp: %s", time.Unix(int64(attestPeriodEnd), 0).Format("15:04:05.000000"), time.Now().Format("15:04:05.000000"))
 				break
 			}
+			time.Sleep(common.RetryInterval)
+			continue
+		}
+
+		currentHeight := s.executor.GetCachedBlockHeight()
+		events, err := s.FetchEventsForSubmit(currentHeight)
+		logging.Logger.Infof("tx submitter fetched %d events for submit", len(events))
+		if err != nil {
+			logging.Logger.Errorf("tx submitter failed to fetch events for submitting, err=%+v", err.Error())
+			continue
+		}
+		if len(events) == 0 {
 			time.Sleep(common.RetryInterval)
 			continue
 		}
@@ -84,7 +84,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			submitLoopCount = 0
 			s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
 		}
-		time.Sleep(common.RetryInterval)
+		time.Sleep(executor.QueryAttestedChallengeInterval)
 	}
 }
 
@@ -139,26 +139,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		break
-	}
-
-	// check if attested
-	checkAttestedAttempts := 0
-	for {
-		if checkAttestedAttempts > common.MaxCheckAttestedAttempts {
-			return fmt.Errorf("submitter exceeded max check attested attempts for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
-		}
-		err = s.checkSubmitStatus(event.ChallengeId)
-		if err != nil {
-			checkAttestedAttempts++
-			time.Sleep(5000 * time.Millisecond)
-			continue
-		}
 		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
-		if err != nil {
-			return err
-		}
-		logging.Logger.Infof("attestation completed for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		return nil
 	}
 }
@@ -170,19 +151,4 @@ func (s *TxSubmitter) preCheck(event *model.Event) error {
 		return fmt.Errorf("event %d has expired", event.ChallengeId)
 	}
 	return nil
-}
-
-func (s *TxSubmitter) checkSubmitStatus(challengeId uint64) error {
-	attestedChallengeIds, err := s.executor.QueryLatestAttestedChallengeIds()
-	logging.Logger.Infof("latest attested challengeId: %d", attestedChallengeIds)
-	if err != nil {
-		return err
-	}
-	for _, attestedChallengeId := range attestedChallengeIds {
-		if attestedChallengeId == challengeId {
-			logging.Logger.Infof("check submit status succeeded for challengeId: %d, timestamp: %s", challengeId, time.Now().Format("15:04:05.000000"))
-			return nil
-		}
-	}
-	return fmt.Errorf("checking submit status for challengeId: %d, not attested on blockchain yet, timestamp: %s", challengeId, time.Now().Format("15:04:05.000000"))
 }

@@ -32,18 +32,17 @@ import (
 )
 
 type Executor struct {
-	gnfdClients          []gnfdClient.Client
-	tmRpcClients         []tmrpcclient.Client
-	tmJsonRpcClients     []*tmjsonrpcclient.Client
-	config               *config.Config
-	address              string
-	mtx                  sync.RWMutex
-	validators           []*tmtypes.Validator // used to cache validators
-	heartbeatInterval    uint64               // used to save challenge heartbeat interval
-	attestedChallengeIds []uint64             // used to save the last attested challenge id
-	height               uint64
-	BlsPrivKey           []byte
-	BlsPubKey            []byte
+	gnfdClients       []gnfdClient.Client
+	tmRpcClients      []tmrpcclient.Client
+	tmJsonRpcClients  []*tmjsonrpcclient.Client
+	config            *config.Config
+	address           string
+	mtx               sync.RWMutex
+	validators        []*tmtypes.Validator // used to cache validators
+	heartbeatInterval uint64               // used to save challenge heartbeat interval
+	height            uint64
+	BlsPrivKey        []byte
+	BlsPubKey         []byte
 }
 
 func NewExecutor(cfg *config.Config) *Executor {
@@ -318,7 +317,7 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 	return true, nil
 }
 
-func (e *Executor) queryLatestAttestedChallengeIds() ([]uint64, error) {
+func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
 	client := e.GetGnfdClient()
 
 	res, err := client.LatestAttestedChallenges(context.Background(), &challangetypes.QueryLatestAttestedChallengesRequest{})
@@ -328,36 +327,6 @@ func (e *Executor) queryLatestAttestedChallengeIds() ([]uint64, error) {
 	}
 
 	return res, nil
-}
-
-func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
-	// TODO: check this
-	e.mtx.RLock()
-	challengeIds := e.attestedChallengeIds
-	e.mtx.RUnlock()
-
-	if len(challengeIds) != 0 {
-		return challengeIds, nil
-	}
-	challengeIds, err := e.queryLatestAttestedChallengeIds()
-	if err != nil {
-		return nil, err
-	}
-	return challengeIds, nil
-}
-
-func (e *Executor) UpdateAttestedChallengeIdLoop() {
-	ticker := time.NewTicker(QueryAttestedChallengeInterval)
-	for range ticker.C {
-		challengeIds, err := e.queryLatestAttestedChallengeIds()
-		if err != nil {
-			logging.Logger.Errorf("update latest attested challenge error, err=%+v", err)
-			continue
-		}
-		e.mtx.Lock()
-		e.attestedChallengeIds = challengeIds
-		e.mtx.Unlock()
-	}
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {

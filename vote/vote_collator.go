@@ -2,6 +2,7 @@ package vote
 
 import (
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -109,27 +110,24 @@ func (p *VoteCollator) preCheck(event *model.Event) error {
 
 // queryMoreThanTwoThirdVotesForEvent queries votes from votePool
 func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, validators []*tmtypes.Validator) error {
-	for {
-		err := p.preCheck(event)
-		if err != nil {
-			if err.Error() == common.ErrEventExpired.Error() {
-				err = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
-				return err
-			}
+	err := p.preCheck(event)
+	if err != nil {
+		if err.Error() == common.ErrEventExpired.Error() {
+			err = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
 			return err
 		}
-		eventHash := CalculateEventHash(event)
-		queriedVotes, err := p.daoManager.GetVotesByEventHash(hex.EncodeToString(eventHash))
-		if err != nil {
-			logging.Logger.Errorf("encounter error when query votes. will retry.")
-			time.Sleep(RetryInterval)
-			continue
-		}
-		logging.Logger.Infof("collating for challengeId: %d vote count %d, timestamp %s", event.ChallengeId, len(queriedVotes), time.Now().Format("15:04:05.000000"))
-		if len(queriedVotes) > len(validators)*2/3 {
-			return nil
-		}
-		time.Sleep(RetryInterval)
-		continue
+		return err
 	}
+	eventHash := CalculateEventHash(event)
+	queriedVotes, err := p.daoManager.GetVotesByEventHash(hex.EncodeToString(eventHash))
+	if err != nil {
+		logging.Logger.Errorf("failed to query votes for event %d, err=%+v", event.ChallengeId, err.Error())
+		return err
+	}
+	logging.Logger.Infof("collating for challengeId: %d vote count %d, timestamp %s", event.ChallengeId, len(queriedVotes), time.Now().Format("15:04:05.000000"))
+	if len(queriedVotes) > len(validators)*2/3 {
+		return nil
+	}
+	time.Sleep(RetryInterval)
+	return fmt.Errorf("failed to query enough votes for event %d", event.ChallengeId)
 }
