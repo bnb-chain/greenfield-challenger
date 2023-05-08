@@ -49,7 +49,6 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			continue
 		}
 		if len(events) == 0 {
-			logging.Logger.Infof("tx submitter fetched 0 events for submit, retrying", len(events))
 			time.Sleep(common.RetryInterval)
 			continue
 		}
@@ -64,6 +63,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			}
 			attestPeriodEnd = res.SubmitInterval.GetEnd()
 			if res.BlsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
+				logging.Logger.Infof("tx submitter is currently inturn for submitting until: %s, current timestamp: %s", time.Unix(int64(attestPeriodEnd), 0).Format("15:04:05.000000"), time.Now().Format("15:04:05.000000"))
 				break
 			}
 			time.Sleep(common.RetryInterval)
@@ -120,6 +120,8 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// TODO: check TxOption
 	submittedAttempts := 0
 	for {
+		logging.Logger.Infof("current time: %d, attestPeriodEnd: %d", time.Now().Unix(), attestPeriodEnd)
+		logging.Logger.Infof("current time: %d, converted attestPeriodEnd: %d", time.Now().Unix(), time.Unix(int64(attestPeriodEnd), 0).Unix())
 		if time.Now().Unix() > int64(attestPeriodEnd) {
 			return fmt.Errorf("submit interval ended for submitter. failed to submit in time for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 		}

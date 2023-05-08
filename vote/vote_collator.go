@@ -40,6 +40,7 @@ func (p *VoteCollator) CollateVotesLoop() {
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
 		events, err := p.FetchEventsForCollate(currentHeight)
+		logging.Logger.Infof("vote processor fetched %d events for collate", len(events))
 		if err != nil {
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			time.Sleep(RetryInterval)
