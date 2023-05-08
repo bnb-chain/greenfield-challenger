@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.159
 	github.com/bnb-chain/greenfield v0.0.10
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230407104542-ed19e3666522
-	github.com/bnb-chain/greenfield-go-sdk v0.0.9
+	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230506005357-827e08120386
 	github.com/cosmos/cosmos-sdk v0.46.7
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
@@ -166,7 +166,7 @@ require (
 
 replace (
 	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230228075616-68ac309b432c
-	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.1.1
+	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.1.2
 	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.1.1
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

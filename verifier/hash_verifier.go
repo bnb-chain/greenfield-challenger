@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bnb-chain/greenfield-go-sdk/types"
+
 	"github.com/panjf2000/ants/v2"
 
 	"github.com/avast/retry-go/v4"
@@ -19,7 +21,6 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 )
 
 type Verifier struct {
@@ -143,7 +144,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 
-	challengeRes := &sp.ChallengeResult{}
+	challengeRes := &types.ChallengeResult{}
 	err = retry.Do(func() error {
 		challengeRes, err = v.executor.GetChallengeResultFromSp(spEndpoint, event.ObjectId,
 			int(event.SegmentIndex), int(event.RedundancyIndex))
