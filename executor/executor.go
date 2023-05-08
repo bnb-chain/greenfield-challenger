@@ -70,7 +70,7 @@ func NewExecutor(cfg *config.Config) *Executor {
 		panic(err)
 	}
 
-	gnfdClients := make([]gnfdClient.Client, len(cfg.GreenfieldConfig.GRPCAddrs))
+	gnfdClients := make([]gnfdClient.Client, 0)
 	for _, addr := range cfg.GreenfieldConfig.GRPCAddrs {
 		client, err := gnfdClient.New(
 			cfg.GreenfieldConfig.ChainIdString,
@@ -83,8 +83,8 @@ func NewExecutor(cfg *config.Config) *Executor {
 		gnfdClients = append(gnfdClients, client)
 	}
 
-	tmRPCClients := make([]tmrpcclient.Client, len(cfg.GreenfieldConfig.RPCAddrs))
-	tmJsonRPCClients := make([]*tmjsonrpcclient.Client, len(cfg.GreenfieldConfig.RPCAddrs))
+	tmRPCClients := make([]tmrpcclient.Client, 0)
+	tmJsonRPCClients := make([]*tmjsonrpcclient.Client, 0)
 	for _, addr := range cfg.GreenfieldConfig.RPCAddrs {
 		RPCClient := NewTendermintRPCClient(addr)
 		JsonRPCClient, err := NewTendermintJsonRPCClient(addr)
