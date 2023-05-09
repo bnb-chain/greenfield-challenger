@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/db/model"
-	"github.com/tendermint/tendermint/votepool"
+	"github.com/cometbft/cometbft/votepool"
 )
 
 func DtoToEntity(v *model.Vote) (*votepool.Vote, error) {

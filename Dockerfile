@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine
+FROM golang:1.20-alpine
 
 # Set up apk dependencies
 ENV PACKAGES make git libc-dev bash gcc linux-headers eudev-dev curl ca-certificates build-base
@@ -22,11 +22,6 @@ COPY . .
 
 # Install minimum necessary dependencies, remove packages
 RUN apk add --no-cache $PACKAGES
-
-# For Private REPO
-ARG GH_TOKEN=""
-RUN go env -w GOPRIVATE="github.com/bnb-chain/*"
-RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
 
 RUN make build
 
