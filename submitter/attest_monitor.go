@@ -61,11 +61,13 @@ func (a *AttestMonitor) updateAttestedCacheAndEventStatus(current, queried []uin
 				if err != nil {
 					logging.Logger.Errorf("update attested event status error, err=%+v", err)
 				}
+			} else {
+				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.Attested)
+				if err != nil {
+					logging.Logger.Errorf("update attested event status error, err=%+v", err)
+				}
 			}
-			err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.Attested)
-			if err != nil {
-				logging.Logger.Errorf("update attested event status error, err=%+v", err)
-			}
+			logging.Logger.Infof("challengeId: %d attest status is updated", challengeId)
 			diff = append(diff, challengeId)
 		}
 	}

@@ -77,7 +77,7 @@ func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 	if err != nil {
 		return err
 	}
-	logging.Logger.Infof("collater completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+	logging.Logger.Infof("collator completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	return nil
 }
 

@@ -119,11 +119,9 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	}
 
 	// submit transaction
-	// TODO: check TxOption, remove logs
 	submittedAttempts := 0
 	for {
 		logging.Logger.Infof("current time: %d, attestPeriodEnd: %d", time.Now().Unix(), attestPeriodEnd)
-		logging.Logger.Infof("current time: %d, converted attestPeriodEnd: %d", time.Now().Unix(), time.Unix(int64(attestPeriodEnd), 0).Unix())
 		if time.Now().Unix() > int64(attestPeriodEnd) {
 			return fmt.Errorf("submit interval ended for submitter. failed to submit in time for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		}
