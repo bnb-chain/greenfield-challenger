@@ -150,7 +150,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		logging.Logger.Errorf("attestation submitted successfully, challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+		logging.Logger.Infof("attestation submitted successfully, challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
 		return err
 	}

@@ -128,7 +128,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if err != nil {
 		if strings.Contains(err.Error(), "No such object") {
 			logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
-			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
+			err := v.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
 			if err != nil {
 				return err
 			}
