@@ -93,6 +93,8 @@ func NewExecutor(cfg *config.Config) *Executor {
 		tmRPCClients = append(tmRPCClients, RPCClient.TmClient)
 		tmJsonRPCClients = append(tmJsonRPCClients, JsonRPCClient)
 	}
+	logging.Logger.Infof("addr: %s", km.GetAddress().String())
+	logging.Logger.Infof("addr: %s", km.GetAddress())
 
 	return &Executor{
 		gnfdClients:      gnfdClients,
@@ -304,6 +306,7 @@ func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryIntur
 
 func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challangetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption types2.TxOption) (bool, error) {
 	client := e.GetGnfdClient()
+	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to attest challenge, err=%+v", err.Error())

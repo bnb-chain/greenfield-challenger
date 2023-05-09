@@ -55,7 +55,6 @@ func (p *VoteCollator) CollateVotesLoop() {
 		for _, event := range events {
 			err = p.collateForSingleEvent(event)
 			if err != nil {
-				logging.Logger.Errorf("collator failed to collate for event, err%s", err.Error())
 				time.Sleep(RetryInterval)
 				continue
 			}
