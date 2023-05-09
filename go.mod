@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.159
 	github.com/bnb-chain/greenfield v0.0.10
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230407104542-ed19e3666522
-	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230508062455-701eaa3a52fc
+	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230509023245-50c1cb6ce297
 	github.com/cosmos/cosmos-sdk v0.46.7
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
@@ -21,7 +21,6 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tendermint v0.34.24
 	github.com/willf/bitset v1.1.11
-	google.golang.org/grpc v1.54.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gorm.io/driver/mysql v1.4.5
 	gorm.io/gorm v1.24.6
@@ -157,6 +156,7 @@ require (
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20230223222841-637eb2293923 // indirect
+	google.golang.org/grpc v1.54.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
