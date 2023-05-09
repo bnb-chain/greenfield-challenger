@@ -41,29 +41,32 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 	}
 }
 
-func (a *AttestMonitor) updateAttestedCacheAndEventStatus(current, queried []uint64) {
+func (a *AttestMonitor) updateAttestedCacheAndEventStatus(old, latest []uint64) {
 	m := make(map[uint64]bool)
 
-	for _, challengeId := range queried {
+	for _, challengeId := range old {
 		m[challengeId] = true
 	}
 
-	for _, challengeId := range current {
+	for _, challengeId := range latest {
 		if _, ok := m[challengeId]; !ok {
 			event, err := a.daoManager.GetEventByChallengeId(challengeId)
 			if err != nil || event == nil {
 				logging.Logger.Errorf("attest monitor failed to get event by challengeId: %d, err=%+v", challengeId, err)
 				continue
 			}
+			if event.Status == model.SelfAttested || event.Status == model.Attested {
+				continue
+			}
 			if event.Status == model.Submitted {
 				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.SelfAttested)
 				if err != nil {
-					logging.Logger.Errorf("update attested event status error, err=%+v", err)
+					logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
 				}
 			} else {
 				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.Attested)
 				if err != nil {
-					logging.Logger.Errorf("update attested event status error, err=%+v", err)
+					logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
 				}
 			}
 			logging.Logger.Infof("challengeId: %d attest status is updated", challengeId)
