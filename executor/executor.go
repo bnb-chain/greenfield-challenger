@@ -268,12 +268,13 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 	client := e.GetGnfdClient()
 	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
+	logging.Logger.Infof("attest challenge results, code=%d, log=%s, txhash=%s", res.Code, res.RawLog, res.TxHash)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to attest challenge, err=%s", err.Error())
 		return false, err
 	}
 	if res.Code != 0 {
-		logging.Logger.Errorf("executor failed to attest challenge, code=%d, log=%s, hash=%s", res.Code, res.RawLog, res.TxHash)
+		logging.Logger.Errorf("executor failed to attest challenge, code=%d", res.Code)
 		return false, err
 	}
 	logging.Logger.Infof("executor attest challenge success, challengeId=%d", challengeId)
