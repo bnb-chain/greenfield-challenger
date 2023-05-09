@@ -1,12 +1,13 @@
 package submitter
 
 import (
+	"sync"
+	"time"
+
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
-	"sync"
-	"time"
 )
 
 type AttestMonitor struct {
@@ -50,6 +51,9 @@ func (a *AttestMonitor) updateAttestedCacheAndEventStatus(current, queried []uin
 	for _, challengeId := range current {
 		if _, ok := m[challengeId]; !ok {
 			event, err := a.daoManager.GetEventByChallengeId(challengeId)
+			if err != nil {
+				logging.Logger.Errorf("attest monitor get event by challengeId error, err=%+v", err)
+			}
 			if event.Status == model.Submitted {
 				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.SelfAttested)
 				if err != nil {

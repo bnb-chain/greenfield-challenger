@@ -2,8 +2,9 @@ package verifier
 
 import (
 	"bytes"
-	"github.com/bnb-chain/greenfield-go-sdk/pkg/utils"
 	"testing"
+
+	"github.com/bnb-chain/greenfield-go-sdk/pkg/utils"
 
 	"github.com/stretchr/testify/require"
 )

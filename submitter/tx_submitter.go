@@ -1,10 +1,11 @@
 package submitter
 
 import (
-	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
 	"time"
+
+	"cosmossdk.io/math"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
