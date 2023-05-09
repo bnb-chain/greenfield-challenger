@@ -36,13 +36,14 @@ type EventStatus int
 
 const (
 	Unprocessed          EventStatus = iota // Event is just stored
-	Duplicated                              // Event is duplicated
 	Verified                                // Event has been verified, and verify result is stored in VerifyResult
 	SelfVoted                               // Event has been voted locally
 	EnoughVotesCollected                    // Event has been voted for more than 2/3 validators
-	Submitted                               // Event has been submitted for tx
-	SubmitFailed                            // Event cannot be submitted for tx
-	Expired                                 // Event has been expired
+	Submitted
+	SelfAttested
+	Attested // Event has been submitted for tx
+	Expired  // Event has been expired
+	Duplicated
 )
 
 type VerifyResult int

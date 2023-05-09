@@ -4,15 +4,12 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
-	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
-	"github.com/willf/bitset"
 )
 
 type DataProvider interface {
 	FetchEventsForSubmit(currentHeight uint64) ([]*model.Event, error)
 	FetchVotesForAggregation(eventHash string) ([]*model.Vote, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
-	SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error)
 }
 
 type DataHandler struct {
@@ -37,14 +34,4 @@ func (h *DataHandler) FetchVotesForAggregation(eventHash string) ([]*model.Vote,
 
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
 	return h.daoManager.UpdateEventStatusByChallengeId(challengeId, status)
-}
-
-func (h *DataHandler) SubmitTx(event *model.Event, validatorSet *bitset.BitSet, aggSignature []byte) (string, error) {
-	voteResult := challengetypes.CHALLENGE_FAILED
-	if event.VerifyResult == model.HashMismatched {
-		voteResult = challengetypes.CHALLENGE_SUCCEED
-	}
-	return h.executor.SendAttestTx(event.ChallengeId, event.ObjectId, event.SpOperatorAddress,
-		voteResult, event.ChallengerAddress,
-		validatorSet.Bytes(), aggSignature)
 }
