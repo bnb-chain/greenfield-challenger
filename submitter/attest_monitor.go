@@ -34,8 +34,8 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 			continue
 		}
 		a.mtx.Lock()
-		diff := a.updateAttestedCacheAndEventStatus(a.attestedChallengeIds, challengeIds)
-		a.attestedChallengeIds = diff
+		a.updateAttestedCacheAndEventStatus(a.attestedChallengeIds, challengeIds)
+		a.attestedChallengeIds = challengeIds
 		a.mtx.Unlock()
 	}
 }
