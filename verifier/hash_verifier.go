@@ -209,17 +209,17 @@ func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
 		panic("heartbeat interval should not zero, potential bug")
 	}
 	// TODO: Comment this if debugging
-	//if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
-	//	found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
-	//		event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
-	//	if err != nil {
-	//		logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%+v", event.ChallengeId, err.Error())
-	//		return err
-	//	}
-	//	if found {
-	//		return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Duplicated)
-	//	}
-	//}
+	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
+		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
+			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
+		if err != nil {
+			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%+v", event.ChallengeId, err.Error())
+			return err
+		}
+		if found {
+			return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Duplicated)
+		}
+	}
 
 	return nil
 }
@@ -236,8 +236,8 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
-		return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
-		// return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMatched)
+		//return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
+		return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMatched)
 	}
 	return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
 }
