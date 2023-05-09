@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	_ "encoding/json"
-	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -254,44 +253,6 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 		keys = append(keys, hex.EncodeToString(v.BlsKey))
 	}
 	return keys, nil
-}
-
-func (e *Executor) SendAttestTx(challengeId uint64, objectId, spOperatorAddress string,
-	voteResult challangetypes.VoteResult, challenger string,
-	voteAddressSet []uint64, aggregatedSig []byte,
-) (string, error) {
-	client := e.GetGnfdClient()
-
-	acc, err := sdk.AccAddressFromHexUnsafe(e.address)
-	if err != nil {
-		logging.Logger.Errorf("error converting addr from hex unsafe when sending attest tx, err=%+v", err.Error())
-		return "", err
-	}
-
-	msgAttest := challangetypes.NewMsgAttest(
-		acc,
-		challengeId,
-		sdkmath.NewUintFromString(objectId),
-		spOperatorAddress,
-		voteResult,
-		challenger,
-		voteAddressSet,
-		aggregatedSig,
-	)
-	// TODO: Is txOpt correct?
-	txRes, err := client.BroadcastTx(
-		context.Background(),
-		[]sdk.Msg{msgAttest},
-		types2.TxOption{},
-	)
-	if err != nil {
-		logging.Logger.Errorf("error broadcasting msg attest, err=%+v", err.Error())
-		return "", err
-	}
-	if txRes.TxResponse.Code != 0 {
-		return "", fmt.Errorf("tx error, code=%d, log=%s", txRes.TxResponse.Code, txRes.TxResponse.RawLog)
-	}
-	return txRes.TxResponse.TxHash, nil
 }
 
 func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryInturnAttestationSubmitterResponse, error) {
