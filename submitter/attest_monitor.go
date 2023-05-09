@@ -51,8 +51,9 @@ func (a *AttestMonitor) updateAttestedCacheAndEventStatus(current, queried []uin
 	for _, challengeId := range current {
 		if _, ok := m[challengeId]; !ok {
 			event, err := a.daoManager.GetEventByChallengeId(challengeId)
-			if err != nil {
-				logging.Logger.Errorf("attest monitor get event by challengeId error, err=%+v", err)
+			if err != nil || event == nil {
+				logging.Logger.Errorf("attest monitor failed to get event by challengeId: %d, err=%+v", challengeId, err)
+				continue
 			}
 			if event.Status == model.Submitted {
 				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.SelfAttested)

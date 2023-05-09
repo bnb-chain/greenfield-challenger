@@ -517,3 +517,13 @@ func (e *Executor) GetTmJsonRpcClient() *tmjsonrpcclient.Client {
 func (e *Executor) GetAddr() string {
 	return e.address
 }
+
+func (e *Executor) GetNonce() (uint64, error) {
+	account, err := e.GetGnfdClient().GetAccount(context.Background(), e.GetAddr())
+	if err != nil {
+		logging.Logger.Errorf("error getting account, err=%+v", err.Error())
+		return 0, err
+	}
+	nonce := account.GetSequence()
+	return nonce, err
+}

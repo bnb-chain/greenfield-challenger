@@ -3,6 +3,7 @@ package submitter
 import (
 	"encoding/hex"
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"time"
 
 	"cosmossdk.io/math"
@@ -129,7 +130,18 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 		if submittedAttempts > common.MaxSubmitAttempts {
 			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		}
-		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), challengetypes.CHALLENGE_SUCCEED, valBitSet.Bytes(), aggregatedSignature, types.TxOption{})
+		nonce, err := s.executor.GetNonce()
+		if err != nil {
+			logging.Logger.Errorf("submitter failed to get nonce for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+			continue
+		}
+		txOpts := types.TxOption{
+			NoSimulate: true,
+			GasLimit:   1000,
+			FeeAmount:  sdk.NewCoins(sdk.NewCoin("BNB", sdk.NewInt(int64(5000000000000)))),
+			Nonce:      nonce,
+		}
+		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), challengetypes.CHALLENGE_SUCCEED, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
 			submittedAttempts++
 			time.Sleep(100 * time.Millisecond)
