@@ -43,6 +43,7 @@ const (
 	SelfAttested
 	Attested // Event has been submitted for tx
 	Expired  // Event has been expired
+	Duplicated
 )
 
 type VerifyResult int
