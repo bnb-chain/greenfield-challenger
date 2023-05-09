@@ -41,15 +41,15 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 	}
 }
 
-func (a *AttestMonitor) updateAttestedCacheAndEventStatus(cached, queried []uint64) {
+func (a *AttestMonitor) updateAttestedCacheAndEventStatus(current, queried []uint64) {
 	m := make(map[uint64]bool)
 
 	for _, challengeId := range queried {
 		m[challengeId] = true
 	}
 
-	for _, challengeId := range cached {
-		if !m[challengeId] {
+	for _, challengeId := range current {
+		if _, ok := m[challengeId]; !ok {
 			event, err := a.daoManager.GetEventByChallengeId(challengeId)
 			if err != nil || event == nil {
 				logging.Logger.Errorf("attest monitor failed to get event by challengeId: %d, err=%+v", challengeId, err)

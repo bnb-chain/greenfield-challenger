@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	_ "encoding/json"
-	"strconv"
 	"sync"
 	"time"
 
@@ -270,11 +269,11 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
-		logging.Logger.Errorf("executor failed to attest challenge, err=%+v", err.Error())
+		logging.Logger.Errorf("executor failed to attest challenge, err=%s", err.Error())
 		return false, err
 	}
 	if res.Code != 0 {
-		logging.Logger.Errorf("executor failed to attest challenge, code=%d, log=%s", strconv.Itoa(int(res.Code)), res.Logs.String())
+		logging.Logger.Errorf("executor failed to attest challenge, code=%d, log=%s, hash=%s", res.Code, res.RawLog, res.TxHash)
 		return false, err
 	}
 	logging.Logger.Infof("executor attest challenge success, challengeId=%d", challengeId)
