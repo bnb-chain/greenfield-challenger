@@ -159,11 +159,11 @@ func (s *eventSuite) TestEventDao_UpdateEventStatusByChallengeId() {
 	events := []*model.Event{event1, event2, event3}
 	_ = s.dao.SaveBlockAndEvents(block, events)
 
-	err := s.dao.UpdateEventStatusByChallengeId(event2.ChallengeId, model.Submitted)
+	err := s.dao.UpdateEventStatusByChallengeId(event2.ChallengeId, model.SelfAttested)
 	s.Require().NoError(err, "failed to update")
 
 	result, _ := s.dao.GetEventByChallengeId(event2.ChallengeId)
-	s.Require().True(result.Status == model.Submitted)
+	s.Require().True(result.Status == model.SelfAttested)
 }
 
 func (s *eventSuite) TestEventDao_UpdateEventStatusVerifyResultByChallengeId() {

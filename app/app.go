@@ -28,6 +28,7 @@ type App struct {
 	voteBroadcaster *vote.VoteBroadcaster
 	voteCollator    *vote.VoteCollator
 	txSubmitter     *submitter.TxSubmitter
+	attestMonitor   *submitter.AttestMonitor
 	dbWiper         *wiper.DBWiper
 }
 
@@ -83,6 +84,7 @@ func NewApp(cfg *config.Config) *App {
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
 	txSubmitter := submitter.NewTxSubmitter(cfg, executor, daoManager, txDataHandler)
+	attestMonitor := submitter.NewAttestMonitor(executor, daoManager)
 
 	dbWiper := wiper.NewDBWiper(daoManager)
 
@@ -93,13 +95,13 @@ func NewApp(cfg *config.Config) *App {
 		voteCollector:   voteCollector,
 		voteBroadcaster: voteBroadcaster,
 		voteCollator:    voteCollator,
+		attestMonitor:   attestMonitor,
 		txSubmitter:     txSubmitter,
 		dbWiper:         dbWiper,
 	}
 }
 
 func (a *App) Start() {
-	go a.executor.UpdateAttestedChallengeIdLoop()
 	go a.executor.UpdateHeartbeatIntervalLoop()
 	go a.executor.CacheValidatorsLoop()
 	go a.executor.GetHeightLoop()
@@ -108,6 +110,7 @@ func (a *App) Start() {
 	go a.voteCollector.CollectVotesLoop()
 	go a.voteBroadcaster.BroadcastVotesLoop()
 	go a.voteCollator.CollateVotesLoop()
+	go a.attestMonitor.UpdateAttestedChallengeIdLoop()
 	a.txSubmitter.SubmitTransactionLoop()
 }
 
