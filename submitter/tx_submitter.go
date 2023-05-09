@@ -123,24 +123,19 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 		logging.Logger.Infof("current time: %d, attestPeriodEnd: %d", time.Now().Unix(), attestPeriodEnd)
 		logging.Logger.Infof("current time: %d, converted attestPeriodEnd: %d", time.Now().Unix(), time.Unix(int64(attestPeriodEnd), 0).Unix())
 		if time.Now().Unix() > int64(attestPeriodEnd) {
-			return fmt.Errorf("submit interval ended for submitter. failed to submit in time for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+			return fmt.Errorf("submit interval ended for submitter. failed to submit in time for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		}
 		if submittedAttempts > common.MaxSubmitAttempts {
-			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		}
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), challengetypes.CHALLENGE_SUCCEED, valBitSet.Bytes(), aggregatedSignature, types.TxOption{})
-		if err != nil {
-			submittedAttempts++
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		if !attestRes {
+		if err != nil || !attestRes {
 			submittedAttempts++
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
-		return nil
+		return err
 	}
 }
 
