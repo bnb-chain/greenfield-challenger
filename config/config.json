@@ -12,8 +12,11 @@
     "grpc_addrs": [
       "http://gnfd-dev-grpc.qa.bnbchain.world:9090"
     ],
-    "gas_limit": 100000,
     "chain_id_string": "greenfield_9000-121",
+    "gas_limit": 1000,
+    "fee_amount": 5000000000000,
+    "fee_denom": "BNB",
+    "no_simulate": true,
     "deduplication_interval": 100
   },
   "log_config": {

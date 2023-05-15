@@ -93,10 +93,14 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 
 func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd uint64) error {
 	logging.Logger.Infof("submitter process started for event with challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"))
-	if err := s.preCheck(event); err != nil {
+	err := s.preCheck(event)
+	if err != nil {
+		if err.Error() == common.ErrEventExpired.Error() {
+			err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			return err
+		}
 		return err
 	}
-
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
 	eventHash := s.cachedEventHash[event.ChallengeId]
 	if eventHash == nil {
@@ -139,9 +143,9 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 			continue
 		}
 		txOpts := types.TxOption{
-			NoSimulate: true,
-			GasLimit:   1000,
-			FeeAmount:  sdk.NewCoins(sdk.NewCoin("BNB", sdk.NewInt(int64(5000000000000)))),
+			NoSimulate: s.config.GreenfieldConfig.NoSimulate,
+			GasLimit:   s.config.GreenfieldConfig.GasLimit,
+			FeeAmount:  sdk.NewCoins(sdk.NewCoin(s.config.GreenfieldConfig.FeeDenom, s.config.GreenfieldConfig.FeeAmount)),
 			Nonce:      nonce,
 		}
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
@@ -159,7 +163,7 @@ func (s *TxSubmitter) preCheck(event *model.Event) error {
 	currentHeight := s.executor.GetCachedBlockHeight()
 	if event.ExpiredHeight < currentHeight {
 		logging.Logger.Infof("submitter for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
-		return fmt.Errorf("event %d has expired", event.ChallengeId)
+		return common.ErrEventExpired
 	}
 	return nil
 }

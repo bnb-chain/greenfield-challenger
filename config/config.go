@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cosmossdk.io/math"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,8 +23,11 @@ type GreenfieldConfig struct {
 	BlsPrivateKey         string   `json:"bls_private_key"`
 	RPCAddrs              []string `json:"rpc_addrs"`
 	GRPCAddrs             []string `json:"grpc_addrs"`
-	GasLimit              uint64   `json:"gas_limit"`
 	ChainIdString         string   `json:"chain_id_string"`
+	GasLimit              uint64   `json:"gas_limit"`
+	FeeAmount             math.Int `json:"fee_amount"`
+	FeeDenom              string   `json:"fee_denom"`
+	NoSimulate            bool     `json:"no_simulate"`
 	DeduplicationInterval uint64   `json:"deduplication_interval"`
 }
 
