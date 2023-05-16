@@ -136,6 +136,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
+	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", string(chainRootHash), event.ChallengeId)
 
 	// Call StorageProvider API to get piece hashes of the event
 	//spEndpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
@@ -180,7 +181,11 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}
 		spChecksums = append(spChecksums, checksum)
 	}
+	// TODO: remove after debugging
+	originalSpRootHash := bytes.Join(checksums, []byte(""))
+	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", string(originalSpRootHash), event.ChallengeId
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
+	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", string(spRootHash), event.ChallengeId
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
 	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
