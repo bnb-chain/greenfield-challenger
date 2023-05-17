@@ -17,16 +17,16 @@ import (
 	tm "github.com/bnb-chain/greenfield/sdk/client"
 	types2 "github.com/bnb-chain/greenfield/sdk/types"
 	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	tmrpcclient "github.com/cometbft/cometbft/rpc/client"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	ctypes "github.com/cometbft/cometbft/rpc/core/types"
+	tmjsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
+	tmtypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/votepool"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/prysmaticlabs/prysm/crypto/bls/blst"
 	"github.com/spf13/viper"
-	tmrpcclient "github.com/tendermint/tendermint/rpc/client"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmjsonrpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
-	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
 )
 
 type Executor struct {

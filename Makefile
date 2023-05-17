@@ -33,7 +33,7 @@ build_docker:
 ###############################################################################
 
 golangci_lint_cmd=golangci-lint
-golangci_version=v1.49.0
+golangci_version=v1.52.2
 
 lint:
 	@echo "--> Running linter"

@@ -10,8 +10,8 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
-	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
+	tmtypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/votepool"
 )
 
 type VoteCollector struct {
