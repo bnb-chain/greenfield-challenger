@@ -142,10 +142,14 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 			logging.Logger.Errorf("submitter failed to get nonce for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 			continue
 		}
+		feeAmount, ok := math.NewIntFromString(s.config.GreenfieldConfig.FeeAmount)
+		if !ok {
+			logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount %s", s.config.GreenfieldConfig.FeeAmount)
+		}
 		txOpts := types.TxOption{
 			NoSimulate: s.config.GreenfieldConfig.NoSimulate,
 			GasLimit:   s.config.GreenfieldConfig.GasLimit,
-			FeeAmount:  sdk.NewCoins(sdk.NewCoin(s.config.GreenfieldConfig.FeeDenom, s.config.GreenfieldConfig.FeeAmount)),
+			FeeAmount:  sdk.NewCoins(sdk.NewCoin(s.config.GreenfieldConfig.FeeDenom, feeAmount)),
 			Nonce:      nonce,
 		}
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)

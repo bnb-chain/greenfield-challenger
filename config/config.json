@@ -14,7 +14,7 @@
     ],
     "chain_id_string": "greenfield_9000-121",
     "gas_limit": 1000,
-    "fee_amount": 5000000000000,
+    "fee_amount": "5000000000000",
     "fee_denom": "BNB",
     "no_simulate": true,
     "deduplication_interval": 100

@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"os"
 )
 
@@ -25,7 +24,7 @@ type GreenfieldConfig struct {
 	GRPCAddrs             []string `json:"grpc_addrs"`
 	ChainIdString         string   `json:"chain_id_string"`
 	GasLimit              uint64   `json:"gas_limit"`
-	FeeAmount             sdk.Int  `json:"fee_amount"`
+	FeeAmount             string   `json:"fee_amount"`
 	FeeDenom              string   `json:"fee_denom"`
 	NoSimulate            bool     `json:"no_simulate"`
 	DeduplicationInterval uint64   `json:"deduplication_interval"`
