@@ -11,7 +11,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
-	"github.com/tendermint/tendermint/votepool"
+	"github.com/cometbft/cometbft/votepool"
 )
 
 type VoteBroadcaster struct {
