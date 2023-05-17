@@ -21,7 +21,6 @@ type GreenfieldConfig struct {
 	PrivateKey            string   `json:"private_key"`
 	BlsPrivateKey         string   `json:"bls_private_key"`
 	RPCAddrs              []string `json:"rpc_addrs"`
-	GRPCAddrs             []string `json:"grpc_addrs"`
 	ChainIdString         string   `json:"chain_id_string"`
 	GasLimit              uint64   `json:"gas_limit"`
 	FeeAmount             string   `json:"fee_amount"`

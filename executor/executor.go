@@ -68,7 +68,9 @@ func NewExecutor(cfg *config.Config) *Executor {
 	}
 
 	gnfdClients := make([]gnfdClient.Client, 0)
-	for _, addr := range cfg.GreenfieldConfig.GRPCAddrs {
+	tmRPCClients := make([]tmrpcclient.Client, 0)
+	tmJsonRPCClients := make([]*tmjsonrpcclient.Client, 0)
+	for _, addr := range cfg.GreenfieldConfig.RPCAddrs {
 		client, err := gnfdClient.New(
 			cfg.GreenfieldConfig.ChainIdString,
 			addr,
@@ -78,11 +80,7 @@ func NewExecutor(cfg *config.Config) *Executor {
 			logging.Logger.Errorf("executor failed to initiate with greenfield clients, err=%s", err.Error())
 		}
 		gnfdClients = append(gnfdClients, client)
-	}
 
-	tmRPCClients := make([]tmrpcclient.Client, 0)
-	tmJsonRPCClients := make([]*tmjsonrpcclient.Client, 0)
-	for _, addr := range cfg.GreenfieldConfig.RPCAddrs {
 		RPCClient := NewTendermintRPCClient(addr)
 		JsonRPCClient, err := NewTendermintJsonRPCClient(addr)
 		if err != nil {
@@ -91,8 +89,6 @@ func NewExecutor(cfg *config.Config) *Executor {
 		tmRPCClients = append(tmRPCClients, RPCClient.TmClient)
 		tmJsonRPCClients = append(tmJsonRPCClients, JsonRPCClient)
 	}
-	logging.Logger.Infof("addr: %s", km.GetAddress().String())
-	logging.Logger.Infof("addr: %s", km.GetAddress())
 
 	return &Executor{
 		gnfdClients:      gnfdClients,

@@ -9,9 +9,6 @@
     "rpc_addrs": [
       "https://gnfd-dev.qa.bnbchain.world:443/"
     ],
-    "grpc_addrs": [
-      "http://gnfd-dev-grpc.qa.bnbchain.world:9090"
-    ],
     "chain_id_string": "greenfield_9000-121",
     "gas_limit": 1000,
     "fee_amount": "5000000000000",
