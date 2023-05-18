@@ -58,7 +58,7 @@ func (m Monitor) parseEvents(blockRes *ctypes.ResultBlockResults) ([]*challenget
 }
 
 func (m Monitor) parseEvent(event abci.Event) (*challengetypes.EventStartChallenge, error) {
-	if event.Type == "bnbchain.greenfield.challenge.EventStartChallenge" {
+	if event.Type == "greenfield.challenge.EventStartChallenge" {
 		challengeIdStr, objectIdStr, redundancyIndexStr, segmentIndexStr, spOpAddress, challengerAddress, expiredHeightStr := "", "", "", "", "", "", ""
 		for _, attr := range event.Attributes {
 			if string(attr.Key) == "challenge_id" {
