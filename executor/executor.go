@@ -270,15 +270,13 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 		return false, err
 	}
 	logging.Logger.Infof("ignore this: not nil at err")
+	logging.Logger.Infof("res: %+v", res)
+	logging.Logger.Infof("res: %+v", res.String())
+	logging.Logger.Infof("res: %+v", res.Code)
 	if res.Code != 0 {
 		logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		return false, nil
 	}
-	logging.Logger.Infof("ignore this: not nil at code")
-	logging.Logger.Infof("challengeId: %d", challengeId)
-	logging.Logger.Infof("code: %d", res.Code)
-	logging.Logger.Infof("rawlog: %s", res.RawLog)
-	logging.Logger.Infof("txhash: %s", res.TxHash)
 	logging.Logger.Infof("challengeId: %d attest succeeded, code=%d, log=%s, txhash=%s, timestamp: %s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"))
 	return true, nil
 }
