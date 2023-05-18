@@ -141,25 +141,14 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	chainRootHash := checksums[event.RedundancyIndex+1]
 	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", string(chainRootHash), event.ChallengeId)
 
-	// Call StorageProvider API to get piece hashes of the event
-	//spEndpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
-	//if err != nil {
-	//	logging.Logger.Errorf("verifier failed to get piece hashes from StorageProvider for event %d, err=%+v", event.ChallengeId, err.Error())
-	//	return err
-	//}
-
+	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
 	err = retry.Do(func() error {
 		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId,
 			int(event.SegmentIndex), int(event.RedundancyIndex))
 		if err != nil {
-			if strings.Contains(err.Error(), "NoSuchBucket") {
-				logging.Logger.Errorf("NoSuchBucket error for challengeId: %d", event.ChallengeId)
-				err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
-				if err != nil {
-					return err
-				}
-			}
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s", event.ChallengeId, event.ObjectId)
+			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
 			return err
 		}
 		return err
