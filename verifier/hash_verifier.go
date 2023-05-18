@@ -175,9 +175,9 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}
 	// TODO: remove after debugging
 	originalSpRootHash := bytes.Join(checksums, []byte(""))
-	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", string(originalSpRootHash), event.ChallengeId)
+	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", string(originalSpRootHash[:]), event.ChallengeId)
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
-	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", string(spRootHash), event.ChallengeId)
+	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", string(spRootHash[:]), event.ChallengeId)
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
 	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
