@@ -123,6 +123,9 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 
+	endpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
+	logging.Logger.Infof("sp endpoint: %s, objectId: %s", endpoint, event.ObjectId)
+
 	// Call blockchain for object info to get original hash
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
 	if err != nil {
