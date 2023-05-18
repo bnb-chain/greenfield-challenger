@@ -270,9 +270,8 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 		return false, err
 	}
 	logging.Logger.Infof("ignore this: not nil at err")
-	logging.Logger.Infof("res: %+v", res)
 	logging.Logger.Infof("res: %+v", res.String())
-	logging.Logger.Infof("res: %+v", res.Code)
+	logging.Logger.Infof("challengeId: %d", challengeId)
 	if res.Code != 0 {
 		logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		return false, nil
