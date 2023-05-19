@@ -139,7 +139,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
-	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", string(chainRootHash), event.ChallengeId)
+	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
