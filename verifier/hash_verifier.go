@@ -147,7 +147,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId,
 			int(event.SegmentIndex), int(event.RedundancyIndex))
 		if err != nil {
-			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s", event.ChallengeId, event.ObjectId)
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
 			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
 			return err
 		}
