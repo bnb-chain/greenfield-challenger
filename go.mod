@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.40.45
 	github.com/bnb-chain/greenfield v0.2.0
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230512062756-5d7790d0ccbf
-	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230522070044-dd6650a0d254
+	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230522095742-700f8069584b
 	github.com/cometbft/cometbft v0.37.1
 	github.com/cosmos/cosmos-sdk v0.47.0-rc2.0.20230220103612-f094a0c33410
 	github.com/ethereum/go-ethereum v1.10.26
