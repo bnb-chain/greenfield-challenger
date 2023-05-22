@@ -374,15 +374,10 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
 	client := e.GetGnfdClient()
 
-	challengeInfoRequest := types.ChallengeInfo{
-		ObjectId:        objectId,
-		PieceIndex:      segmentIndex,
-		RedundancyIndex: redundancyIndex,
-	}
 	challengeInfoOpts := types.GetChallengeInfoOptions{
 		Endpoint: endpoint,
 	}
-	challengeInfo, err := client.GetChallengeInfo(context.Background(), challengeInfoRequest, challengeInfoOpts)
+	challengeInfo, err := client.GetChallengeInfo(context.Background(), objectId, segmentIndex, redundancyIndex, challengeInfoOpts)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query challenge result info from sp client for objectId %s, err=%+v", objectId, err.Error())
 		return nil, err
