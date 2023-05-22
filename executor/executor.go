@@ -351,9 +351,7 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 		return "", err
 	}
 	res, err := client.GetStorageProviderInfo(context.Background(), spAddr)
-	logging.Logger.Infof("response %s", res)
 	logging.Logger.Infof("response res.endpoint %s", res.Endpoint)
-	logging.Logger.Infof("response ree.getendpoint() %s", res.GetEndpoint())
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query storage provider %s, err=%+v", address, err.Error())
 		return "", err
@@ -373,7 +371,7 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 	return res.GetChecksums(), nil
 }
 
-func (e *Executor) GetChallengeResultFromSp(objectId string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
+func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
 	client := e.GetGnfdClient()
 
 	challengeInfoRequest := types.ChallengeInfo{
@@ -381,7 +379,10 @@ func (e *Executor) GetChallengeResultFromSp(objectId string, segmentIndex, redun
 		PieceIndex:      segmentIndex,
 		RedundancyIndex: redundancyIndex,
 	}
-	challengeInfo, err := client.GetChallengeInfo(context.Background(), challengeInfoRequest)
+	challengeInfoOpts := types.GetChallengeInfoOptions{
+		Endpoint: endpoint,
+	}
+	challengeInfo, err := client.GetChallengeInfo(context.Background(), challengeInfoRequest, challengeInfoOpts)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query challenge result info from sp client for objectId %s, err=%+v", objectId, err.Error())
 		return nil, err

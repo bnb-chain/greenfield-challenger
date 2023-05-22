@@ -9,10 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bnb-chain/greenfield-go-sdk/types"
-
-	"github.com/panjf2000/ants/v2"
-
 	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -21,6 +17,8 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
+	"github.com/bnb-chain/greenfield-go-sdk/types"
+	"github.com/panjf2000/ants/v2"
 )
 
 type Verifier struct {
@@ -124,7 +122,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}
 
 	endpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
-	logging.Logger.Infof("sp endpoint: %s, objectId: %s", endpoint, event.ObjectId)
+	logging.Logger.Infof("sp endpoint: %s, objectId: %s, segmentIndex: %d, redundancyIndex: %d", endpoint, event.ObjectId, event.SegmentIndex, event.RedundancyIndex)
 
 	// Call blockchain for object info to get original hash
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
@@ -144,7 +142,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
 	err = retry.Do(func() error {
-		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId,
+		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint,
 			int(event.SegmentIndex), int(event.RedundancyIndex))
 		if err != nil {
 			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
