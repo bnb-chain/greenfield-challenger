@@ -9,10 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bnb-chain/greenfield-go-sdk/types"
-
-	"github.com/panjf2000/ants/v2"
-
 	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -21,6 +17,8 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
+	"github.com/bnb-chain/greenfield-go-sdk/types"
+	"github.com/panjf2000/ants/v2"
 )
 
 type Verifier struct {
@@ -123,12 +121,19 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 
+	endpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
+	if err != nil {
+		logging.Logger.Errorf("verifier failed to get sp endpoint for challengeId: %s, objectId: %s, err=%+v", err.Error(), event.ChallengeId, event.ObjectId)
+		return err
+	}
+	logging.Logger.Infof("challengeId: %d, sp endpoint: %s, objectId: %s, segmentIndex: %d, redundancyIndex: %d", event.ChallengeId, endpoint, event.ObjectId, event.SegmentIndex, event.RedundancyIndex)
+
 	// Call blockchain for object info to get original hash
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such object") {
 			logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
-			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
+			err := v.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
 			if err != nil {
 				return err
 			}
@@ -136,26 +141,16 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
+	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
 
-	// Call StorageProvider API to get piece hashes of the event
-	//spEndpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
-	//if err != nil {
-	//	logging.Logger.Errorf("verifier failed to get piece hashes from StorageProvider for event %d, err=%+v", event.ChallengeId, err.Error())
-	//	return err
-	//}
-
+	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
 	err = retry.Do(func() error {
-		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId,
+		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint,
 			int(event.SegmentIndex), int(event.RedundancyIndex))
 		if err != nil {
-			if strings.Contains(err.Error(), "NoSuchBucket") {
-				logging.Logger.Errorf("NoSuchBucket error for challengeId: %d", event.ChallengeId)
-				err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
-				if err != nil {
-					return err
-				}
-			}
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
+			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
 			return err
 		}
 		return err
@@ -180,7 +175,10 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}
 		spChecksums = append(spChecksums, checksum)
 	}
+	originalSpRootHash := hash.GenerateChecksum(bytes.Join(spChecksums, []byte("")))
+	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", hex.EncodeToString(originalSpRootHash), event.ChallengeId)
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
+	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", hex.EncodeToString(spRootHash), event.ChallengeId)
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
 	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))

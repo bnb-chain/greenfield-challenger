@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/spf13/viper"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -18,6 +14,9 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/verifier"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield-challenger/wiper"
+	"github.com/spf13/viper"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type App struct {

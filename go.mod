@@ -6,10 +6,9 @@ require (
 	cosmossdk.io/math v1.0.0
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.40.45
-	github.com/bnb-chain/greenfield v0.0.12-0.20230506102855-44baf619ebef
-	github.com/bnb-chain/greenfield-common/go v0.0.0-20230407104542-ed19e3666522
-	//https://github.com/bnb-chain/greenfield-go-sdk/tree/challenge_v0.47 is used, replace when develop branch is upgraded
-	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230509082431-aa11f406f8da
+	github.com/bnb-chain/greenfield v0.2.1
+	github.com/bnb-chain/greenfield-common/go v0.0.0-20230512062756-5d7790d0ccbf
+	github.com/bnb-chain/greenfield-go-sdk v0.2.1
 	github.com/cometbft/cometbft v0.37.1
 	github.com/cosmos/cosmos-sdk v0.47.0-rc2.0.20230220103612-f094a0c33410
 	github.com/ethereum/go-ethereum v1.10.26
@@ -169,8 +168,11 @@ require (
 replace (
 	cosmossdk.io/api => github.com/bnb-chain/greenfield-cosmos-sdk/api v0.0.0-20230425074444-eb5869b05fe9
 	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230425074444-eb5869b05fe9
-	github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-tendermint v0.0.0-20230505031757-bb05128f3794
-	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.0.0-20230505075208-b889f9645259
+	github.com/bnb-chain/greenfield => github.com/bnb-chain/greenfield v0.2.0
+	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.23.0
+	github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v0.0.1
+	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
+	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.2.1
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210702154020-550e1cd83ec1

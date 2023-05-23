@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"cosmossdk.io/math"
-
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -18,6 +15,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield/sdk/types"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type TxSubmitter struct {
@@ -93,10 +91,14 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 
 func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd uint64) error {
 	logging.Logger.Infof("submitter process started for event with challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"))
-	if err := s.preCheck(event); err != nil {
+	err := s.preCheck(event)
+	if err != nil {
+		if err.Error() == common.ErrEventExpired.Error() {
+			err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			return err
+		}
 		return err
 	}
-
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
 	eventHash := s.cachedEventHash[event.ChallengeId]
 	if eventHash == nil {
@@ -138,10 +140,14 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 			logging.Logger.Errorf("submitter failed to get nonce for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 			continue
 		}
+		feeAmount, ok := math.NewIntFromString(s.config.GreenfieldConfig.FeeAmount)
+		if !ok {
+			logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount %s", s.config.GreenfieldConfig.FeeAmount)
+		}
 		txOpts := types.TxOption{
-			NoSimulate: true,
-			GasLimit:   1000,
-			FeeAmount:  sdk.NewCoins(sdk.NewCoin("BNB", sdk.NewInt(int64(5000000000000)))),
+			NoSimulate: s.config.GreenfieldConfig.NoSimulate,
+			GasLimit:   s.config.GreenfieldConfig.GasLimit,
+			FeeAmount:  sdk.NewCoins(sdk.NewCoin(s.config.GreenfieldConfig.FeeDenom, feeAmount)),
 			Nonce:      nonce,
 		}
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
@@ -150,7 +156,6 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		logging.Logger.Errorf("attestation submitted successfully, challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
 		return err
 	}
@@ -160,7 +165,7 @@ func (s *TxSubmitter) preCheck(event *model.Event) error {
 	currentHeight := s.executor.GetCachedBlockHeight()
 	if event.ExpiredHeight < currentHeight {
 		logging.Logger.Infof("submitter for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
-		return fmt.Errorf("event %d has expired", event.ChallengeId)
+		return common.ErrEventExpired
 	}
 	return nil
 }
