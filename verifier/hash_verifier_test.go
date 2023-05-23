@@ -3,9 +3,10 @@ package verifier
 import (
 	"bytes"
 	"encoding/hex"
+	"testing"
+
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
-	"testing"
 
 	"github.com/bnb-chain/greenfield-go-sdk/pkg/utils"
 
