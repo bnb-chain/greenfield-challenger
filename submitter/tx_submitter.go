@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"cosmossdk.io/math"
-
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
@@ -18,6 +15,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield/sdk/types"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type TxSubmitter struct {

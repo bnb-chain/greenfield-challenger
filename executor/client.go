@@ -4,11 +4,10 @@ import (
 	"context"
 	"sync"
 
-	jsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
-
 	gnfdclient "github.com/bnb-chain/greenfield-go-sdk/client"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
 	"github.com/bnb-chain/greenfield/sdk/client"
+	jsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 )
 
 type JsonRpcClient = *jsonrpcclient.Client

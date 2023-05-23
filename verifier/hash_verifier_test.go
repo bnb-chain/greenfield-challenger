@@ -7,9 +7,7 @@ import (
 
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
-
 	"github.com/bnb-chain/greenfield-go-sdk/pkg/utils"
-
 	"github.com/stretchr/testify/require"
 )
 
