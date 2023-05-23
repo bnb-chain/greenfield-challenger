@@ -5,15 +5,15 @@ import (
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/db/model"
-	"github.com/tendermint/tendermint/votepool"
+	"github.com/cometbft/cometbft/votepool"
 )
 
 func DtoToEntity(v *model.Vote) (*votepool.Vote, error) {
-	pubKeyBts, err := hex.DecodeString(string(v.PubKey))
+	pubKeyBts, err := hex.DecodeString(v.PubKey)
 	if err != nil {
 		return nil, err
 	}
-	sigBts, err := hex.DecodeString(string(v.Signature))
+	sigBts, err := hex.DecodeString(v.Signature)
 	if err != nil {
 		return nil, err
 	}
@@ -27,12 +27,12 @@ func DtoToEntity(v *model.Vote) (*votepool.Vote, error) {
 
 func EntityToDto(from *votepool.Vote, challengeId uint64) *model.Vote {
 	v := model.Vote{
-		PubKey:      hex.EncodeToString(from.PubKey[:]),
+		ChallengeId: challengeId,
+		PubKey:      hex.EncodeToString(from.PubKey),
 		Signature:   hex.EncodeToString(from.Signature[:]),
 		EventType:   uint32(from.EventType),
-		EventHash:   from.EventHash,
+		EventHash:   hex.EncodeToString(from.EventHash),
 		CreatedTime: time.Now().Unix(),
-		ChallengeId: challengeId,
 	}
 	return &v
 }

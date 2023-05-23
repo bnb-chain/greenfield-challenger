@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +17,8 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-common/go/hash"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
+	"github.com/bnb-chain/greenfield-go-sdk/types"
+	"github.com/panjf2000/ants/v2"
 )
 
 type Verifier struct {
@@ -24,6 +26,8 @@ type Verifier struct {
 	config                *config.Config
 	executor              *executor.Executor
 	deduplicationInterval uint64
+	cachedChallengeIds    map[uint64]bool
+	mtx                   sync.RWMutex
 }
 
 func NewHashVerifier(cfg *config.Config, dao *dao.DaoManager, executor *executor.Executor,
@@ -34,23 +38,37 @@ func NewHashVerifier(cfg *config.Config, dao *dao.DaoManager, executor *executor
 		daoManager:            dao,
 		executor:              executor,
 		deduplicationInterval: deduplicationInterval,
+		mtx:                   sync.RWMutex{},
 	}
 }
 
 func (v *Verifier) VerifyHashLoop() {
+	// Event lasts for 300 blocks, 2x for redundancy
+	v.cachedChallengeIds = make(map[uint64]bool, common.CacheSize)
+
+	pool, err := ants.NewPool(20)
+	if err != nil {
+		logging.Logger.Errorf("verifier failed to create ant pool, err=%+v", err.Error())
+		return
+	}
+	defer pool.Release()
+
 	for {
-		err := v.verifyHash()
+		err := v.verifyHash(pool)
 		if err != nil {
 			time.Sleep(common.RetryInterval)
+			continue
 		}
+		time.Sleep(VerifyHashLoopInterval)
 	}
 }
 
-func (v *Verifier) verifyHash() error {
+func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
-	events, err := v.daoManager.EventDao.GetEarliestEventsByStatus(model.Unprocessed, 10)
+	currentHeight := v.executor.GetCachedBlockHeight()
+	events, err := v.daoManager.EventDao.GetUnexpiredEventsByStatus(currentHeight, model.Unprocessed)
 	if err != nil {
-		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%s", err.Error())
+		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
 	}
 	if len(events) == 0 {
@@ -58,93 +76,125 @@ func (v *Verifier) verifyHash() error {
 		return nil
 	}
 
-	var wg sync.WaitGroup
-	var firstErr error
 	for _, event := range events {
-		wg.Add(1)
-		go func(event *model.Event) {
-			defer wg.Done()
-			err := v.verifyForSingleEvent(event)
-			if err != nil && firstErr == nil {
-				firstErr = err
-			}
-		}(event)
-	}
-	wg.Wait()
+		v.mtx.Lock()
+		isCached := v.cachedChallengeIds[event.ChallengeId]
+		v.mtx.Unlock()
 
-	return firstErr
+		if isCached {
+			continue
+		}
+
+		var firstErr error
+		err = pool.Submit(func() {
+			firstErr = v.verifyForSingleEvent(event)
+		})
+		if !isCached {
+			v.mtx.Lock()
+			v.cachedChallengeIds[event.ChallengeId] = true
+			v.mtx.Unlock()
+		}
+		if firstErr != nil {
+			if err.Error() == common.ErrEventExpired.Error() {
+				err = v.daoManager.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Expired, model.Unknown)
+				if err != nil {
+					return err
+				}
+				v.mtx.Lock()
+				delete(v.cachedChallengeIds, event.ChallengeId)
+				v.mtx.Unlock()
+				continue
+			}
+		}
+		if err != nil {
+			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
+			continue
+		}
+	}
+	return nil
 }
 
 func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
-	if err := v.preCheck(event); err != nil {
+	logging.Logger.Infof("verifier started for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+	currentHeight := v.executor.GetCachedBlockHeight()
+	if err := v.preCheck(event, currentHeight); err != nil {
 		return err
 	}
+
+	endpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
+	if err != nil {
+		logging.Logger.Errorf("verifier failed to get sp endpoint for challengeId: %s, objectId: %s, err=%+v", err.Error(), event.ChallengeId, event.ObjectId)
+		return err
+	}
+	logging.Logger.Infof("challengeId: %d, sp endpoint: %s, objectId: %s, segmentIndex: %d, redundancyIndex: %d", event.ChallengeId, endpoint, event.ObjectId, event.SegmentIndex, event.RedundancyIndex)
 
 	// Call blockchain for object info to get original hash
 	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
 	if err != nil {
+		if strings.Contains(err.Error(), "No such object") {
+			logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
+			err := v.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			if err != nil {
+				return err
+			}
+		}
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
+	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
 
-	// Call StorageProvider API to get piece hashes of the event
-	spEndpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
-	if err != nil {
-		logging.Logger.Errorf("verifier failed to get piece hashes from StorageProvider for event %d, err=%s", event.ChallengeId, err.Error())
-		return err
-	}
-
-	challengeRes := &sp.ChallengeResult{}
+	// Call sp for challenge result
+	challengeRes := &types.ChallengeResult{}
 	err = retry.Do(func() error {
-		challengeRes, err = v.executor.GetChallengeResultFromSp(spEndpoint, event.ObjectId,
+		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint,
 			int(event.SegmentIndex), int(event.RedundancyIndex))
 		if err != nil {
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
+			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
 			return err
 		}
 		return err
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if err != nil {
 		// after testing, we can make sure it is not client errors, treat it as sp side error
-		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%s", event.ChallengeId, err.Error())
+		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
 		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
+	piecesHash := challengeRes.PiecesHash
 	if err != nil {
-		logging.Logger.Errorf("verifier failed to read piece data for event %d, err=%s", event.ChallengeId, err.Error())
+		logging.Logger.Errorf("verifier failed to read piece data for event %d, err=%+v", event.ChallengeId, err.Error())
 		return err
 	}
 	spChecksums := make([][]byte, 0)
-	for _, h := range challengeRes.PiecesHash {
+	for _, h := range piecesHash {
 		checksum, err := hex.DecodeString(h)
 		if err != nil {
-			logging.Logger.Errorf("verifier failed to decode piece hash for event %d, err=%s", event.ChallengeId, err.Error())
-			return err
+			panic(err)
 		}
-		spChecksums = append(checksums, checksum)
+		spChecksums = append(spChecksums, checksum)
 	}
+	originalSpRootHash := hash.GenerateChecksum(bytes.Join(spChecksums, []byte("")))
+	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", hex.EncodeToString(originalSpRootHash), event.ChallengeId)
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
+	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", hex.EncodeToString(spRootHash), event.ChallengeId)
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
+	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
-	}
-	return err
-}
-
-func (v *Verifier) preCheck(event *model.Event) error {
-	// event will be skipped if
-	// 1) the challenge with bigger id has been attested
-	attestedId, err := v.executor.QueryLatestAttestedChallengeId()
-	if err != nil {
 		return err
 	}
-	if attestedId <= event.ChallengeId {
-		logging.Logger.Infof("verifier skips the event %d, attested id=%d", event.ChallengeId, attestedId)
-		return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
-	}
+	return nil
+}
 
+func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
+	if event.ExpiredHeight < currentHeight {
+		logging.Logger.Infof("verifier for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
+		return common.ErrEventExpired
+	}
 	// event is duplicated if
 	// 1) no challenger field and
 	// 2) the event is not for heartbeat
@@ -156,11 +206,12 @@ func (v *Verifier) preCheck(event *model.Event) error {
 	if heartbeatInterval == 0 {
 		panic("heartbeat interval should not zero, potential bug")
 	}
-	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 {
+	// TODO: Comment this if debugging
+	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
 		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
 			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
 		if err != nil {
-			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%s", event.ChallengeId, err.Error())
+			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%+v", event.ChallengeId, err.Error())
 			return err
 		}
 		if found {
@@ -173,15 +224,17 @@ func (v *Verifier) preCheck(event *model.Event) error {
 
 func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checksums [][]byte) []byte {
 	// Hash the piece that is challenged, replace original checksum, recompute new root hash
-	dataHash := hash.CalcSHA256(pieceData)
+	dataHash := hash.GenerateChecksum(pieceData)
 	checksums[segmentIndex] = dataHash
 	total := bytes.Join(checksums, []byte(""))
-	rootHash := []byte(hash.CalcSHA256Hex(total))
+	rootHash := hash.GenerateChecksum(total)
 	return rootHash
 }
 
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
+	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
+		// return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
 		return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMatched)
 	}
 	return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)

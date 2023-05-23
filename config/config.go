@@ -8,26 +8,24 @@ import (
 
 type Config struct {
 	GreenfieldConfig GreenfieldConfig `json:"greenfield_config"`
-	VotePoolConfig   VotePoolConfig   `json:"vote_pool_config"`
 	LogConfig        LogConfig        `json:"log_config"`
 	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
-}
-
-type VotePoolConfig struct {
-	RPCAddr       string `json:"rpc_addr"`
-	BlsPrivateKey string `json:"bls_private_key"`
 }
 
 type GreenfieldConfig struct {
 	KeyType               string   `json:"key_type"`
 	AWSRegion             string   `json:"aws_region"`
 	AWSSecretName         string   `json:"aws_secret_name"`
-	RPCAddrs              []string `json:"rpc_addrs"`
-	GRPCAddrs             []string `json:"grpc_addrs"`
+	AWSBlsSecretName      string   `json:"aws_bls_secret_name"`
 	PrivateKey            string   `json:"private_key"`
-	GasLimit              uint64   `json:"gas_limit"`
+	BlsPrivateKey         string   `json:"bls_private_key"`
+	RPCAddrs              []string `json:"rpc_addrs"`
 	ChainIdString         string   `json:"chain_id_string"`
+	GasLimit              uint64   `json:"gas_limit"`
+	FeeAmount             string   `json:"fee_amount"`
+	FeeDenom              string   `json:"fee_denom"`
+	NoSimulate            bool     `json:"no_simulate"`
 	DeduplicationInterval uint64   `json:"deduplication_interval"`
 }
 
@@ -57,16 +55,24 @@ func (cfg *LogConfig) Validate() {
 }
 
 type DBConfig struct {
-	Dialect string `json:"dialect"`
-	DBPath  string `json:"db_path"`
+	Dialect       string `json:"dialect"`
+	DBPath        string `json:"db_path"`
+	KeyType       string `json:"key_type"`
+	AWSRegion     string `json:"aws_region"`
+	AWSSecretName string `json:"aws_secret_name"`
+	Password      string `json:"password"`
+	Username      string `json:"username"`
+	MaxIdleConns  int    `json:"max_idle_conns"`
+	MaxOpenConns  int    `json:"max_open_conns"`
+	DebugMode     bool   `json:"debug_mode"`
 }
 
 func (cfg *DBConfig) Validate() {
 	if cfg.Dialect != DBDialectMysql && cfg.Dialect != DBDialectSqlite3 {
 		panic(fmt.Sprintf("only %s and %s supported", DBDialectMysql, DBDialectSqlite3))
 	}
-	if cfg.DBPath == "" {
-		panic("db path should not be empty")
+	if cfg.Username == "" || cfg.DBPath == "" {
+		panic("db config is not correct")
 	}
 }
 

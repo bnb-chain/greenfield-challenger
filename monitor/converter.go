@@ -19,6 +19,7 @@ func EntityToDto(height uint64, from *challengetypes.EventStartChallenge) *model
 		Status:            model.Unprocessed,
 		VerifyResult:      model.Unknown,
 		CreatedTime:       time.Now().Unix(),
+		ExpiredHeight:     from.ExpiredHeight,
 	}
 	return &to
 }

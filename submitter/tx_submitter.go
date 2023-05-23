@@ -1,24 +1,28 @@
 package submitter
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
-	"github.com/bnb-chain/greenfield-challenger/alert"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
-
+	"cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
+	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-challenger/vote"
+	"github.com/bnb-chain/greenfield/sdk/types"
+	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type TxSubmitter struct {
-	config     *config.Config
-	daoManager *dao.DaoManager
-	executor   *executor.Executor
+	config          *config.Config
+	daoManager      *dao.DaoManager
+	executor        *executor.Executor
+	cachedEventHash map[uint64][]byte
 	DataProvider
 }
 
@@ -34,119 +38,134 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, daoManager 
 }
 
 func (s *TxSubmitter) SubmitTransactionLoop() {
+	// Event lasts for 300 blocks, 2x for redundancy
+	s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
+	submitLoopCount := 0
 	for {
-		err := s.process()
-		if err != nil {
-			logging.Logger.Errorf("encounter error when relaying tx, err=%s ", err.Error())
+		attestPeriodEnd := uint64(0)
+		for {
+			// blsPubKey of current submitter
+			res, err := s.executor.QueryInturnAttestationSubmitter()
+			if err != nil {
+				logging.Logger.Errorf("tx submitter failed to query inturn attestation submitter, err=%+v", err.Error())
+				continue
+			}
+			attestPeriodEnd = res.SubmitInterval.GetEnd()
+			if res.BlsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
+				logging.Logger.Infof("tx submitter is currently inturn for submitting until: %s, current timestamp: %s", time.Unix(int64(attestPeriodEnd), 0).Format("15:04:05.000000"), time.Now().Format("15:04:05.000000"))
+				break
+			}
 			time.Sleep(common.RetryInterval)
+			continue
 		}
+
+		currentHeight := s.executor.GetCachedBlockHeight()
+		events, err := s.FetchEventsForSubmit(currentHeight)
+		logging.Logger.Infof("tx submitter fetched %d events for submit", len(events))
+		if err != nil {
+			logging.Logger.Errorf("tx submitter failed to fetch events for submitting, err=%+v", err.Error())
+			continue
+		}
+		if len(events) == 0 {
+			time.Sleep(common.RetryInterval)
+			continue
+		}
+
+		for _, event := range events {
+			err = s.submitForSingleEvent(event, attestPeriodEnd)
+			if err != nil {
+				logging.Logger.Errorf("tx submitter err=%+v, timestamp: %s", err.Error(), time.Now().Format("15:04:05.000000"))
+				continue
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		// clear event hash every N attempts
+		submitLoopCount++
+		if submitLoopCount == common.CacheClearIterations {
+			submitLoopCount = 0
+			s.cachedEventHash = make(map[uint64][]byte, common.CacheSize)
+		}
+		time.Sleep(executor.QueryAttestedChallengeInterval)
 	}
 }
 
-func (s *TxSubmitter) process() error {
-	events, err := s.FetchEventsForSubmit()
+func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd uint64) error {
+	logging.Logger.Infof("submitter process started for event with challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+	err := s.preCheck(event)
 	if err != nil {
-		logging.Logger.Errorf("tx submitter failed to fetch events for submitting, err=%s", err.Error())
-		return err
-	}
-	if len(events) == 0 {
-		time.Sleep(common.RetryInterval)
-		return nil
-	}
-
-	for _, event := range events {
-		err = s.submitForSingleEvent(event)
-		if err != nil {
+		if err.Error() == common.ErrEventExpired.Error() {
+			err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (s *TxSubmitter) submitForSingleEvent(event *model.Event) error {
-	if err := s.preCheck(event); err != nil {
 		return err
 	}
-
 	// Get votes result for s tx, which are already validated and qualified to aggregate sig
-	votes, err := s.FetchVotesForAggregation(event.ChallengeId)
+	eventHash := s.cachedEventHash[event.ChallengeId]
+	if eventHash == nil {
+		eventHash = vote.CalculateEventHash(event)
+		s.cachedEventHash[event.ChallengeId] = eventHash
+	}
+	votes, err := s.FetchVotesForAggregation(hex.EncodeToString(eventHash))
 	if err != nil {
-		logging.Logger.Errorf("failed to get votes for event with challenge id %d, err=%s", event.ChallengeId, err.Error())
+		logging.Logger.Errorf("submitter failed to get votes for event with challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 		return err
 	}
 	validators, err := s.executor.QueryCachedLatestValidators()
 	if err != nil {
+		logging.Logger.Errorf("submitter failed to query validators for event with challenge id %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 		return err
 	}
 	aggregatedSignature, valBitSet, err := vote.AggregateSignatureAndValidatorBitSet(votes, validators)
 	if err != nil {
+		logging.Logger.Errorf("submitter failed to aggregate signature for event with challenge id %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
 		return err
 	}
 
-	// TODO: determinate the turn
-
 	// submit transaction
-	attested := make(chan struct{})
-	errC := make(chan error)
-	go s.checkSubmitStatus(attested, errC, event.ChallengeId)
-
-	ticker := time.NewTicker(common.RetryInterval)
-	defer ticker.Stop()
-	triedTimes := 0
+	submittedAttempts := 0
 	for {
-		select {
-		case err = <-errC:
-			return err
-		case <-attested:
-			if err = s.UpdateEventStatus(event.ChallengeId, model.Submitted); err != nil {
-				return err
-			}
-			return nil
-		case <-ticker.C:
-			triedTimes++
-			if triedTimes > SubmitTxMaxRetry {
-				alert.SendTelegramMessage(s.config.AlertConfig.Identity, s.config.AlertConfig.TelegramChatId, s.config.AlertConfig.TelegramBotId, fmt.Sprintf("failed to submit tx for challenge after retry, id: %d", event.ChallengeId))
-				logging.Logger.Infof("failed to submit tx for challenge after retry, id: %d", event.ChallengeId)
-				return s.UpdateEventStatus(event.ChallengeId, model.SubmitFailed)
-			}
-			logging.Logger.Infof("submit tx for challenge, id: %d", event.ChallengeId)
-			txHash, errTx := s.SubmitTx(event, valBitSet, aggregatedSignature)
-			if errTx != nil {
-				logging.Logger.Errorf("failed to submitted tx,  err: %s", errTx.Error())
-			} else {
-				logging.Logger.Infof("tx submitted, hash: %s", txHash)
-			}
+		logging.Logger.Infof("current time: %d, attestPeriodEnd: %d", time.Now().Unix(), attestPeriodEnd)
+		if time.Now().Unix() > int64(attestPeriodEnd) {
+			return fmt.Errorf("submit interval ended for submitter. failed to submit in time for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		}
+		if submittedAttempts > common.MaxSubmitAttempts {
+			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d, timestamp: %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+		}
+		voteResult := challengetypes.CHALLENGE_FAILED
+		if event.VerifyResult == model.HashMismatched {
+			voteResult = challengetypes.CHALLENGE_SUCCEED
+		}
+		nonce, err := s.executor.GetNonce()
+		if err != nil {
+			logging.Logger.Errorf("submitter failed to get nonce for challengeId: %d, timestamp: %s, err=%+v", event.ChallengeId, time.Now().Format("15:04:05.000000"), err.Error())
+			continue
+		}
+		feeAmount, ok := math.NewIntFromString(s.config.GreenfieldConfig.FeeAmount)
+		if !ok {
+			logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount %s", s.config.GreenfieldConfig.FeeAmount)
+		}
+		txOpts := types.TxOption{
+			NoSimulate: s.config.GreenfieldConfig.NoSimulate,
+			GasLimit:   s.config.GreenfieldConfig.GasLimit,
+			FeeAmount:  sdk.NewCoins(sdk.NewCoin(s.config.GreenfieldConfig.FeeDenom, feeAmount)),
+			Nonce:      nonce,
+		}
+		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
+		if err != nil || !attestRes {
+			submittedAttempts++
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
+		return err
 	}
 }
 
 func (s *TxSubmitter) preCheck(event *model.Event) error {
-	// event will be skipped if
-	// 1) the challenge with bigger id has been attested
-	attestedId, err := s.executor.QueryLatestAttestedChallengeId()
-	if err != nil {
-		return err
-	}
-	if attestedId <= event.ChallengeId {
-		logging.Logger.Infof("submitter skips the event %d, attested id=%d", event.ChallengeId, attestedId)
-		return s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Skipped)
+	currentHeight := s.executor.GetCachedBlockHeight()
+	if event.ExpiredHeight < currentHeight {
+		logging.Logger.Infof("submitter for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
+		return common.ErrEventExpired
 	}
 	return nil
-}
-
-func (s TxSubmitter) checkSubmitStatus(attested chan struct{}, errC chan error, challengeId uint64) {
-	ticker := time.NewTicker(common.RetryInterval / 3) // check faster than retry
-	defer ticker.Stop()
-	for range ticker.C {
-		attestedChallengeId, err := s.executor.QueryLatestAttestedChallengeId()
-		if err != nil {
-			errC <- err
-		}
-		if challengeId <= attestedChallengeId {
-			logging.Logger.Infof("challenge %d has already been attested, current attested challenge %d",
-				challengeId, attestedChallengeId)
-			attested <- struct{}{}
-		}
-	}
 }

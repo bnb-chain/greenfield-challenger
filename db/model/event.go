@@ -14,8 +14,9 @@ type Event struct {
 	ChallengerAddress string       `gorm:"NOT NULL"`
 	Height            uint64       `gorm:"NOT NULL;"`
 	Status            EventStatus  `gorm:"NOT NULL;index:idx_status"`
-	VerifyResult      VerifyResult `gorm:"NOT NULL;"`
+	VerifyResult      VerifyResult `gorm:"NOT NULL;index:idx_verify_result"`
 	CreatedTime       int64        `gorm:"NOT NULL"`
+	ExpiredHeight     uint64       `gorm:"NOT NULL;index:idx_expired_height"`
 }
 
 func (*Event) TableName() string {
@@ -34,15 +35,15 @@ func InitEventTable(db *gorm.DB) {
 type EventStatus int
 
 const (
-	Unprocessed            EventStatus = iota // Event is just stored
-	Duplicated                                // Event is duplicated
-	Verified                                  // Event has been verified, and verify result is stored in VerifyResult
-	SelfVoted                                 // Event has been voted locally
-	EnoughVotesCollected                      // Event has been voted for more than 2/3 validators
-	NoEnoughVotesCollected                    // Event cannot collect votes for more than 2/3 validators
-	Submitted                                 // Event has been submitted for tx
-	SubmitFailed                              // Event cannot be submitted for tx
-	Skipped                                   // Event has been processed
+	Unprocessed          EventStatus = iota // Event is just stored
+	Verified                                // Event has been verified, and verify result is stored in VerifyResult
+	SelfVoted                               // Event has been voted locally
+	EnoughVotesCollected                    // Event has been voted for more than 2/3 validators
+	Submitted
+	SelfAttested
+	Attested // Event has been submitted for tx
+	Expired  // Event has been expired
+	Duplicated
 )
 
 type VerifyResult int
@@ -50,5 +51,5 @@ type VerifyResult int
 const (
 	Unknown        VerifyResult = iota // Event not been verified
 	HashMatched                        // The challenge failed, hashes are matched
-	HashMismatched VerifyResult = 2    // The challenge succeed, hashed are not matched
+	HashMismatched                     // The challenge succeed, hashed are not matched
 )

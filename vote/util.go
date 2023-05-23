@@ -1,37 +1,29 @@
 package vote
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 
+	sdkmath "cosmossdk.io/math"
+	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/logging"
-
+	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	tmtypes "github.com/cometbft/cometbft/types"
+	"github.com/cometbft/cometbft/votepool"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/crypto/bls"
-	"github.com/prysmaticlabs/prysm/crypto/bls/blst"
-	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/votepool"
 	"github.com/willf/bitset"
-
-	"github.com/bnb-chain/greenfield-challenger/db/model"
 )
-
-// getBlsPubKeyFromPrivKeyStr gets public key from bls private key
-func getBlsPubKeyFromPrivKeyStr(privKeyStr string) []byte {
-	privKey, err := blst.SecretKeyFromBytes(common.Hex2Bytes(privKeyStr))
-	if err != nil {
-		panic(err)
-	}
-	return privKey.PublicKey().Marshal()
-}
 
 // verifySignature verifies vote signature
 func verifySignature(vote *votepool.Vote, eventHash []byte) error {
-	blsPubKey, err := bls.PublicKeyFromBytes(vote.PubKey[:])
+	blsPubKey, err := bls.PublicKeyFromBytes(vote.PubKey)
 	if err != nil {
 		return errors.Wrap(err, "convert public key from bytes to bls failed")
 	}
-	sig, err := bls.SignatureFromBytes(vote.Signature[:])
+	sig, err := bls.SignatureFromBytes(vote.Signature)
 	if err != nil {
 		return errors.Wrap(err, "invalid signature")
 	}
@@ -52,15 +44,44 @@ func AggregateSignatureAndValidatorBitSet(votes []*model.Vote, validators []*tmt
 	}
 
 	for idx, valInfo := range validators {
-		if _, ok := voteAddrSet[hex.EncodeToString(valInfo.RelayerBlsKey[:])]; ok {
+		if _, ok := voteAddrSet[hex.EncodeToString(valInfo.BlsKey[:])]; ok {
 			valBitSet.Set(uint(idx))
 		}
 	}
 
 	sigs, err := bls.MultipleSignaturesFromBytes(signatures)
 	if err != nil {
-		logging.Logger.Errorf("signature aggregator failed to generate multiple signatures from bytes, err=%s", err.Error())
+		logging.Logger.Errorf("signature aggregator failed to generate multiple signatures from bytes, err=%+v", err.Error())
 		return nil, valBitSet, err
 	}
 	return bls.AggregateSignatures(sigs).Marshal(), valBitSet, nil
+}
+
+func CalculateEventHash(event *model.Event) []byte {
+	challengeIdBz := make([]byte, 8)
+	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
+	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
+	resultBz := make([]byte, 8)
+	if event.VerifyResult == model.HashMismatched {
+		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_SUCCEED))
+	} else if event.VerifyResult == model.HashMatched {
+		binary.BigEndian.PutUint64(resultBz, uint64(challengetypes.CHALLENGE_FAILED))
+	} else {
+		panic("cannot convert vote option")
+	}
+
+	spOperatorBz := sdk.MustAccAddressFromHex(event.SpOperatorAddress).Bytes()
+	challengerBz := make([]byte, 0)
+	if event.ChallengerAddress != "" {
+		challengerBz = sdk.MustAccAddressFromHex(event.ChallengerAddress).Bytes()
+	}
+
+	bs := make([]byte, 0)
+	bs = append(bs, challengeIdBz...)
+	bs = append(bs, objectIdBz...)
+	bs = append(bs, resultBz...)
+	bs = append(bs, spOperatorBz...)
+	bs = append(bs, challengerBz...)
+	hash := sdk.Keccak256Hash(bs)
+	return hash[:]
 }

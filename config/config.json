@@ -3,20 +3,18 @@
     "key_type": "local_private_key",
     "aws_region": "",
     "aws_secret_name": "",
+    "aws_bls_secret_name": "",
+    "private_key": "a5ae825a4d0f6e7ddea8823b76fba0357b9c31d6a9965bc9df00300bd3445bad",
+    "bls_private_key": "0a7eeb1a6e3adc35877bde310ba2eeba89f7fafd193dbfcbf5cf5369645c64dc",
     "rpc_addrs": [
-      "http://0.0.0.0:26750"
+      "https://gnfd-dev.qa.bnbchain.world:443/"
     ],
-    "grpc_addrs": [
-      "localhost:9090"
-    ],
-    "private_key": "cf1366138ffd14328db680c57db7d56471017e57a5ae203ca0f3fa84cb0b8ebb",
-    "gas_limit": 100000,
     "chain_id_string": "greenfield_9000-121",
-    "deduplication_interval": 100,
-  },
-  "vote_pool_config": {
-    "rpc_addr": "http://127.0.0.1:26750",
-    "bls_private_key": "527a0e4711c2ac7d150069e0a0ecf9e9bb11538abed1467237122bb378ff089f"
+    "gas_limit": 1000,
+    "fee_amount": "5000000000000",
+    "fee_denom": "BNB",
+    "no_simulate": true,
+    "deduplication_interval": 100
   },
   "log_config": {
     "level": "DEBUG",
@@ -30,7 +28,15 @@
   },
   "db_config": {
     "dialect": "mysql",
-    "db_path": "root:root@tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
+    "db_path": "tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local",
+    "username": "",
+    "password": "",
+    "key_type": "local_private_key",
+    "aws_region": "",
+    "aws_secret_name": "",
+    "max_idle_conns": 20,
+    "max_open_conns": 40,
+    "debug_mode": true
   },
   "alert_config": {
     "interval": 300,

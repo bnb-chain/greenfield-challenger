@@ -12,18 +12,14 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/logging"
 )
 
-const (
-	flagConfigPath         = "config-path"
-	flagConfigType         = "config-type"
-	flagConfigAwsRegion    = "aws-region"
-	flagConfigAwsSecretKey = "aws-secret-key"
-)
-
 func initFlags() {
-	flag.String(flagConfigPath, "", "config file path")
-	flag.String(flagConfigType, "local_private_key", "config type, local_private_key or aws_private_key")
-	flag.String(flagConfigAwsRegion, "", "aws region")
-	flag.String(flagConfigAwsSecretKey, "", "aws secret key")
+	flag.String(config.FlagConfigPath, "", "config file path")
+	flag.String(config.FlagConfigType, "local_private_key", "config type, local_private_key or aws_private_key")
+	flag.String(config.FlagConfigAwsRegion, "", "aws region")
+	flag.String(config.FlagConfigAwsSecretKey, "", "aws secret key")
+	flag.String(config.FlagConfigPrivateKey, "", "challenger private key")
+	flag.String(config.FlagConfigBlsPrivateKey, "", "challenger bls private key")
+	flag.String(config.FlagConfigDbPass, "", "challenger db password")
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
@@ -35,12 +31,12 @@ func initFlags() {
 
 func printUsage() {
 	fmt.Print("usage: ./greenfield-challenger --config-type local --config-path configFile\n")
-	fmt.Print("usage: ./greenfield-challenger --config-type aws --aws-region awsRegin --aws-secret-key awsSecretKey\n")
+	fmt.Print("usage: ./greenfield-challenger --config-type aws --aws-region awsRegion --aws-secret-key awsSecretKey\n")
 }
 
 func main() {
 	initFlags()
-	configType := viper.GetString(flagConfigType)
+	configType := viper.GetString(config.FlagConfigType)
 	if configType != config.AWSConfig && configType != config.LocalConfig {
 		printUsage()
 		return
@@ -48,13 +44,13 @@ func main() {
 	var cfg *config.Config
 
 	if configType == config.AWSConfig {
-		awsSecretKey := viper.GetString(flagConfigAwsSecretKey)
+		awsSecretKey := viper.GetString(config.FlagConfigAwsSecretKey)
 		if awsSecretKey == "" {
 			printUsage()
 			return
 		}
 
-		awsRegion := viper.GetString(flagConfigAwsRegion)
+		awsRegion := viper.GetString(config.FlagConfigAwsRegion)
 		if awsRegion == "" {
 			printUsage()
 			return
@@ -62,12 +58,12 @@ func main() {
 
 		configContent, err := config.GetSecret(awsSecretKey, awsRegion)
 		if err != nil {
-			fmt.Printf("get aws config error, err=%s", err.Error())
+			fmt.Printf("get aws config error, err=%+v", err.Error())
 			return
 		}
 		cfg = config.ParseConfigFromJson(configContent)
 	} else {
-		configFilePath := viper.GetString(flagConfigPath)
+		configFilePath := viper.GetString(config.FlagConfigPath)
 		if configFilePath == "" {
 			printUsage()
 			return
@@ -81,10 +77,6 @@ func main() {
 	}
 
 	logging.InitLogger(&cfg.LogConfig)
-
-	if cfg.DBConfig.DBPath == "" {
-		panic("DB config is not present in config file, please follow instruction to specify it")
-	}
 
 	app.NewApp(cfg).Start()
 	select {}

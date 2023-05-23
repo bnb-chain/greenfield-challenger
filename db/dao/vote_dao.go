@@ -23,10 +23,23 @@ func (d *VoteDao) SaveVote(vote *model.Vote) error {
 	return nil
 }
 
-func (d *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, error) {
+func (d *VoteDao) SaveVoteAndUpdateEventStatus(vote *model.Vote, challengeId uint64) error {
+	return d.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(vote).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&model.Event{}).Where("challenge_id = ?", challengeId).Update("status", model.SelfVoted).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func (d *VoteDao) GetVotesByEventHash(eventHash string) ([]*model.Vote, error) {
 	votes := make([]*model.Vote, 0)
 	err := d.DB.
-		Where("challenge_id = ?", challengeId).
+		Where("event_hash = ?", eventHash).
 		Find(&votes).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
@@ -34,12 +47,16 @@ func (d *VoteDao) GetVotesByChallengeId(challengeId uint64) ([]*model.Vote, erro
 	return votes, nil
 }
 
-func (d *VoteDao) IsVoteExists(challengeId uint64, pubKey string) (bool, error) {
+func (d *VoteDao) IsVoteExists(eventHash string, pubKey string) (bool, error) {
 	exists := false
 	if err := d.DB.Raw(
-		"SELECT EXISTS(SELECT id FROM votes WHERE challenge_id = ? and pub_key = ?)",
-		challengeId, pubKey).Scan(&exists).Error; err != nil {
+		"SELECT EXISTS(SELECT id FROM votes WHERE event_hash = ? and pub_key = ?)",
+		eventHash, pubKey).Scan(&exists).Error; err != nil {
 		return false, err
 	}
 	return exists, nil
+}
+
+func (d *VoteDao) DeleteVotesBefore(unixTimestamp int64) error {
+	return d.DB.Model(&model.Vote{}).Where("created_time = ?", unixTimestamp).Delete(&model.Vote{}).Error
 }
