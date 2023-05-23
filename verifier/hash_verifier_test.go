@@ -31,19 +31,9 @@ func TestHashing(t *testing.T) {
 	validRootHash := verifier.computeRootHash(0, validStr, checksums)
 	logging.Logger.Infof("valid roothash: %s", hex.EncodeToString(validRootHash))
 	require.Equal(t, validRootHash, rootHash)
-	//
-	//// s.verifier.compareHashAndUpdate(event.ChallengeId, validRootHash, rootHash)
-	//// updatedValidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
-	//// s.Require().NoError(err)
-	//// s.Require().Equal(updatedValidEvent.Status, model.VerifiedValidChallenge)
-	//
-	//// Invalid testcase
-	//invalidStr := []byte("invalid")
-	//invalidRootHash := verifier.computeRootHash(0, invalidStr, checksums)
-	//require.NotEqual(t, validRootHash, invalidRootHash)
-	//
-	//// s.verifier.compareHashAndUpdate(event.ChallengeId, invalidRootHash, rootHash)
-	//// updatedInvalidEvent, err := s.dao.GetEventByChallengeId(event.ChallengeId)
-	//// s.Require().NoError(err)
-	//// s.Require().Equal(updatedInvalidEvent.Status, model.VerifiedInvalidChallenge)
+
+	// Invalid testcase
+	invalidStr := []byte("invalid")
+	invalidRootHash := verifier.computeRootHash(0, invalidStr, checksums)
+	require.NotEqual(t, validRootHash, invalidRootHash)
 }
