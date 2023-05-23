@@ -175,7 +175,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}
 		spChecksums = append(spChecksums, checksum)
 	}
-	// TODO: remove after debugging
 	originalSpRootHash := hash.GenerateChecksum(bytes.Join(spChecksums, []byte("")))
 	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", hex.EncodeToString(originalSpRootHash), event.ChallengeId)
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
