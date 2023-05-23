@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 
 	sdkmath "cosmossdk.io/math"
-
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"

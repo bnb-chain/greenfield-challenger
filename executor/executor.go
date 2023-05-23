@@ -12,12 +12,10 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/logging"
-	gnfdClient "github.com/bnb-chain/greenfield-go-sdk/client"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
 	tm "github.com/bnb-chain/greenfield/sdk/client"
 	types2 "github.com/bnb-chain/greenfield/sdk/types"
 	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
-	tmrpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	tmjsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
@@ -30,9 +28,7 @@ import (
 )
 
 type Executor struct {
-	gnfdClients       []gnfdClient.Client
-	tmRpcClients      []tmrpcclient.Client
-	tmJsonRpcClients  []*tmjsonrpcclient.Client
+	clients           GnfdCompositeClients
 	config            *config.Config
 	address           string
 	mtx               sync.RWMutex
@@ -61,48 +57,25 @@ func NewExecutor(cfg *config.Config) *Executor {
 	}
 	blsPubKey := blsPrivKey.PublicKey().Marshal()
 
-	km, err := types.NewAccountFromPrivateKey("challenger", privKey)
+	account, err := types.NewAccountFromPrivateKey("challenger", privKey)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to initiate with a key manager, err=%+v", err.Error())
 		panic(err)
 	}
 
-	gnfdClients := make([]gnfdClient.Client, 0)
-	for _, addr := range cfg.GreenfieldConfig.GRPCAddrs {
-		client, err := gnfdClient.New(
-			cfg.GreenfieldConfig.ChainIdString,
-			addr,
-			gnfdClient.Option{DefaultAccount: km},
-		)
-		if err != nil {
-			logging.Logger.Errorf("executor failed to initiate with greenfield clients, err=%s", err.Error())
-		}
-		gnfdClients = append(gnfdClients, client)
-	}
-
-	tmRPCClients := make([]tmrpcclient.Client, 0)
-	tmJsonRPCClients := make([]*tmjsonrpcclient.Client, 0)
-	for _, addr := range cfg.GreenfieldConfig.RPCAddrs {
-		RPCClient := NewTendermintRPCClient(addr)
-		JsonRPCClient, err := NewTendermintJsonRPCClient(addr)
-		if err != nil {
-			logging.Logger.Errorf("executor failed to initiate with tendermint json rpc clients, err=%s", err.Error())
-		}
-		tmRPCClients = append(tmRPCClients, RPCClient.TmClient)
-		tmJsonRPCClients = append(tmJsonRPCClients, JsonRPCClient)
-	}
-	logging.Logger.Infof("addr: %s", km.GetAddress().String())
-	logging.Logger.Infof("addr: %s", km.GetAddress())
+	clients := NewGnfdCompositClients(
+		cfg.GreenfieldConfig.RPCAddrs,
+		cfg.GreenfieldConfig.ChainIdString,
+		account,
+	)
 
 	return &Executor{
-		gnfdClients:      gnfdClients,
-		tmRpcClients:     tmRPCClients,
-		tmJsonRpcClients: tmJsonRPCClients,
-		address:          km.GetAddress().String(),
-		config:           cfg,
-		mtx:              sync.RWMutex{},
-		BlsPrivKey:       blsPrivKeyBytes,
-		BlsPubKey:        blsPubKey,
+		clients:    clients,
+		address:    account.GetAddress().String(),
+		config:     cfg,
+		mtx:        sync.RWMutex{},
+		BlsPrivKey: blsPrivKeyBytes,
+		BlsPubKey:  blsPubKey,
 	}
 }
 
@@ -161,12 +134,12 @@ func getGreenfieldBlsPrivateKey(cfg *config.GreenfieldConfig) string {
 }
 
 func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block, *ctypes.ResultBlockResults, error) {
-	block, err := e.tmRpcClients[0].Block(context.Background(), &height)
+	block, err := e.clients.GetClient().TmClient.Block(context.Background(), &height)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get block at height %d, err=%+v", height, err.Error())
 		return nil, nil, err
 	}
-	blockResults, err := e.tmRpcClients[0].BlockResults(context.Background(), &height)
+	blockResults, err := e.clients.GetClient().TmClient.BlockResults(context.Background(), &height)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get block results at height %d, err=%+v", height, err.Error())
 		return nil, nil, err
@@ -175,7 +148,7 @@ func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block,
 }
 
 func (e *Executor) GetLatestBlockHeight() (uint64, error) {
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 	res, err := client.GetLatestBlockHeight(context.Background())
 	latestHeight := uint64(res)
 	if err != nil {
@@ -196,7 +169,7 @@ func (e *Executor) GetCachedBlockHeight() (latestHeight uint64) {
 }
 
 func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {
-	client := e.GetTmRpcClient()
+	client := e.clients.GetClient().TmClient
 
 	validators, err := client.Validators(context.Background(), nil, nil, nil)
 	if err != nil {
@@ -255,7 +228,7 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 }
 
 func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryInturnAttestationSubmitterResponse, error) {
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 	res, err := client.InturnAttestationSubmitter(context.Background(), &challangetypes.QueryInturnAttestationSubmitterRequest{})
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get inturn attestation submitter, err=%+v", err.Error())
@@ -265,23 +238,23 @@ func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryIntur
 }
 
 func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challangetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption types2.TxOption) (bool, error) {
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
-		logging.Logger.Errorf("executor failed to attest challenge, err=%s", err.Error())
+		logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		return false, err
 	}
 	if res.Code != 0 {
-		logging.Logger.Errorf("executor failed to attest challenge, code=%d, log=%s, hash=%s", res.Code, res.RawLog, res.TxHash)
-		return false, err
+		logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"))
+		return false, nil
 	}
-	logging.Logger.Infof("executor attest challenge success, challengeId=%d", challengeId)
+	logging.Logger.Infof("challengeId: %d attest succeeded, code=%d, log=%s, txhash=%s, timestamp: %s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"))
 	return true, nil
 }
 
 func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 
 	res, err := client.LatestAttestedChallenges(context.Background(), &challangetypes.QueryLatestAttestedChallengesRequest{})
 	if err != nil {
@@ -293,7 +266,7 @@ func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 	q := challangetypes.QueryParamsRequest{}
 	res, err := client.ChallengeParams(context.Background(), &q)
 	if err != nil {
@@ -348,16 +321,14 @@ func (e *Executor) GetHeightLoop() {
 
 func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 	// TODO: check addr conversion and GetStorageProviderInfo == GetSpEndpoint previously
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 	spAddr, err := sdk.AccAddressFromHexUnsafe(address)
 	if err != nil {
 		logging.Logger.Errorf("error converting addr from hex unsafe when getting sp endpoint, err=%+v", err.Error())
 		return "", err
 	}
 	res, err := client.GetStorageProviderInfo(context.Background(), spAddr)
-	logging.Logger.Infof("response %s", res)
 	logging.Logger.Infof("response res.endpoint %s", res.Endpoint)
-	logging.Logger.Infof("response ree.getendpoint() %s", res.GetEndpoint())
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query storage provider %s, err=%+v", address, err.Error())
 		return "", err
@@ -367,39 +338,33 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 }
 
 func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
-	client := e.GetGnfdClient()
+	client := e.clients.GetClient().Client
 
 	res, err := client.HeadObjectByID(context.Background(), objectId)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query storage client for objectId %s, err=%+v", objectId, err.Error())
 		return nil, err
 	}
-	return res.Checksums, nil
+	return res.GetChecksums(), nil
 }
 
-func (e *Executor) GetChallengeResultFromSp(objectId string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
-	client := e.GetGnfdClient()
+func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
+	client := e.clients.GetClient().Client
 
-	challengeInfoRequest := types.ChallengeInfo{
-		ObjectId:        objectId,
-		PieceIndex:      segmentIndex,
-		RedundancyIndex: redundancyIndex,
+	challengeInfoOpts := types.GetChallengeInfoOptions{
+		Endpoint: endpoint,
 	}
-	challengeInfo, err := client.GetChallengeInfo(context.Background(), challengeInfoRequest)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to query challenge info from gnfd client for objectId %s, err=%+v", objectId, err.Error())
-		return nil, err
-	}
-
+	challengeInfo, err := client.GetChallengeInfo(context.Background(), objectId, segmentIndex, redundancyIndex, challengeInfoOpts)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query challenge result info from sp client for objectId %s, err=%+v", objectId, err.Error())
 		return nil, err
 	}
+
 	return &challengeInfo, nil
 }
 
 func (e *Executor) QueryVotes(eventType votepool.EventType) ([]*votepool.Vote, error) {
-	client := e.GetTmJsonRpcClient()
+	client := e.clients.GetClient().JsonRpcClient
 
 	queryMap := make(map[string]interface{})
 	queryMap[VotePoolQueryParameterEventType] = int(eventType)
@@ -414,7 +379,7 @@ func (e *Executor) QueryVotes(eventType votepool.EventType) ([]*votepool.Vote, e
 }
 
 func (e *Executor) BroadcastVote(v *votepool.Vote) error {
-	client := e.GetTmJsonRpcClient()
+	client := e.clients.GetClient().JsonRpcClient
 	broadcastMap := make(map[string]interface{})
 	broadcastMap[VotePoolBroadcastParameterKey] = *v
 	_, err := client.Call(context.Background(), VotePoolBroadcastMethodName, broadcastMap, &ctypes.ResultBroadcastVote{})
@@ -425,61 +390,13 @@ func (e *Executor) BroadcastVote(v *votepool.Vote) error {
 	return nil
 }
 
-// TODO: implement this
-func (e *Executor) GetGnfdClient() gnfdClient.Client {
-	return e.gnfdClients[0]
-	//wg := new(sync.WaitGroup)
-	//wg.Add(len(e.gnfdClients))
-	//clientCh := make(chan *gnfdClient.Client)
-	//waitCh := make(chan struct{})
-	//go func() {
-	//	for _, c := range e.gnfdClients {
-	//		go getClientBlockHeight(clientCh, wg, &c)
-	//	}
-	//	wg.Wait()
-	//	close(waitCh)
-	//}()
-	//var maxHeight int64
-	//maxHeightclient := e.GetGnfdClient()
-	//for {
-	//	select {
-	//	case c := <-clientCh:
-	//		if c.Height > maxHeight {
-	//			maxHeight = c.Height
-	//			maxHeightClient = c
-	//		}
-	//	case <-waitCh:
-	//		return maxHeightClient
-	//	}
-	//}
-}
-
-//	func getClientBlockHeight(clientChan chan *gnfdClient.Client, wg *sync.WaitGroup, client *gnfdClient.Client) {
-//		defer wg.Done()
-//		status, err := tmclient.Client.Status(context.Background())
-//		if err != nil {
-//			return
-//		}
-//		client.Height = status.SyncInfo.LatestBlockHeight
-//		clientChan <- client
-//	}
-//
-// TODO: implement this
-func (e *Executor) GetTmRpcClient() tmrpcclient.Client {
-	return e.tmRpcClients[0]
-}
-
-// TODO: implement this
-func (e *Executor) GetTmJsonRpcClient() *tmjsonrpcclient.Client {
-	return e.tmJsonRpcClients[0]
-}
-
 func (e *Executor) GetAddr() string {
 	return e.address
 }
 
 func (e *Executor) GetNonce() (uint64, error) {
-	account, err := e.GetGnfdClient().GetAccount(context.Background(), e.GetAddr())
+	client := e.clients.GetClient().Client
+	account, err := client.GetAccount(context.Background(), e.GetAddr())
 	if err != nil {
 		logging.Logger.Errorf("error getting account, err=%+v", err.Error())
 		return 0, err

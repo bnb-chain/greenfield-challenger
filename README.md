@@ -8,7 +8,7 @@ for any bug bounty. We advise you to be careful and experiment on the network at
 
 
 ## Main Components
-This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote Collector, Vote Broadcaster, Vote Collator and Tx Submitter.
+This off-chain application comprises 7 main goroutines: Monitor, Verifier, Vote Collector, Vote Broadcaster, Vote Collator, Tx Submitter and Attest Monitor.
 
 1. The Monitor polls the blockchain for new blocks to parse for challenge events and adds them to the local db.
 
@@ -25,7 +25,10 @@ This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote 
 5. The Vote Collator retrieves events that failed the verification process to calculate an event hash. Every ChallengeId has a unique event hash and it would be used to identify votes that were saved in the local db by the Vote Collector. It will then query and collate the votes for a 2/3 consensus before changing the event status to allow the Tx Submitter to process it.  
 
 
-6. The Tx Submitter polls the db for events that received enough consensus votes and sends a MsgAttest to the blockchain after aggregating the votes and signature. The blockchain will validate the votes and if the attestation passes. the storage provider will then be slashed for failing to protect the integrity of the data that they were tasked to store.    
+6. The Tx Submitter polls the db for events that received enough consensus votes and sends a MsgAttest to the blockchain after aggregating the votes and signature. The blockchain will validate the votes and if the attestation passes. the storage provider will then be slashed for failing to protect the integrity of the data that they were tasked to store.
+
+
+7. The Attest Monitor polls the blockchain for the latest challenges that were successfully attested and updates the db with the attest results.  
 
 ## Deployment
 
@@ -42,23 +45,16 @@ This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote 
     "rpc_addrs": [
       "http://0.0.0.0:26750"
     ],
-    "grpc_addrs": [
-      "localhost:9090"
-    ],
-    "gas_limit": 100 (your tx gas limit)
-    "chain_id_string": chain id of the network, e.g., "greenfield_9000-121"  
-    "deduplication_interval": 100 (skip processing event if recently processed within X events)
+    "chain_id_string": chain id of the network, e.g., "greenfield_9000-121"
+    "gas_limit": transaction gas limit, e.g., 1000,
+    "fee_amount": transaction fees, e.g., "5000000000000",
+    "fee_denom": transaction fees denom, e.g., "BNB",
+    "no_simulate": simulate transaction, e.g., true
+    "deduplication_interval": skip events that were recently processed, e.g., 100
   }
 ```
 
-2. Set rpc addr for vote pool
-```
-"vote_pool_config": {
-  "rpc_addr": "http://127.0.0.1:26750",
-}
-```
-
-3. Set your log and backup preferences.
+2. Set your log and backup preferences.
 ```
 "log_config": {
   "level": "DEBUG",
@@ -76,7 +72,7 @@ This off-chain application comprises 6 main goroutines: Monitor, Verifier, Vote 
 ```
 "db_config": {
   "dialect": "mysql",
-  "db_path": "tcp(127.0.0.1:3306)/challenger?charset=utf8&parseTime=True&loc=Local"
+  "db_path": "your_db_path"
   "key_type": "local_private_key" or "aws_private_key" depending on whether you are storing the keys on aws or locally in this json file
   "aws_region": set this if you chose "aws_private_key"
   "aws_secret_name": set this if you chose "aws_private_key"

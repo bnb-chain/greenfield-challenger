@@ -29,7 +29,7 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 	ticker := time.NewTicker(executor.QueryAttestedChallengeInterval)
 	for range ticker.C {
 		challengeIds, err := a.executor.QueryLatestAttestedChallengeIds()
-		logging.Logger.Infof("latest attested challenge ids: %+v", challengeIds)
+		// logging.Logger.Infof("latest attested challenge ids: %+v", challengeIds)
 		if err != nil {
 			logging.Logger.Errorf("update latest attested challenge error, err=%+v", err)
 			continue
