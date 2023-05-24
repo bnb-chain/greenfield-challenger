@@ -29,21 +29,21 @@ type TxSubmitter struct {
 func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDataProvider DataProvider) *TxSubmitter {
 	feeAmount, ok := math.NewIntFromString(cfg.GreenfieldConfig.FeeAmount)
 	if !ok {
-		logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount", cfg.GreenfieldConfig.FeeAmount)
+		logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount: ", cfg.GreenfieldConfig.FeeAmount)
 	}
 	feeCoins := sdk.NewCoins(sdk.NewCoin(cfg.GreenfieldConfig.FeeDenom, feeAmount))
 
 	return &TxSubmitter{
-		config:       cfg,
-		executor:     executor,
-		feeAmount:    feeCoins,
-		DataProvider: submitterDataProvider,
+		config:          cfg,
+		executor:        executor,
+		feeAmount:       feeCoins,
+		cachedEventHash: make(map[uint64][]byte, CacheSize),
+		DataProvider:    submitterDataProvider,
 	}
 }
 
 // SubmitTransactionLoop polls for submitter inturn and fetches events for submit.
 func (s *TxSubmitter) SubmitTransactionLoop() {
-	s.cachedEventHash = make(map[uint64][]byte, CacheSize)
 	submitLoopCount := 0
 
 	for {
