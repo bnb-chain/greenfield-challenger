@@ -67,7 +67,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 				logging.Logger.Errorf("tx submitter err", err)
 				continue
 			}
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(TxSubmitInterval)
 		}
 		// Clear cached event hash
 		submitLoopCount++
@@ -76,7 +76,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			s.clearCachedEventHash()
 		}
 
-		time.Sleep(executor.QueryAttestedChallengeInterval)
+		time.Sleep(TxSubmitLoopInterval)
 	}
 }
 
@@ -178,7 +178,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
 			submittedAttempts++
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(TxSubmitInterval)
 			continue
 		}
 		// Update event status to include in Attest Monitor

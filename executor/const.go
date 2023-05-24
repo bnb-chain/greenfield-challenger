@@ -7,7 +7,6 @@ import (
 const (
 	UpdateCachedValidatorsInterval = 1 * time.Minute
 	QueryHeartbeatIntervalInterval = 120 * time.Minute // blockchain challenge heartbeat interval only changed by governance
-	QueryAttestedChallengeInterval = 5 * time.Second   // query last attested challenge id
 
 	VotePoolBroadcastMethodName   = "broadcast_vote"
 	VotePoolBroadcastParameterKey = "vote"

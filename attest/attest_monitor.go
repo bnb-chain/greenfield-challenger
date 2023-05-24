@@ -12,7 +12,7 @@ import (
 type AttestMonitor struct {
 	executor             *executor.Executor
 	mtx                  sync.RWMutex
-	attestedChallengeIds []uint64 // used to save the last attested challenge id
+	attestedChallengeIds map[uint64]bool // used to save the last attested challenge id
 	dataProvider         DataProvider
 }
 
@@ -24,8 +24,10 @@ func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider) *A
 	}
 }
 
+// UpdateAttestedChallengeIdLoop polls the blockchain for latest attested challengeIds and updates their status
 func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
-	ticker := time.NewTicker(executor.QueryAttestedChallengeInterval)
+	ticker := time.NewTicker(QueryAttestedChallengeInterval)
+	queryCount := 0
 	for range ticker.C {
 		challengeIds, err := a.executor.QueryLatestAttestedChallengeIds()
 		// logging.Logger.Infof("latest attested challenge ids: %+v", challengeIds)
@@ -35,40 +37,51 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 		}
 		a.mtx.Lock()
 		a.updateAttestedCacheAndEventStatus(a.attestedChallengeIds, challengeIds)
-		a.attestedChallengeIds = challengeIds
+		for _, id := range challengeIds {
+			a.attestedChallengeIds[id] = true
+		}
 		a.mtx.Unlock()
+
+		queryCount++
+		if queryCount > MaxQueryCount {
+			a.clearCachedChallengeIds()
+		}
 	}
 }
 
-func (a *AttestMonitor) updateAttestedCacheAndEventStatus(old, latest []uint64) {
-	m := make(map[uint64]bool)
-
-	for _, challengeId := range old {
-		m[challengeId] = true
-	}
-
+// updateAttestedCacheAndEventStatus only updates new entries
+func (a *AttestMonitor) updateAttestedCacheAndEventStatus(old map[uint64]bool, latest []uint64) {
 	for _, challengeId := range latest {
-		if _, ok := m[challengeId]; !ok {
-			event, err := a.dataProvider.GetEventByChallengeId(challengeId)
-			if err != nil || event == nil {
-				logging.Logger.Errorf("attest monitor failed to get event by challengeId: %d, err=%+v", challengeId, err)
-				continue
-			}
-			if event.Status == model.SelfAttested || event.Status == model.Attested {
-				continue
-			}
-			if event.Status == model.Submitted {
-				err = a.dataProvider.UpdateEventStatus(challengeId, model.SelfAttested)
-				if err != nil {
-					logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
-				}
-			} else {
-				err = a.dataProvider.UpdateEventStatus(challengeId, model.Attested)
-				if err != nil {
-					logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
-				}
-			}
-			logging.Logger.Infof("challengeId: %d attest status is updated", challengeId)
+		if _, ok := old[challengeId]; !ok {
+			go a.updateEventStatus(challengeId)
 		}
+	}
+}
+
+func (a *AttestMonitor) updateEventStatus(challengeId uint64) {
+	event, err := a.dataProvider.GetEventByChallengeId(challengeId)
+	if err != nil || event == nil {
+		logging.Logger.Errorf("attest monitor failed to get event by challengeId: %d, err=%+v", challengeId, err)
+		return
+	}
+	if event.Status == model.SelfAttested || event.Status == model.Attested {
+		return
+	}
+	var status model.EventStatus
+	if event.Status == model.Submitted {
+		status = model.SelfAttested
+	} else {
+		status = model.Attested
+	}
+	err = a.dataProvider.UpdateEventStatus(challengeId, status)
+	if err != nil {
+		logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
+	}
+}
+
+// clearCachedEventHash clears the cached event hash.
+func (a *AttestMonitor) clearCachedChallengeIds() {
+	for key := range a.attestedChallengeIds {
+		delete(a.attestedChallengeIds, key)
 	}
 }
