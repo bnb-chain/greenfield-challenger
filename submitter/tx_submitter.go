@@ -9,7 +9,6 @@ import (
 	"cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -21,14 +20,13 @@ import (
 
 type TxSubmitter struct {
 	config          *config.Config
-	daoManager      *dao.DaoManager
 	executor        *executor.Executor
 	cachedEventHash map[uint64][]byte
 	feeAmount       sdk.Coins
 	DataProvider
 }
 
-func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, daoManager *dao.DaoManager, submitterKind DataProvider) *TxSubmitter {
+func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDataProvider DataProvider) *TxSubmitter {
 	feeAmount, ok := math.NewIntFromString(cfg.GreenfieldConfig.FeeAmount)
 	if !ok {
 		logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount", cfg.GreenfieldConfig.FeeAmount)
@@ -37,14 +35,13 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, daoManager 
 
 	return &TxSubmitter{
 		config:       cfg,
-		daoManager:   daoManager,
 		executor:     executor,
 		feeAmount:    feeCoins,
-		DataProvider: submitterKind,
+		DataProvider: submitterDataProvider,
 	}
 }
 
-// SubmitTransactionLoop is responsible for submitting transactions in a loop.
+// SubmitTransactionLoop polls for submitter inturn and fetches events for submit.
 func (s *TxSubmitter) SubmitTransactionLoop() {
 	s.cachedEventHash = make(map[uint64][]byte, CacheSize)
 	submitLoopCount := 0
@@ -52,7 +49,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 	for {
 		// Loop until submitter is inturn to submit
 		attestPeriodEnd := s.queryAttestPeriodLoop()
-
+		// Fetch events for submit
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
@@ -63,7 +60,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			time.Sleep(common.RetryInterval)
 			continue
 		}
-
+		// Submit events
 		for _, event := range events {
 			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
@@ -72,7 +69,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			}
 			time.Sleep(50 * time.Millisecond)
 		}
-
+		// Clear cached event hash
 		submitLoopCount++
 		if submitLoopCount == common.CacheClearIterations {
 			submitLoopCount = 0
@@ -90,6 +87,7 @@ func (s *TxSubmitter) queryAttestPeriodLoop() uint64 {
 		if err != nil {
 			continue
 		}
+		// Submitter is inturn if bls key matches
 		if res.BlsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
 			logging.Logger.Infof("tx submitter is currently inturn for submitting until", time.Unix(int64(res.SubmitInterval.GetEnd()), 0).Format(TimeFormat))
 			return res.SubmitInterval.GetEnd()
@@ -102,34 +100,19 @@ func (s *TxSubmitter) queryAttestPeriodLoop() uint64 {
 // submitForSingleEvent fetches required data and submits a single event.
 func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd uint64) error {
 	logging.Logger.Infof("submitter started for challengeId: %d", event.ChallengeId)
-
+	// Check if events expired
 	err := s.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
-			err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Expired)
 		}
 		return err
 	}
-
-	eventHash := s.getEventHash(event)
-	votes, err := s.FetchVotesForAggregation(hex.EncodeToString(eventHash))
+	// Calculate event hash and use it to fetch votes and validator bitset
+	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
-		logging.Logger.Errorf("submitter failed to get votes for event with challengeId", event.ChallengeId, err)
 		return err
 	}
-
-	validators, err := s.executor.QueryCachedLatestValidators()
-	if err != nil {
-		logging.Logger.Errorf("submitter failed to query validators for event with challenge id", event.ChallengeId, err)
-		return err
-	}
-
-	aggregatedSignature, valBitSet, err := vote.AggregateSignatureAndValidatorBitSet(votes, validators)
-	if err != nil {
-		logging.Logger.Errorf("submitter failed to aggregate signature for event with challenge id", event.ChallengeId, err)
-		return err
-	}
-
 	return s.submitTransaction(event, attestPeriodEnd, aggregatedSignature, valBitSet)
 }
 
@@ -141,6 +124,26 @@ func (s *TxSubmitter) getEventHash(event *model.Event) []byte {
 		s.cachedEventHash[event.ChallengeId] = eventHash
 	}
 	return eventHash
+}
+
+func (s *TxSubmitter) getSignatureAndBitSet(event *model.Event) ([]byte, *bitset.BitSet, error) {
+	eventHash := s.getEventHash(event)
+	votes, err := s.FetchVotesForAggregation(hex.EncodeToString(eventHash))
+	if err != nil {
+		logging.Logger.Errorf("submitter failed to get votes for event with challengeId", event.ChallengeId, err)
+		return nil, nil, err
+	}
+	validators, err := s.executor.QueryCachedLatestValidators()
+	if err != nil {
+		logging.Logger.Errorf("submitter failed to query validators for event with challenge id", event.ChallengeId, err)
+		return nil, nil, err
+	}
+	aggregatedSignature, valBitSet, err := vote.AggregateSignatureAndValidatorBitSet(votes, validators)
+	if err != nil {
+		logging.Logger.Errorf("submitter failed to aggregate signature for event with challenge id", event.ChallengeId, err)
+		return nil, nil, err
+	}
+	return aggregatedSignature, valBitSet, nil
 }
 
 // submitTransaction creates and submits the transaction.
@@ -179,7 +182,7 @@ func (s *TxSubmitter) submitTransaction(event *model.Event, attestPeriodEnd uint
 			continue
 		}
 		// Update event status to include in Attest Monitor
-		err = s.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Submitted)
+		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		return err
 	}
 }
