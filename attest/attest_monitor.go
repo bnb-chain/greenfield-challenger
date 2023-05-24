@@ -1,4 +1,4 @@
-package submitter
+package attest
 
 import (
 	"sync"

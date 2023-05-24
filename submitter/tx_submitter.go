@@ -113,7 +113,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	if err != nil {
 		return err
 	}
-	return s.submitTransaction(event, attestPeriodEnd, aggregatedSignature, valBitSet)
+	return s.submitTransactionLoop(event, attestPeriodEnd, aggregatedSignature, valBitSet)
 }
 
 // getEventHash gets the event hash from the cache or calculates it if not present.
@@ -147,7 +147,7 @@ func (s *TxSubmitter) getSignatureAndBitSet(event *model.Event) ([]byte, *bitset
 }
 
 // submitTransaction creates and submits the transaction.
-func (s *TxSubmitter) submitTransaction(event *model.Event, attestPeriodEnd uint64, aggregatedSignature []byte, valBitSet *bitset.BitSet) error {
+func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd uint64, aggregatedSignature []byte, valBitSet *bitset.BitSet) error {
 	submittedAttempts := 0
 	for {
 		if time.Now().Unix() > int64(attestPeriodEnd) {

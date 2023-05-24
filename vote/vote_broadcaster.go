@@ -7,7 +7,6 @@ import (
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -15,24 +14,22 @@ import (
 )
 
 type VoteBroadcaster struct {
-	daoManager      *dao.DaoManager
 	config          *config.Config
 	signer          *VoteSigner
 	executor        *executor.Executor
 	blsPublicKey    []byte
 	cachedLocalVote map[uint64]*votepool.Vote
-	DataProvider
+	dataProvider    DataProvider
 }
 
-func NewVoteBroadcaster(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner,
-	executor *executor.Executor, kind DataProvider,
+func NewVoteBroadcaster(cfg *config.Config, signer *VoteSigner,
+	executor *executor.Executor, broadcasterDataProvider DataProvider,
 ) *VoteBroadcaster {
 	return &VoteBroadcaster{
 		config:          cfg,
-		daoManager:      dao,
 		signer:          signer,
 		executor:        executor,
-		DataProvider:    kind,
+		dataProvider:    broadcasterDataProvider,
 		cachedLocalVote: nil,
 		blsPublicKey:    executor.BlsPubKey,
 	}
@@ -45,7 +42,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
 		// Ask about this function
-		events, err := p.DataProvider.FetchEventsForSelfVote(currentHeight)
+		events, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
 		if err != nil {
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			continue
@@ -93,7 +90,7 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 	err := p.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
-			err = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			err = p.dataProvider.UpdateEventStatus(event.ChallengeId, model.Expired)
 			if err != nil {
 				return fmt.Errorf("failed to update event status for challengeId: %d", event.ChallengeId)
 			}
@@ -127,7 +124,7 @@ func (p *VoteBroadcaster) constructVoteAndSign(event *model.Event) (*votepool.Vo
 	v.EventType = votepool.DataAvailabilityChallengeEvent
 	eventHash := CalculateEventHash(event)
 	p.signer.SignVote(&v, eventHash[:])
-	err := p.daoManager.SaveVoteAndUpdateEventStatus(EntityToDto(&v, event.ChallengeId), event.ChallengeId)
+	err := p.dataProvider.SaveVoteAndUpdateEventStatus(EntityToDto(&v, event.ChallengeId), event.ChallengeId)
 	if err != nil {
 		return &v, err
 	}

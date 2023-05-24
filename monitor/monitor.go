@@ -7,7 +7,6 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -19,14 +18,14 @@ import (
 )
 
 type Monitor struct {
-	executor   *executor.Executor
-	daoManager *dao.DaoManager
+	executor     *executor.Executor
+	dataProvider DataProvider
 }
 
-func NewMonitor(executor *executor.Executor, daoManager *dao.DaoManager) *Monitor {
+func NewMonitor(executor *executor.Executor, dataProvider DataProvider) *Monitor {
 	return &Monitor{
-		executor:   executor,
-		daoManager: daoManager,
+		executor:     executor,
+		dataProvider: dataProvider,
 	}
 }
 
@@ -142,7 +141,7 @@ func (m *Monitor) getBlockAndBlockResult(height uint64) (*ctypes.ResultBlockResu
 }
 
 func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *ctypes.ResultBlockResults) error {
-	events, err := m.parseEvents(blockResults)
+	parsedEvents, err := m.parseEvents(blockResults)
 	if err != nil {
 		return err
 	}
@@ -151,7 +150,8 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 		BlockTime:   block.Time.Unix(),
 		CreatedTime: time.Now().Unix(),
 	}
-	err = m.daoManager.SaveBlockAndEvents(b, EntitiesToDtos(uint64(block.Height), events))
+	events := EntitiesToDtos(uint64(block.Height), parsedEvents)
+	err = m.dataProvider.SaveBlockAndEvents(b, events)
 	for _, event := range events {
 		logging.Logger.Debugf("monitor event saved for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	}
@@ -162,7 +162,7 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 }
 
 func (m *Monitor) calNextHeight() (uint64, error) {
-	latestPolledBlock, err := m.daoManager.GetLatestBlock()
+	latestPolledBlock, err := m.dataProvider.GetLatestBlock()
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logging.Logger.Errorf("failed to get latest block from db, error: %s", err.Error())
 		latestHeight, err := m.executor.GetLatestBlockHeight()

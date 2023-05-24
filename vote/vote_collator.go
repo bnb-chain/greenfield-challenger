@@ -7,7 +7,6 @@ import (
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -15,23 +14,21 @@ import (
 )
 
 type VoteCollator struct {
-	daoManager   *dao.DaoManager
 	config       *config.Config
 	signer       *VoteSigner
 	executor     *executor.Executor
 	blsPublicKey []byte
-	DataProvider
+	dataProvider DataProvider
 }
 
-func NewVoteCollator(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner,
-	executor *executor.Executor, kind DataProvider,
+func NewVoteCollator(cfg *config.Config, signer *VoteSigner,
+	executor *executor.Executor, collatorDataProvider DataProvider,
 ) *VoteCollator {
 	return &VoteCollator{
 		config:       cfg,
-		daoManager:   dao,
 		signer:       signer,
 		executor:     executor,
-		DataProvider: kind,
+		dataProvider: collatorDataProvider,
 		blsPublicKey: executor.BlsPubKey,
 	}
 }
@@ -39,7 +36,7 @@ func NewVoteCollator(cfg *config.Config, dao *dao.DaoManager, signer *VoteSigner
 func (p *VoteCollator) CollateVotesLoop() {
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
-		events, err := p.FetchEventsForCollate(currentHeight)
+		events, err := p.dataProvider.FetchEventsForCollate(currentHeight)
 		logging.Logger.Infof("vote processor fetched %d events for collate", len(events))
 		if err != nil {
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
@@ -72,7 +69,7 @@ func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 	if err != nil {
 		return err
 	}
-	err = p.UpdateEventStatus(event.ChallengeId, model.EnoughVotesCollected)
+	err = p.dataProvider.UpdateEventStatus(event.ChallengeId, model.EnoughVotesCollected)
 	if err != nil {
 		return err
 	}
@@ -111,13 +108,13 @@ func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, va
 	err := p.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
-			err = p.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
+			err = p.dataProvider.UpdateEventStatus(event.ChallengeId, model.Expired)
 			return err
 		}
 		return err
 	}
 	eventHash := CalculateEventHash(event)
-	queriedVotes, err := p.daoManager.GetVotesByEventHash(hex.EncodeToString(eventHash))
+	queriedVotes, err := p.dataProvider.FetchVotesForCollate(hex.EncodeToString(eventHash))
 	if err != nil {
 		logging.Logger.Errorf("failed to query votes for event %d, err=%+v", event.ChallengeId, err.Error())
 		return err
