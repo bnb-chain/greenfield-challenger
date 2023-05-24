@@ -75,7 +75,8 @@ func NewApp(cfg *config.Config) *App {
 	monitorDataHandler := monitor.NewDataHandler(daoManager)
 	monitor := monitor.NewMonitor(executor, monitorDataHandler)
 
-	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor, cfg.GreenfieldConfig.DeduplicationInterval)
+	verifierDataHandler := verifier.NewDataHandler(daoManager)
+	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler)
 
 	signer := vote.NewVoteSigner(executor.BlsPrivKey)
 	voteDataHandler := vote.NewDataHandler(daoManager, executor)
@@ -86,7 +87,8 @@ func NewApp(cfg *config.Config) *App {
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
 	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
 
-	attestMonitor := attest.NewAttestMonitor(executor, daoManager)
+	attestDataHandler := attest.NewDataHandler(daoManager)
+	attestMonitor := attest.NewAttestMonitor(executor, attestDataHandler)
 
 	dbWiper := wiper.NewDBWiper(daoManager)
 

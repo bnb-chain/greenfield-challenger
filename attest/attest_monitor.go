@@ -4,24 +4,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 )
 
 type AttestMonitor struct {
-	daoManager           *dao.DaoManager
 	executor             *executor.Executor
 	mtx                  sync.RWMutex
 	attestedChallengeIds []uint64 // used to save the last attested challenge id
+	dataProvider         DataProvider
 }
 
-func NewAttestMonitor(executor *executor.Executor, daoManager *dao.DaoManager) *AttestMonitor {
+func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider) *AttestMonitor {
 	return &AttestMonitor{
-		daoManager: daoManager,
-		executor:   executor,
-		mtx:        sync.RWMutex{},
+		executor:     executor,
+		mtx:          sync.RWMutex{},
+		dataProvider: dataProvider,
 	}
 }
 
@@ -50,7 +49,7 @@ func (a *AttestMonitor) updateAttestedCacheAndEventStatus(old, latest []uint64) 
 
 	for _, challengeId := range latest {
 		if _, ok := m[challengeId]; !ok {
-			event, err := a.daoManager.GetEventByChallengeId(challengeId)
+			event, err := a.dataProvider.GetEventByChallengeId(challengeId)
 			if err != nil || event == nil {
 				logging.Logger.Errorf("attest monitor failed to get event by challengeId: %d, err=%+v", challengeId, err)
 				continue
@@ -59,12 +58,12 @@ func (a *AttestMonitor) updateAttestedCacheAndEventStatus(old, latest []uint64) 
 				continue
 			}
 			if event.Status == model.Submitted {
-				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.SelfAttested)
+				err = a.dataProvider.UpdateEventStatus(challengeId, model.SelfAttested)
 				if err != nil {
 					logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
 				}
 			} else {
-				err = a.daoManager.UpdateEventStatusByChallengeId(challengeId, model.Attested)
+				err = a.dataProvider.UpdateEventStatus(challengeId, model.Attested)
 				if err != nil {
 					logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
 				}
