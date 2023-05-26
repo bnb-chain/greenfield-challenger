@@ -1,4 +1,8 @@
 # Changelog
+## v0.0.1-alpha.1
+This is a pre-release. The go-sdk module and it's relevant dependencies are updated to use their pre-release alpha versions.
+* [#44](https://github.com/bnb-chain/greenfield-challenger/pull/44) chore: upgrade dependencies    
+
 ## v0.0.1
 This release launches the Challenger Service.
 
