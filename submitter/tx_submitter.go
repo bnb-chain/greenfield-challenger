@@ -3,8 +3,9 @@ package submitter
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/willf/bitset"
 	"time"
+
+	"github.com/willf/bitset"
 
 	"cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -103,9 +104,6 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Check if events expired
 	err := s.preCheck(event)
 	if err != nil {
-		if err.Error() == common.ErrEventExpired.Error() {
-			err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Expired)
-		}
 		return err
 	}
 	// Calculate event hash and use it to fetch votes and validator bitset

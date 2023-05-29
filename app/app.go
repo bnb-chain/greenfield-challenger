@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/bnb-chain/greenfield-challenger/attest"
 
 	"github.com/bnb-chain/greenfield-challenger/config"

@@ -90,10 +90,6 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 	err := p.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
-			err = p.dataProvider.UpdateEventStatus(event.ChallengeId, model.Expired)
-			if err != nil {
-				return fmt.Errorf("failed to update event status for challengeId: %d", event.ChallengeId)
-			}
 			delete(p.cachedLocalVote, event.ChallengeId)
 			return err
 		}

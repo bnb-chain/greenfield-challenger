@@ -107,10 +107,6 @@ func (p *VoteCollator) preCheck(event *model.Event) error {
 func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, validators []*tmtypes.Validator) error {
 	err := p.preCheck(event)
 	if err != nil {
-		if err.Error() == common.ErrEventExpired.Error() {
-			err = p.dataProvider.UpdateEventStatus(event.ChallengeId, model.Expired)
-			return err
-		}
 		return err
 	}
 	eventHash := CalculateEventHash(event)
