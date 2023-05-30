@@ -18,9 +18,10 @@ type AttestMonitor struct {
 
 func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider) *AttestMonitor {
 	return &AttestMonitor{
-		executor:     executor,
-		mtx:          sync.RWMutex{},
-		dataProvider: dataProvider,
+		executor:             executor,
+		mtx:                  sync.RWMutex{},
+		attestedChallengeIds: make(map[uint64]bool),
+		dataProvider:         dataProvider,
 	}
 }
 
