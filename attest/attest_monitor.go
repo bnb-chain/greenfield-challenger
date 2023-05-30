@@ -20,7 +20,7 @@ func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider) *A
 	return &AttestMonitor{
 		executor:             executor,
 		mtx:                  sync.RWMutex{},
-		attestedChallengeIds: make(map[uint64]bool),
+		attestedChallengeIds: make(map[uint64]bool, 0),
 		dataProvider:         dataProvider,
 	}
 }
@@ -45,7 +45,7 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 
 		queryCount++
 		if queryCount > MaxQueryCount {
-			a.clearCachedChallengeIds()
+			a.attestedChallengeIds = make(map[uint64]bool, 0)
 		}
 	}
 }
@@ -77,12 +77,5 @@ func (a *AttestMonitor) updateEventStatus(challengeId uint64) {
 	err = a.dataProvider.UpdateEventStatus(challengeId, status)
 	if err != nil {
 		logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
-	}
-}
-
-// clearCachedEventHash clears the cached event hash.
-func (a *AttestMonitor) clearCachedChallengeIds() {
-	for key := range a.attestedChallengeIds {
-		delete(a.attestedChallengeIds, key)
 	}
 }

@@ -38,7 +38,7 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDa
 		config:          cfg,
 		executor:        executor,
 		feeAmount:       feeCoins,
-		cachedEventHash: make(map[uint64][]byte, CacheSize),
+		cachedEventHash: make(map[uint64][]byte, 0),
 		DataProvider:    submitterDataProvider,
 	}
 }
@@ -74,7 +74,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		submitLoopCount++
 		if submitLoopCount == common.CacheClearIterations {
 			submitLoopCount = 0
-			s.clearCachedEventHash()
+			s.cachedEventHash = make(map[uint64][]byte, 0)
 		}
 
 		time.Sleep(TxSubmitLoopInterval)
@@ -182,13 +182,6 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Update event status to include in Attest Monitor
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		return err
-	}
-}
-
-// clearCachedEventHash clears the cached event hash.
-func (s *TxSubmitter) clearCachedEventHash() {
-	for key := range s.cachedEventHash {
-		delete(s.cachedEventHash, key)
 	}
 }
 
