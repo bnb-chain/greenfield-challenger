@@ -106,7 +106,7 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 			continue
 		}
 		// TODO: remove this, only for testing since sp side can't handle the load
-		time.Sleep(10 * time.Second)
+		//time.Sleep(10 * time.Second)
 	}
 	return nil
 }
@@ -153,6 +153,8 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
 		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
+	// TODO: remove
+	logging.Logger.Infof("challengeres: %s", challengeRes.IntegrityHash)
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	piecesHash := challengeRes.PiecesHash
