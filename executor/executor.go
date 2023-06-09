@@ -246,7 +246,12 @@ func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
 		return nil, err
 	}
 
-	return res, nil
+	var challengeIds []uint64
+	for _, v := range res.GetChallenges() {
+		challengeIds = append(challengeIds, v.GetId())
+	}
+
+	return challengeIds, nil
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {

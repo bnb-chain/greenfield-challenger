@@ -36,6 +36,7 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 			logging.Logger.Errorf("update latest attested challenge error, err=%+v", err)
 			continue
 		}
+		logging.Logger.Infof("latest attested challenge ids: %+v", challengeIds)
 		a.mtx.Lock()
 		a.updateAttestedCacheAndEventStatus(a.attestedChallengeIds, challengeIds)
 		for _, id := range challengeIds {
