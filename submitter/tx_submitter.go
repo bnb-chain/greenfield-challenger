@@ -3,6 +3,7 @@ package submitter
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/types/tx"
 	"time"
 
 	"github.com/willf/bitset"
@@ -166,11 +167,12 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 			logging.Logger.Errorf("submitter failed to get nonce for challengeId", event.ChallengeId, err)
 			continue
 		}
+		mode := tx.BroadcastMode_BROADCAST_MODE_SYNC
 		txOpts := types.TxOption{
-			NoSimulate: s.config.GreenfieldConfig.NoSimulate,
-			GasLimit:   s.config.GreenfieldConfig.GasLimit,
-			FeeAmount:  s.feeAmount,
-			Nonce:      nonce,
+			GasLimit:  s.config.GreenfieldConfig.GasLimit,
+			FeeAmount: s.feeAmount,
+			Nonce:     nonce,
+			Mode:      &mode,
 		}
 		// Submit transaction
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
