@@ -226,11 +226,11 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
-		logging.Logger.Infof("attest failed, debugging nil pointer error %+v", res.String())
-		logging.Logger.Infof("code=%d", res.Code)
-		logging.Logger.Infof("rawlog=%s", res.RawLog)
-		logging.Logger.Infof("txhash=%s", res.TxHash)
-		logging.Logger.Infof("timestamp: %s", time.Now().Format("15:04:05.000000"))
+		if res == nil {
+			logging.Logger.Infof("attest failed for challengeId: %d, res is nil", challengeId)
+		}
+		logging.Logger.Infof("attest failed")
+		logging.Logger.Infof("debugging nil pointer error %+v", res.String())
 		logging.Logger.Infof("err=%s", err.Error())
 		//logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		return false, err
