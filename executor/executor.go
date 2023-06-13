@@ -228,11 +228,9 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 	if err != nil {
 		if res == nil {
 			logging.Logger.Infof("attest failed for challengeId: %d, res is nil", challengeId)
+		} else {
+			logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		}
-		logging.Logger.Infof("attest failed")
-		logging.Logger.Infof("debugging nil pointer error %+v", res.String())
-		logging.Logger.Infof("err=%s", err.Error())
-		//logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		return false, err
 	}
 	if res.Code != 0 {
