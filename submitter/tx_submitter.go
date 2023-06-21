@@ -33,6 +33,7 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDa
 	if !ok {
 		logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount: ", cfg.GreenfieldConfig.FeeAmount)
 	}
+	// else set default value
 	feeCoins := sdk.NewCoins(sdk.NewCoin(cfg.GreenfieldConfig.FeeDenom, feeAmount))
 
 	return &TxSubmitter{

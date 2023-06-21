@@ -105,8 +105,6 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
 			continue
 		}
-		// TODO: remove this, only for testing since sp side can't handle the load
-		//time.Sleep(10 * time.Second)
 	}
 	return nil
 }

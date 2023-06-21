@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cosmossdk.io/math"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,8 +26,58 @@ type GreenfieldConfig struct {
 	GasLimit              uint64   `json:"gas_limit"`
 	FeeAmount             string   `json:"fee_amount"`
 	FeeDenom              string   `json:"fee_denom"`
-	NoSimulate            bool     `json:"no_simulate"`
 	DeduplicationInterval uint64   `json:"deduplication_interval"`
+}
+
+func (cfg *GreenfieldConfig) Validate() {
+	if cfg.KeyType == "" {
+		panic("key_type should not be empty")
+	} else if cfg.KeyType == "aws_private_key" {
+		if cfg.AWSRegion == "" {
+			panic("aws_region should not be empty")
+		}
+		if cfg.AWSSecretName == "" {
+			panic("aws_secret_name should not be empty")
+		}
+		if cfg.AWSBlsSecretName == "" {
+			panic("aws_bls_secret_name should not be empty")
+		}
+	} else if cfg.KeyType == "local_private_key" {
+		if cfg.PrivateKey == "" {
+			panic("private_key should not be empty")
+		}
+		if cfg.BlsPrivateKey == "" {
+			panic("bls_private_key should not be empty")
+		}
+	} else {
+		panic(fmt.Sprintf("key_type %s is not supported", cfg.KeyType))
+	}
+
+	if cfg.RPCAddrs == nil || len(cfg.RPCAddrs) == 0 {
+		panic("rpc_addrs should not be empty")
+	}
+	if cfg.ChainIdString == "" {
+		panic("chain_id_string should not be empty")
+	}
+	if cfg.GasLimit == 0 {
+		panic("gas_limit should not be 0")
+	}
+	if cfg.FeeAmount == "" {
+		panic("fee_amount should not be empty")
+	}
+	if cfg.FeeDenom == "" {
+		panic("fee_denom should not be empty")
+	}
+	if cfg.DeduplicationInterval == 0 {
+		panic("deduplication_interval should not be 0")
+	}
+	feeAmount, ok := math.NewIntFromString(cfg.FeeAmount)
+	if !ok {
+		panic("error converting fee_amount to math.Int")
+	}
+	if feeAmount.IsNegative() {
+		panic("fee_amount should not be negative")
+	}
 }
 
 type LogConfig struct {
@@ -79,6 +130,7 @@ func (cfg *DBConfig) Validate() {
 func (cfg *Config) Validate() {
 	cfg.LogConfig.Validate()
 	cfg.DBConfig.Validate()
+	cfg.GreenfieldConfig.Validate()
 }
 
 func ParseConfigFromJson(content string) *Config {
@@ -86,6 +138,9 @@ func ParseConfigFromJson(content string) *Config {
 	if err := json.Unmarshal([]byte(content), &config); err != nil {
 		panic(err)
 	}
+
+	config.Validate()
+
 	return &config
 }
 
