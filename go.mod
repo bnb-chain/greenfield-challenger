@@ -8,10 +8,11 @@ require (
 	github.com/aws/aws-sdk-go v1.40.45
 	github.com/bnb-chain/greenfield v0.2.2
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230512062756-5d7790d0ccbf
-	github.com/bnb-chain/greenfield-go-sdk v0.0.10-0.20230608074632-4f68753ae798
+	github.com/bnb-chain/greenfield-go-sdk v0.2.2-alpha.1
 	github.com/cometbft/cometbft v0.37.1
 	github.com/cosmos/cosmos-sdk v0.47.0-rc2.0.20230220103612-f094a0c33410
 	github.com/ethereum/go-ethereum v1.10.26
+	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/panjf2000/ants/v2 v2.7.3
@@ -89,7 +90,6 @@ require (
 	github.com/gtank/merlin v0.1.1 // indirect
 	github.com/gtank/ristretto255 v0.1.2 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
-	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
 	github.com/herumi/bls-eth-go-binary v0.0.0-20210917013441-d37c07cfda4e // indirect
