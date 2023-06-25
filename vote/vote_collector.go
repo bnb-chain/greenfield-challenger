@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	tmtypes "github.com/cometbft/cometbft/types"
@@ -15,22 +14,18 @@ import (
 )
 
 type VoteCollector struct {
-	daoManager *dao.DaoManager
-	config     *config.Config
-	executor   *executor.Executor
-	mtx        sync.RWMutex
-	DataProvider
+	config       *config.Config
+	executor     *executor.Executor
+	mtx          sync.RWMutex
+	dataProvider DataProvider
 }
 
-func NewVoteCollector(cfg *config.Config, dao *dao.DaoManager,
-	executor *executor.Executor, kind DataProvider,
-) *VoteCollector {
+func NewVoteCollector(cfg *config.Config, executor *executor.Executor, collectorDataProvider DataProvider) *VoteCollector {
 	return &VoteCollector{
 		config:       cfg,
-		daoManager:   dao,
 		executor:     executor,
 		mtx:          sync.RWMutex{},
-		DataProvider: kind,
+		dataProvider: collectorDataProvider,
 	}
 }
 
@@ -65,7 +60,7 @@ func (p *VoteCollector) collectVotes() error {
 	}
 
 	for _, v := range queriedVotes {
-		exists, err := p.DataProvider.IsVoteExists(hex.EncodeToString(v.EventHash), hex.EncodeToString(v.PubKey))
+		exists, err := p.dataProvider.IsVoteExists(hex.EncodeToString(v.EventHash), hex.EncodeToString(v.PubKey))
 		if err != nil {
 			logging.Logger.Errorf("vote collector ran into an error while checking if vote exists, err=%+v", err.Error())
 			continue
@@ -84,7 +79,7 @@ func (p *VoteCollector) collectVotes() error {
 			continue
 		}
 
-		err = p.daoManager.SaveVote(EntityToDto(v, uint64(0)))
+		err = p.dataProvider.SaveVote(EntityToDto(v, uint64(0)))
 		if err != nil {
 			return err
 		}

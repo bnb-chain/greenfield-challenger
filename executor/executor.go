@@ -13,12 +13,10 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
-	tm "github.com/bnb-chain/greenfield/sdk/client"
-	types2 "github.com/bnb-chain/greenfield/sdk/types"
-	challangetypes "github.com/bnb-chain/greenfield/x/challenge/types"
+	sdktypes "github.com/bnb-chain/greenfield/sdk/types"
+	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
-	tmjsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/votepool"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -77,20 +75,6 @@ func NewExecutor(cfg *config.Config) *Executor {
 		BlsPrivKey: blsPrivKeyBytes,
 		BlsPubKey:  blsPubKey,
 	}
-}
-
-func NewTendermintRPCClient(provider string) *tm.TendermintClient {
-	rpcClient := tm.NewTendermintClient(provider)
-	return &rpcClient
-}
-
-func NewTendermintJsonRPCClient(provider string) (*tmjsonrpcclient.Client, error) {
-	rpcClient, err := tmjsonrpcclient.New(provider)
-	if err != nil {
-		logging.Logger.Errorf("executor failed to initiate with tendermint json rpc client, err=%s", err.Error())
-		return nil, err
-	}
-	return rpcClient, nil
 }
 
 func getGreenfieldPrivateKey(cfg *config.GreenfieldConfig) string {
@@ -227,9 +211,9 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 	return keys, nil
 }
 
-func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryInturnAttestationSubmitterResponse, error) {
+func (e *Executor) QueryInturnAttestationSubmitter() (*challengetypes.QueryInturnAttestationSubmitterResponse, error) {
 	client := e.clients.GetClient().Client
-	res, err := client.InturnAttestationSubmitter(context.Background(), &challangetypes.QueryInturnAttestationSubmitterRequest{})
+	res, err := client.InturnAttestationSubmitter(context.Background(), &challengetypes.QueryInturnAttestationSubmitterRequest{})
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get inturn attestation submitter, err=%+v", err.Error())
 		return nil, err
@@ -237,12 +221,16 @@ func (e *Executor) QueryInturnAttestationSubmitter() (*challangetypes.QueryIntur
 	return res, nil
 }
 
-func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challangetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption types2.TxOption) (bool, error) {
+func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challengetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption sdktypes.TxOption) (bool, error) {
 	client := e.clients.GetClient().Client
 	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
-		logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
+		if res == nil {
+			logging.Logger.Infof("attest failed for challengeId: %d, res is nil", challengeId)
+		} else {
+			logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
+		}
 		return false, err
 	}
 	if res.Code != 0 {
@@ -256,18 +244,23 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
 	client := e.clients.GetClient().Client
 
-	res, err := client.LatestAttestedChallenges(context.Background(), &challangetypes.QueryLatestAttestedChallengesRequest{})
+	res, err := client.LatestAttestedChallenges(context.Background(), &challengetypes.QueryLatestAttestedChallengesRequest{})
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get latest attested challenge, err=%+v", err.Error())
 		return nil, err
 	}
 
-	return res, nil
+	var challengeIds []uint64
+	for _, v := range res.GetChallenges() {
+		challengeIds = append(challengeIds, v.GetId())
+	}
+
+	return challengeIds, nil
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
 	client := e.clients.GetClient().Client
-	q := challangetypes.QueryParamsRequest{}
+	q := challengetypes.QueryParamsRequest{}
 	res, err := client.ChallengeParams(context.Background(), &q)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get latest heartbeat interval, err=%+v", err.Error())
