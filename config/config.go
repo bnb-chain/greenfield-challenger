@@ -75,7 +75,7 @@ func (cfg *GreenfieldConfig) Validate() {
 	if !ok {
 		panic("error converting fee_amount to math.Int")
 	}
-	if feeAmount.IsNegative() {
+	if !feeAmount.IsPositive() {
 		panic("fee_amount should not be negative")
 	}
 }

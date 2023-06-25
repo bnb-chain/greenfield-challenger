@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/types/tx"
+	lru "github.com/hashicorp/golang-lru"
 	"time"
 
 	"github.com/willf/bitset"
@@ -23,7 +24,7 @@ import (
 type TxSubmitter struct {
 	config          *config.Config
 	executor        *executor.Executor
-	cachedEventHash map[uint64][]byte
+	cachedEventHash *lru.Cache
 	feeAmount       sdk.Coins
 	DataProvider
 }
@@ -36,20 +37,22 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDa
 	// else set default value
 	feeCoins := sdk.NewCoins(sdk.NewCoin(cfg.GreenfieldConfig.FeeDenom, feeAmount))
 
+	cacheSize := 1000
+	lruCache, _ := lru.New(cacheSize)
+
 	return &TxSubmitter{
 		config:          cfg,
 		executor:        executor,
 		feeAmount:       feeCoins,
-		cachedEventHash: make(map[uint64][]byte, 0),
+		cachedEventHash: lruCache,
 		DataProvider:    submitterDataProvider,
 	}
 }
 
 // SubmitTransactionLoop polls for submitter inturn and fetches events for submit.
 func (s *TxSubmitter) SubmitTransactionLoop() {
-	submitLoopCount := 0
-
-	for {
+	ticker := time.NewTicker(TxSubmitLoopInterval)
+	for range ticker.C {
 		// Loop until submitter is inturn to submit
 		attestPeriodEnd := s.queryAttestPeriodLoop()
 		// Fetch events for submit
@@ -65,6 +68,10 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		}
 		// Submit events
 		for _, event := range events {
+			// Submitter no longer in-turn
+			if time.Now().Unix() > int64(attestPeriodEnd) {
+				break
+			}
 			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
 				logging.Logger.Errorf("tx submitter err", err)
@@ -72,14 +79,6 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			}
 			time.Sleep(TxSubmitInterval)
 		}
-		// Clear cached event hash
-		submitLoopCount++
-		if submitLoopCount == common.CacheClearIterations {
-			submitLoopCount = 0
-			s.cachedEventHash = make(map[uint64][]byte, 0)
-		}
-
-		time.Sleep(TxSubmitLoopInterval)
 	}
 }
 
@@ -118,12 +117,13 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 
 // getEventHash gets the event hash from the cache or calculates it if not present.
 func (s *TxSubmitter) getEventHash(event *model.Event) []byte {
-	eventHash := s.cachedEventHash[event.ChallengeId]
-	if eventHash == nil {
-		eventHash = vote.CalculateEventHash(event)
-		s.cachedEventHash[event.ChallengeId] = eventHash
+	eventHash, found := s.cachedEventHash.Get(event.ChallengeId)
+	if found {
+		return eventHash.([]byte)
 	}
-	return eventHash
+	calculatedEventHash := vote.CalculateEventHash(event)
+	s.cachedEventHash.Add(event.ChallengeId, calculatedEventHash)
+	return calculatedEventHash
 }
 
 func (s *TxSubmitter) getSignatureAndBitSet(event *model.Event) ([]byte, *bitset.BitSet, error) {
