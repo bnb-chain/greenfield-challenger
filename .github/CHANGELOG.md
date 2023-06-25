@@ -1,4 +1,9 @@
 # Changelog
+
+## v0.0.2
+This is a maintenance release that updates the service to adapt to it's updated dependencies and code refactoring.    
+* [#47](https://github.com/bnb-chain/greenfield-challenger/pull/47) feat: adapt to new go-sdk and greenfield version
+
 ## v0.0.2-alpha.1
 This is a pre-release. The go-sdk module and it's relevant dependencies are updated to use their pre-release alpha versions.
 * [#44](https://github.com/bnb-chain/greenfield-challenger/pull/44) chore: upgrade dependencies    
