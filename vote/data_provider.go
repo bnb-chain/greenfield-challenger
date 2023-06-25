@@ -10,8 +10,10 @@ import (
 type DataProvider interface {
 	FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, error)
 	FetchEventsForCollate(currentHeight uint64) ([]*model.Event, error)
+	FetchVotesForCollate(eventHash string) ([]*model.Vote, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
 	SaveVote(vote *model.Vote) error
+	SaveVoteAndUpdateEventStatus(vote *model.Vote, challengeId uint64) error
 	IsVoteExists(eventHash string, pubKey string) (bool, error)
 }
 
@@ -55,12 +57,20 @@ func (h *DataHandler) FetchEventsForCollate(currentHeight uint64) ([]*model.Even
 	return h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.SelfVoted)
 }
 
+func (h *DataHandler) FetchVotesForCollate(eventHash string) ([]*model.Vote, error) {
+	return h.daoManager.GetVotesByEventHash(eventHash)
+}
+
 func (h *DataHandler) UpdateEventStatus(challengeId uint64, status model.EventStatus) error {
 	return h.daoManager.UpdateEventStatusByChallengeId(challengeId, status)
 }
 
 func (h *DataHandler) SaveVote(vote *model.Vote) error {
 	return h.daoManager.SaveVote(vote)
+}
+
+func (h *DataHandler) SaveVoteAndUpdateEventStatus(vote *model.Vote, challengeId uint64) error {
+	return h.daoManager.SaveVoteAndUpdateEventStatus(vote, challengeId)
 }
 
 func (h *DataHandler) IsVoteExists(eventHash string, pubKey string) (bool, error) {

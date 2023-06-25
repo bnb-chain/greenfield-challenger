@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/bnb-chain/greenfield-challenger/attest"
+
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -27,7 +29,7 @@ type App struct {
 	voteBroadcaster *vote.VoteBroadcaster
 	voteCollator    *vote.VoteCollator
 	txSubmitter     *submitter.TxSubmitter
-	attestMonitor   *submitter.AttestMonitor
+	attestMonitor   *attest.AttestMonitor
 	dbWiper         *wiper.DBWiper
 }
 
@@ -71,19 +73,23 @@ func NewApp(cfg *config.Config) *App {
 
 	executor := executor.NewExecutor(cfg)
 
-	monitor := monitor.NewMonitor(executor, daoManager)
+	monitorDataHandler := monitor.NewDataHandler(daoManager)
+	monitor := monitor.NewMonitor(executor, monitorDataHandler)
 
-	hashVerifier := verifier.NewHashVerifier(cfg, daoManager, executor, cfg.GreenfieldConfig.DeduplicationInterval)
+	verifierDataHandler := verifier.NewDataHandler(daoManager)
+	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler)
 
 	signer := vote.NewVoteSigner(executor.BlsPrivKey)
 	voteDataHandler := vote.NewDataHandler(daoManager, executor)
-	voteCollector := vote.NewVoteCollector(cfg, daoManager, executor, voteDataHandler)
-	voteBroadcaster := vote.NewVoteBroadcaster(cfg, daoManager, signer, executor, voteDataHandler)
-	voteCollator := vote.NewVoteCollator(cfg, daoManager, signer, executor, voteDataHandler)
+	voteCollector := vote.NewVoteCollector(cfg, executor, voteDataHandler)
+	voteBroadcaster := vote.NewVoteBroadcaster(cfg, signer, executor, voteDataHandler)
+	voteCollator := vote.NewVoteCollator(cfg, signer, executor, voteDataHandler)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
-	txSubmitter := submitter.NewTxSubmitter(cfg, executor, daoManager, txDataHandler)
-	attestMonitor := submitter.NewAttestMonitor(executor, daoManager)
+	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
+
+	attestDataHandler := attest.NewDataHandler(daoManager)
+	attestMonitor := attest.NewAttestMonitor(executor, attestDataHandler)
 
 	dbWiper := wiper.NewDBWiper(daoManager)
 

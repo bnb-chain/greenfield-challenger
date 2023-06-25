@@ -42,7 +42,6 @@ const (
 	Submitted
 	SelfAttested
 	Attested // Event has been submitted for tx
-	Expired  // Event has been expired
 	Duplicated
 )
 
@@ -52,4 +51,5 @@ const (
 	Unknown        VerifyResult = iota // Event not been verified
 	HashMatched                        // The challenge failed, hashes are matched
 	HashMismatched                     // The challenge succeed, hashed are not matched
+	BucketDeleted
 )

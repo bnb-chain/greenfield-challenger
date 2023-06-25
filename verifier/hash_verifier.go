@@ -12,7 +12,6 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
-	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -22,23 +21,23 @@ import (
 )
 
 type Verifier struct {
-	daoManager            *dao.DaoManager
 	config                *config.Config
 	executor              *executor.Executor
 	deduplicationInterval uint64
 	cachedChallengeIds    map[uint64]bool
 	mtx                   sync.RWMutex
+	dataProvider          DataProvider
 }
 
-func NewHashVerifier(cfg *config.Config, dao *dao.DaoManager, executor *executor.Executor,
-	deduplicationInterval uint64,
+func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
+	deduplicationInterval uint64, dataProvider DataProvider,
 ) *Verifier {
 	return &Verifier{
 		config:                cfg,
-		daoManager:            dao,
 		executor:              executor,
 		deduplicationInterval: deduplicationInterval,
 		mtx:                   sync.RWMutex{},
+		dataProvider:          dataProvider,
 	}
 }
 
@@ -66,7 +65,7 @@ func (v *Verifier) VerifyHashLoop() {
 func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
-	events, err := v.daoManager.EventDao.GetUnexpiredEventsByStatus(currentHeight, model.Unprocessed)
+	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
@@ -96,10 +95,6 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 		}
 		if firstErr != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
-				err = v.daoManager.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Expired, model.Unknown)
-				if err != nil {
-					return err
-				}
 				v.mtx.Lock()
 				delete(v.cachedChallengeIds, event.ChallengeId)
 				v.mtx.Unlock()
@@ -133,10 +128,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if err != nil {
 		if strings.Contains(err.Error(), "No such object") {
 			logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
-			err := v.daoManager.EventDao.UpdateEventStatusByChallengeId(event.ChallengeId, model.Expired)
-			if err != nil {
-				return err
-			}
 		}
 		return err
 	}
@@ -150,7 +141,12 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 			int(event.SegmentIndex), int(event.RedundancyIndex))
 		if err != nil {
 			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
-			err := v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(event.ChallengeId, model.Verified, model.HashMismatched)
+			// TODO: Create error code list for SP side
+			if strings.Contains(err.Error(), "35201") {
+				err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.BucketDeleted)
+				return err
+			}
+			err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 			return err
 		}
 		return err
@@ -160,6 +156,8 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
 		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
+	// TODO: remove
+	logging.Logger.Infof("challengeres: %s", challengeRes.IntegrityHash)
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	piecesHash := challengeRes.PiecesHash
@@ -208,14 +206,14 @@ func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
 	}
 	// TODO: Comment this if debugging
 	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
-		found, err := v.daoManager.EventDao.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
+		found, err := v.dataProvider.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
 			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
 		if err != nil {
 			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%+v", event.ChallengeId, err.Error())
 			return err
 		}
 		if found {
-			return v.daoManager.UpdateEventStatusByChallengeId(event.ChallengeId, model.Duplicated)
+			return v.dataProvider.UpdateEventStatus(event.ChallengeId, model.Duplicated)
 		}
 	}
 
@@ -234,8 +232,8 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
-		// return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
-		return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMatched)
+		// return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
 	}
-	return v.daoManager.EventDao.UpdateEventStatusVerifyResultByChallengeId(challengeId, model.Verified, model.HashMismatched)
+	return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 }
