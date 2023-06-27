@@ -51,5 +51,4 @@ const (
 	Unknown        VerifyResult = iota // Event not been verified
 	HashMatched                        // The challenge failed, hashes are matched
 	HashMismatched                     // The challenge succeed, hashed are not matched
-	BucketDeleted
 )
