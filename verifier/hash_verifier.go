@@ -142,10 +142,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		if err != nil {
 			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
 			// TODO: Create error code list for SP side
-			if strings.Contains(err.Error(), "35201") {
-				err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.BucketDeleted, model.Unknown)
-				return err
-			}
 			err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 			return err
 		}

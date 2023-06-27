@@ -43,7 +43,6 @@ const (
 	SelfAttested
 	Attested // Event has been submitted for tx
 	Duplicated
-	BucketDeleted
 )
 
 type VerifyResult int
