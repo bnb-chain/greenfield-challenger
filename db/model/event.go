@@ -43,6 +43,7 @@ const (
 	SelfAttested
 	Attested // Event has been submitted for tx
 	Duplicated
+	BucketDeleted
 )
 
 type VerifyResult int
@@ -51,5 +52,4 @@ const (
 	Unknown        VerifyResult = iota // Event not been verified
 	HashMatched                        // The challenge failed, hashes are matched
 	HashMismatched                     // The challenge succeed, hashed are not matched
-	BucketDeleted
 )
