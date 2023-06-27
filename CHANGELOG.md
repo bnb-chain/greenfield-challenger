@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.2-hotfix  
+This is a hotfix release that resolves a bug that was caused by an invalid verification status.
+* [#51](https://github.com/bnb-chain/greenfield-challenger/pull/51) fix: remove bucketdeleted status from verifystatus and place in eventstatus instead  
+
 ## v0.0.2
 This is a maintenance release that updates the service to adapt to it's updated dependencies and code refactoring.
 * [#47](https://github.com/bnb-chain/greenfield-challenger/pull/47) feat: adapt to new go-sdk and greenfield version
