@@ -152,8 +152,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
 		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
-	// TODO: remove
-	logging.Logger.Infof("challengeres: %s", challengeRes.IntegrityHash)
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	piecesHash := challengeRes.PiecesHash
