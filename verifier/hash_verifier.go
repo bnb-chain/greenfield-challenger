@@ -142,8 +142,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		if err != nil {
 			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
 			// TODO: Create error code list for SP side
-			err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
-			return err
+			return v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		}
 		return err
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
@@ -152,7 +151,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
 		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
-
+	println("challengeRes: ", challengeRes)
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	piecesHash := challengeRes.PiecesHash
 	if err != nil {
