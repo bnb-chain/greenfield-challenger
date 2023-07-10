@@ -228,8 +228,8 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
-		// return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
-		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+		//return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
 	}
 	return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 }
