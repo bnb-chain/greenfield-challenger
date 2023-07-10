@@ -43,7 +43,8 @@ func NewApp(cfg *config.Config) *App {
 	dbPath := fmt.Sprintf("%s:%s@%s", username, password, cfg.DBConfig.DBPath)
 
 	db, err := gorm.Open(mysql.Open(dbPath), &gorm.Config{})
-	// db = db.Debug() only for debug purpose
+	//only for debug purpose
+	db = db.Debug()
 	if err != nil {
 		panic(fmt.Sprintf("open db error, err=%+v", err.Error()))
 	}

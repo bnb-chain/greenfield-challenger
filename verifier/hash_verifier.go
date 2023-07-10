@@ -149,23 +149,22 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
+	var challengeResErr error
 	err = retry.Do(func() error {
 		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
-		challengeResErr := err
+		challengeResErr = err
 		if err != nil {
 			// TODO: Create error code list for SP side
 			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
-			err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
-			if err != nil {
-				logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
-			}
 		}
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
-	if err != nil {
-		// after testing, we can make sure it is not client errors, treat it as sp side error
-		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
-		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
+	if challengeResErr != nil {
+		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
+		if err != nil {
+			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
+		}
+		return err
 	}
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
