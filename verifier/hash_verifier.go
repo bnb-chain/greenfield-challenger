@@ -45,7 +45,7 @@ func (v *Verifier) VerifyHashLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	v.cachedChallengeIds = make(map[uint64]bool, common.CacheSize)
 
-	pool, err := ants.NewPool(20)
+	pool, err := ants.NewPool(30)
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to create ant pool, err=%+v", err.Error())
 		return
@@ -66,6 +66,14 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
+
+	// TODO: Remove after debugging
+	fetchedEvents := []uint64{}
+	for _, v := range events {
+		fetchedEvents = append(fetchedEvents, v.ChallengeId)
+	}
+	logging.Logger.Infof("verifier fetched these events for verification: %+v", fetchedEvents)
+
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
