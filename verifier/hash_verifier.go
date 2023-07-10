@@ -100,6 +100,10 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 			logging.Logger.Infof("challengeId: %d submitted to pool", event.ChallengeId)
 			firstErr = v.verifyForSingleEvent(event)
 		})
+		if err != nil {
+			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
+			continue
+		}
 		if !isCached {
 			v.mtx.Lock()
 			v.cachedChallengeIds[event.ChallengeId] = true
@@ -113,10 +117,6 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 				continue
 			}
 			logging.Logger.Errorf("verifier failed to verify challengeId: %d, err=%+v", event.ChallengeId, firstErr.Error())
-		}
-		if err != nil {
-			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
-			continue
 		}
 	}
 	return nil
