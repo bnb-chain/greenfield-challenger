@@ -96,7 +96,7 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 		logging.Logger.Infof("challengeId: %d is not cached", event.ChallengeId)
 
 		err = v.verifyForSingleEvent(event)
-		
+
 		if err != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
 				v.mtx.Lock()
