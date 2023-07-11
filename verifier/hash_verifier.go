@@ -95,28 +95,22 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 
 		logging.Logger.Infof("challengeId: %d is not cached", event.ChallengeId)
 
-		var firstErr error
-		err = pool.Submit(func() {
-			logging.Logger.Infof("challengeId: %d submitted to pool", event.ChallengeId)
-			firstErr = v.verifyForSingleEvent(event)
-		})
+		err = v.verifyForSingleEvent(event)
+		
 		if err != nil {
-			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
-			continue
-		}
-		if !isCached {
-			v.mtx.Lock()
-			v.cachedChallengeIds[event.ChallengeId] = true
-			v.mtx.Unlock()
-		}
-		if firstErr != nil {
-			if firstErr.Error() == common.ErrEventExpired.Error() {
+			if err.Error() == common.ErrEventExpired.Error() {
 				v.mtx.Lock()
 				delete(v.cachedChallengeIds, event.ChallengeId)
 				v.mtx.Unlock()
 				continue
 			}
-			logging.Logger.Errorf("verifier failed to verify challengeId: %d, err=%+v", event.ChallengeId, firstErr.Error())
+			logging.Logger.Errorf("verifier failed to verify challengeId: %d, err=%+v", event.ChallengeId, err.Error())
+		}
+
+		if !isCached {
+			v.mtx.Lock()
+			v.cachedChallengeIds[event.ChallengeId] = true
+			v.mtx.Unlock()
 		}
 	}
 	return nil
