@@ -45,7 +45,7 @@ func (v *Verifier) VerifyHashLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	v.cachedChallengeIds = make(map[uint64]bool, common.CacheSize)
 
-	pool, err := ants.NewPool(20)
+	pool, err := ants.NewPool(30)
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to create ant pool, err=%+v", err.Error())
 		return
@@ -66,6 +66,14 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
+
+	// TODO: Remove after debugging
+	fetchedEvents := []uint64{}
+	for _, v := range events {
+		fetchedEvents = append(fetchedEvents, v.ChallengeId)
+	}
+	logging.Logger.Infof("verifier fetched these events for verification: %+v", fetchedEvents)
+
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
@@ -81,29 +89,28 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 		v.mtx.Unlock()
 
 		if isCached {
+			logging.Logger.Infof("challengeId: %d is cached", event.ChallengeId)
 			continue
 		}
 
-		var firstErr error
-		err = pool.Submit(func() {
-			firstErr = v.verifyForSingleEvent(event)
-		})
-		if !isCached {
-			v.mtx.Lock()
-			v.cachedChallengeIds[event.ChallengeId] = true
-			v.mtx.Unlock()
-		}
-		if firstErr != nil {
+		logging.Logger.Infof("challengeId: %d is not cached", event.ChallengeId)
+
+		err = v.verifyForSingleEvent(event)
+
+		if err != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
 				v.mtx.Lock()
 				delete(v.cachedChallengeIds, event.ChallengeId)
 				v.mtx.Unlock()
 				continue
 			}
+			logging.Logger.Errorf("verifier failed to verify challengeId: %d, err=%+v", event.ChallengeId, err.Error())
 		}
-		if err != nil {
-			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
-			continue
+
+		if !isCached {
+			v.mtx.Lock()
+			v.cachedChallengeIds[event.ChallengeId] = true
+			v.mtx.Unlock()
 		}
 	}
 	return nil
@@ -136,24 +143,23 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
+	var challengeResErr error
 	err = retry.Do(func() error {
-		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint,
-			int(event.SegmentIndex), int(event.RedundancyIndex))
+		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
+		challengeResErr = err
 		if err != nil {
-			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
 			// TODO: Create error code list for SP side
-			err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
-			return err
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
+		}
+		return challengeResErr
+	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
+	if challengeResErr != nil {
+		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
+		if err != nil {
+			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		return err
-	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
-	if err != nil {
-		// after testing, we can make sure it is not client errors, treat it as sp side error
-		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
-		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
-	// TODO: remove
-	logging.Logger.Infof("challengeres: %s", challengeRes.IntegrityHash)
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	piecesHash := challengeRes.PiecesHash
@@ -228,7 +234,7 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
-		// return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+		//return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
 	}
 	return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)

@@ -91,7 +91,7 @@ func (s *TxSubmitter) queryAttestPeriodLoop() uint64 {
 		}
 		// Submitter is inturn if bls key matches
 		if res.BlsPubKey == hex.EncodeToString(s.executor.BlsPubKey) {
-			logging.Logger.Infof("tx submitter is currently inturn for submitting until", time.Unix(int64(res.SubmitInterval.GetEnd()), 0).Format(TimeFormat))
+			logging.Logger.Infof("tx submitter is currently inturn for submitting until %s", time.Unix(int64(res.SubmitInterval.GetEnd()), 0).Format(TimeFormat))
 			return res.SubmitInterval.GetEnd()
 		}
 
