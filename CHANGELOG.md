@@ -3,6 +3,7 @@
 ## v0.0.2-hf.1
 This is a hotfix release to resolve an issue in v0.0.2.  
 * [#54](https://github.com/bnb-chain/greenfield-challenger/pull/54) fix: remove bucketdeleted status  
+* [#56](https://github.com/bnb-chain/greenfield-challenger/pull/56) fix: fix issue with hash verifier skipping challenges
 
 ## v0.0.2
 This is a maintenance release that updates the service to adapt to it's updated dependencies and code refactoring.
