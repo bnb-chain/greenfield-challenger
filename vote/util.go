@@ -57,7 +57,7 @@ func AggregateSignatureAndValidatorBitSet(votes []*model.Vote, validators []*tmt
 	return bls.AggregateSignatures(sigs).Marshal(), valBitSet, nil
 }
 
-func CalculateEventHash(event *model.Event) []byte {
+func CalculateEventHash(event *model.Event, chainId string) []byte {
 	challengeIdBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(challengeIdBz, event.ChallengeId)
 	objectIdBz := sdkmath.NewUintFromString(event.ObjectId).Bytes()
@@ -75,8 +75,10 @@ func CalculateEventHash(event *model.Event) []byte {
 	if event.ChallengerAddress != "" {
 		challengerBz = sdk.MustAccAddressFromHex(event.ChallengerAddress).Bytes()
 	}
+	chainIdBz := []byte(chainId)
 
 	bs := make([]byte, 0)
+	bs = append(bs, chainIdBz...)
 	bs = append(bs, challengeIdBz...)
 	bs = append(bs, objectIdBz...)
 	bs = append(bs, resultBz...)
