@@ -338,7 +338,7 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 		logging.Logger.Errorf("executor failed to query storage client for objectId %s, err=%+v", objectId, err.Error())
 		return nil, err
 	}
-	return res.GetChecksums(), nil
+	return res.ObjectInfo.GetChecksums(), nil
 }
 
 func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
