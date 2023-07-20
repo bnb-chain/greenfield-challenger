@@ -22,6 +22,7 @@ require (
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.4
 	github.com/willf/bitset v1.1.11
+	golang.org/x/sync v0.2.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gorm.io/driver/mysql v1.4.5
 	gorm.io/gorm v1.24.7-0.20230306060331-85eaf9eeda11
