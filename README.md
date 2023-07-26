@@ -33,6 +33,8 @@ This off-chain application comprises 7 main goroutines: Monitor, Verifier, Vote 
 
 ### Config
 
+See [config.json](https://github.com/bnb-chain/bnb-chain-charts/blob/main/gnfd-challenger-testnet-values/values.yaml#L8). Reference for a complete testnet config file.
+
 1. Set your private key import method (via file or aws secret), deployment environment and gas limit.
 
     ```
@@ -126,12 +128,12 @@ bash ./deployment/localup/localup.sh all 1 7
 You can use the following approach if you do not know how. 
 
 ```shell
-$ ./build/bin/gnfd keys export validator_bls0 --unsafe --unarmored-hex --home=./deployment/localup/.local/validator0 --keyring-backend=test
+$ ./build/bin/gnfd keys export ${BLS_KEY_NAME} --unsafe --unarmored-hex --home=${CLIENT_KEYRING_DIR} --keyring-backend=test
 $ WARNING: The private key will be exported as an unarmored hexadecimal string. USE AT YOUR OWN RISK. Continue? [y/N]: y
 ```
 
 ```shell
-$ ./build/bin/gnfd keys export challenger0 --unsafe --unarmored-hex --home=./deployment/localup/.local/challenger0 --keyring-backend=test
+$ ./build/bin/gnfd keys export ${CHALLENGER_NAME} --unsafe --unarmored-hex --home=${CLIENT_KEYRING_DIR} --keyring-backend=test
 $ WARNING: The private key will be exported as an unarmored hexadecimal string. USE AT YOUR OWN RISK. Continue? [y/N]: y
 ```
 
