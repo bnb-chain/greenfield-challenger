@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.3
+This release includes 1 feature and 2 bugfixes.
+
+Features:
+* [#58](https://github.com/bnb-chain/greenfield-challenger/pull/58) feat: pass in chainid when calculating event hash
+
+Bugfixes:
+* [#56](https://github.com/bnb-chain/greenfield-challenger/pull/56) fix: fix issue with hash verifier skipping challenges
+* [#54](https://github.com/bnb-chain/greenfield-challenger/pull/54) fix: remove bucketdeleted status
+
+Documentation
+* [#57](https://github.com/bnb-chain/greenfield-challenger/pull/57) docs: update README.md
+
 ## v0.0.2
 This is a maintenance release that updates the service to adapt to it's updated dependencies and code refactoring.
 * [#47](https://github.com/bnb-chain/greenfield-challenger/pull/47) feat: adapt to new go-sdk and greenfield version

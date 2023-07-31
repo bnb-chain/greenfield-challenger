@@ -6,11 +6,11 @@ require (
 	cosmossdk.io/math v1.0.1
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.40.45
-	github.com/bnb-chain/greenfield v0.2.3-alpha.5
-	github.com/bnb-chain/greenfield-common/go v0.0.0-20230512062756-5d7790d0ccbf
-	github.com/bnb-chain/greenfield-go-sdk v0.2.3-alpha.4
+	github.com/bnb-chain/greenfield v0.2.3
+	github.com/bnb-chain/greenfield-common/go v0.0.0-20230720022901-7e7158fd397d
+	github.com/bnb-chain/greenfield-go-sdk v0.2.3
 	github.com/cometbft/cometbft v0.37.1
-	github.com/cosmos/cosmos-sdk v0.47.2
+	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
@@ -103,8 +103,9 @@ require (
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.16.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
-	github.com/klauspost/reedsolomon v1.11.7 // indirect
+	github.com/klauspost/reedsolomon v1.11.8 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
+	github.com/linxGnu/grocksdb v1.7.16 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
@@ -137,7 +138,6 @@ require (
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/supranational/blst v0.3.8-0.20220526154634-513d2456b344 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
-	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/thomaso-mirodin/intmath v0.0.0-20160323211736-5dc6d854e46e // indirect
 	github.com/tidwall/btree v1.6.0 // indirect
@@ -171,10 +171,11 @@ replace (
 	cosmossdk.io/api => github.com/bnb-chain/greenfield-cosmos-sdk/api v0.0.0-20230425074444-eb5869b05fe9
 	cosmossdk.io/math => github.com/bnb-chain/greenfield-cosmos-sdk/math v0.0.0-20230425074444-eb5869b05fe9
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.23.0
-	github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v0.0.2-alpha.1
+	github.com/cometbft/cometbft => github.com/bnb-chain/greenfield-cometbft v0.0.2
+	github.com/cometbft/cometbft-db => github.com/bnb-chain/greenfield-cometbft-db v0.8.1-alpha.1
 	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
-	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.2.3-alpha.3
-	github.com/cosmos/iavl => github.com/bnb-chain/greenfield-iavl v0.20.1-alpha.1
+	github.com/cosmos/cosmos-sdk => github.com/bnb-chain/greenfield-cosmos-sdk v0.2.3
+	github.com/cosmos/iavl => github.com/bnb-chain/greenfield-iavl v0.20.1
 	github.com/ferranbt/fastssz => github.com/prysmaticlabs/fastssz v0.0.0-20220110145812-fafb696cae88
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210702154020-550e1cd83ec1
