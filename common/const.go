@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	RtyAttemNum              = uint(5)
+	RtyAttemNum              = uint(2)
 	RtyAttem                 = retry.Attempts(RtyAttemNum)
-	RtyDelay                 = retry.Delay(time.Millisecond * 400)
+	RtyDelay                 = retry.Delay(time.Millisecond * 500)
 	RtyErr                   = retry.LastErrorOnly(true)
 	RetryInterval            = 1 * time.Second
 	CacheClearIterations     = 100

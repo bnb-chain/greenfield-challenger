@@ -118,7 +118,7 @@ func (p *VoteBroadcaster) preCheck(event *model.Event) error {
 func (p *VoteBroadcaster) constructVoteAndSign(event *model.Event) (*votepool.Vote, error) {
 	var v votepool.Vote
 	v.EventType = votepool.DataAvailabilityChallengeEvent
-	eventHash := CalculateEventHash(event)
+	eventHash := CalculateEventHash(event, p.config.GreenfieldConfig.ChainIdString)
 	p.signer.SignVote(&v, eventHash[:])
 	err := p.dataProvider.SaveVoteAndUpdateEventStatus(EntityToDto(&v, event.ChallengeId), event.ChallengeId)
 	if err != nil {

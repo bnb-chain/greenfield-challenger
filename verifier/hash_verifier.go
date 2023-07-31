@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"golang.org/x/sync/semaphore"
 	"io"
 	"strings"
 	"sync"
@@ -27,17 +28,20 @@ type Verifier struct {
 	cachedChallengeIds    map[uint64]bool
 	mtx                   sync.RWMutex
 	dataProvider          DataProvider
+	limiterSemaphore      *semaphore.Weighted
 }
 
 func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
 	deduplicationInterval uint64, dataProvider DataProvider,
 ) *Verifier {
+	limiterSemaphore := semaphore.NewWeighted(20)
 	return &Verifier{
 		config:                cfg,
 		executor:              executor,
 		deduplicationInterval: deduplicationInterval,
 		mtx:                   sync.RWMutex{},
 		dataProvider:          dataProvider,
+		limiterSemaphore:      limiterSemaphore,
 	}
 }
 
@@ -45,7 +49,7 @@ func (v *Verifier) VerifyHashLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	v.cachedChallengeIds = make(map[uint64]bool, common.CacheSize)
 
-	pool, err := ants.NewPool(20)
+	pool, err := ants.NewPool(30)
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to create ant pool, err=%+v", err.Error())
 		return
@@ -66,6 +70,14 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
+
+	// TODO: Remove after debugging
+	fetchedEvents := []uint64{}
+	for _, v := range events {
+		fetchedEvents = append(fetchedEvents, v.ChallengeId)
+	}
+	logging.Logger.Infof("verifier fetched these events for verification: %+v", fetchedEvents)
+
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
@@ -81,29 +93,36 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 		v.mtx.Unlock()
 
 		if isCached {
+			logging.Logger.Infof("challengeId: %d is cached", event.ChallengeId)
 			continue
 		}
 
-		var firstErr error
-		err = pool.Submit(func() {
-			firstErr = v.verifyForSingleEvent(event)
-		})
-		if !isCached {
-			v.mtx.Lock()
-			v.cachedChallengeIds[event.ChallengeId] = true
-			v.mtx.Unlock()
+		logging.Logger.Infof("challengeId: %d is not cached", event.ChallengeId)
+
+		if err = v.limiterSemaphore.Acquire(context.Background(), 1); err != nil {
+			logging.Logger.Errorf("failed to acquire semaphore: %v", err)
+			continue
 		}
-		if firstErr != nil {
+		go func(event *model.Event) {
+			defer v.limiterSemaphore.Release(1)
+			// Call verifyForSingleEvent inside the goroutine
+			err = v.verifyForSingleEvent(event)
+		}(event)
+
+		if err != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
 				v.mtx.Lock()
 				delete(v.cachedChallengeIds, event.ChallengeId)
 				v.mtx.Unlock()
 				continue
 			}
+			logging.Logger.Errorf("verifier failed to verify challengeId: %d, err=%+v", event.ChallengeId, err.Error())
 		}
-		if err != nil {
-			logging.Logger.Errorf("verifier failed to submit to pool for challenge %d, err=%+v", event.ChallengeId, err.Error())
-			continue
+
+		if !isCached {
+			v.mtx.Lock()
+			v.cachedChallengeIds[event.ChallengeId] = true
+			v.mtx.Unlock()
 		}
 	}
 	return nil
@@ -136,28 +155,22 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
-	err = retry.Do(func() error {
-		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint,
-			int(event.SegmentIndex), int(event.RedundancyIndex))
-		if err != nil {
-			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
+	var challengeResErr error
+	_ = retry.Do(func() error {
+		challengeRes, challengeResErr = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
+		if challengeResErr != nil {
 			// TODO: Create error code list for SP side
-			if strings.Contains(err.Error(), "35201") {
-				err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.BucketDeleted)
-				return err
-			}
-			err := v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
-			return err
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, challengeResErr.Error())
+		}
+		return challengeResErr
+	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
+	if challengeResErr != nil {
+		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
+		if err != nil {
+			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		return err
-	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
-	if err != nil {
-		// after testing, we can make sure it is not client errors, treat it as sp side error
-		logging.Logger.Errorf("failed to call storage api for challenge %d, err=%+v", event.ChallengeId, err.Error())
-		return v.compareHashAndUpdate(event.ChallengeId, chainRootHash, []byte{})
 	}
-	// TODO: remove
-	logging.Logger.Infof("challengeres: %s", challengeRes.IntegrityHash)
 
 	pieceData, err := io.ReadAll(challengeRes.PieceData)
 	piecesHash := challengeRes.PiecesHash
@@ -232,7 +245,7 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
-		// return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+		//return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
 	}
 	return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)

@@ -109,7 +109,7 @@ func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, va
 	if err != nil {
 		return err
 	}
-	eventHash := CalculateEventHash(event)
+	eventHash := CalculateEventHash(event, p.config.GreenfieldConfig.ChainIdString)
 	queriedVotes, err := p.dataProvider.FetchVotesForCollate(hex.EncodeToString(eventHash))
 	if err != nil {
 		logging.Logger.Errorf("failed to query votes for event %d, err=%+v", event.ChallengeId, err.Error())

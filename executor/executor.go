@@ -227,7 +227,7 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
 		if res == nil {
-			logging.Logger.Infof("attest failed for challengeId: %d, res is nil", challengeId)
+			logging.Logger.Infof("attest failed for challengeId: %d, res is nil, err=%s", challengeId, err.Error())
 		} else {
 			logging.Logger.Infof("challengeId: %d attest failed, code=%d, log=%s, txhash=%s, timestamp: %s, err=%s", challengeId, res.Code, res.RawLog, res.TxHash, time.Now().Format("15:04:05.000000"), err.Error())
 		}
@@ -338,7 +338,7 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 		logging.Logger.Errorf("executor failed to query storage client for objectId %s, err=%+v", objectId, err.Error())
 		return nil, err
 	}
-	return res.GetChecksums(), nil
+	return res.ObjectInfo.GetChecksums(), nil
 }
 
 func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
