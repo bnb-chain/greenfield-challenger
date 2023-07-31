@@ -2,6 +2,7 @@
 
 ## v0.0.3
 This release includes 1 feature and 2 bugfixes.
+
 Features:
 * [#58](https://github.com/bnb-chain/greenfield-challenger/pull/58) feat: pass in chainid when calculating event hash
 
