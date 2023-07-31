@@ -156,7 +156,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
 	var challengeResErr error
-	err = retry.Do(func() error {
+	_ = retry.Do(func() error {
 		challengeRes, challengeResErr = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
 		if challengeResErr != nil {
 			// TODO: Create error code list for SP side
