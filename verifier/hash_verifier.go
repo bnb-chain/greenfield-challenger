@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"golang.org/x/sync/semaphore"
 	"io"
 	"strings"
 	"sync"
@@ -27,17 +28,20 @@ type Verifier struct {
 	cachedChallengeIds    map[uint64]bool
 	mtx                   sync.RWMutex
 	dataProvider          DataProvider
+	limiterSemaphore      *semaphore.Weighted
 }
 
 func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
 	deduplicationInterval uint64, dataProvider DataProvider,
 ) *Verifier {
+	limiterSemaphore := semaphore.NewWeighted(20)
 	return &Verifier{
 		config:                cfg,
 		executor:              executor,
 		deduplicationInterval: deduplicationInterval,
 		mtx:                   sync.RWMutex{},
 		dataProvider:          dataProvider,
+		limiterSemaphore:      limiterSemaphore,
 	}
 }
 
@@ -95,7 +99,15 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 
 		logging.Logger.Infof("challengeId: %d is not cached", event.ChallengeId)
 
-		err = v.verifyForSingleEvent(event)
+		if err = v.limiterSemaphore.Acquire(context.Background(), 1); err != nil {
+			logging.Logger.Errorf("failed to acquire semaphore: %v", err)
+			continue
+		}
+		go func(event *model.Event) {
+			defer v.limiterSemaphore.Release(1)
+			// Call verifyForSingleEvent inside the goroutine
+			err = v.verifyForSingleEvent(event)
+		}(event)
 
 		if err != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
@@ -144,12 +156,11 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
 	var challengeResErr error
-	err = retry.Do(func() error {
-		challengeRes, err = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
-		challengeResErr = err
-		if err != nil {
+	_ = retry.Do(func() error {
+		challengeRes, challengeResErr = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
+		if challengeResErr != nil {
 			// TODO: Create error code list for SP side
-			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, err.Error())
+			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, challengeResErr.Error())
 		}
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)

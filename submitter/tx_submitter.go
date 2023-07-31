@@ -121,7 +121,7 @@ func (s *TxSubmitter) getEventHash(event *model.Event) []byte {
 	if found {
 		return eventHash.([]byte)
 	}
-	calculatedEventHash := vote.CalculateEventHash(event)
+	calculatedEventHash := vote.CalculateEventHash(event, s.config.GreenfieldConfig.ChainIdString)
 	s.cachedEventHash.Add(event.ChallengeId, calculatedEventHash)
 	return calculatedEventHash
 }
