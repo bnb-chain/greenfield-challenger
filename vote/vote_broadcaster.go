@@ -2,6 +2,7 @@ package vote
 
 import (
 	"fmt"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"strings"
 	"time"
 
@@ -20,10 +21,11 @@ type VoteBroadcaster struct {
 	blsPublicKey    []byte
 	cachedLocalVote map[uint64]*votepool.Vote
 	dataProvider    DataProvider
+	metricService   *metrics.MetricService
 }
 
 func NewVoteBroadcaster(cfg *config.Config, signer *VoteSigner,
-	executor *executor.Executor, broadcasterDataProvider DataProvider,
+	executor *executor.Executor, broadcasterDataProvider DataProvider, metricService *metrics.MetricService,
 ) *VoteBroadcaster {
 	return &VoteBroadcaster{
 		config:          cfg,
@@ -32,6 +34,7 @@ func NewVoteBroadcaster(cfg *config.Config, signer *VoteSigner,
 		dataProvider:    broadcasterDataProvider,
 		cachedLocalVote: nil,
 		blsPublicKey:    executor.BlsPubKey,
+		metricService:   metricService,
 	}
 }
 

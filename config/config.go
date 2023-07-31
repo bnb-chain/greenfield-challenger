@@ -12,6 +12,7 @@ type Config struct {
 	LogConfig        LogConfig        `json:"log_config"`
 	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
+	MetricsConfig    MetricsConfig    `json:"metrics_config"`
 }
 
 type GreenfieldConfig struct {
@@ -125,6 +126,10 @@ func (cfg *DBConfig) Validate() {
 	if cfg.Username == "" || cfg.DBPath == "" {
 		panic("db config is not correct")
 	}
+}
+
+type MetricsConfig struct {
+	Port string `json:"port"`
 }
 
 func (cfg *Config) Validate() {

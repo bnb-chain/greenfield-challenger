@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"strconv"
 	"strings"
 	"time"
@@ -18,14 +19,16 @@ import (
 )
 
 type Monitor struct {
-	executor     *executor.Executor
-	dataProvider DataProvider
+	executor      *executor.Executor
+	dataProvider  DataProvider
+	metricService *metrics.MetricService
 }
 
-func NewMonitor(executor *executor.Executor, dataProvider DataProvider) *Monitor {
+func NewMonitor(executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService) *Monitor {
 	return &Monitor{
-		executor:     executor,
-		dataProvider: dataProvider,
+		executor:      executor,
+		dataProvider:  dataProvider,
+		metricService: metricService,
 	}
 }
 
@@ -154,7 +157,9 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 	err = m.dataProvider.SaveBlockAndEvents(b, events)
 	for _, event := range events {
 		logging.Logger.Debugf("monitor event saved for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+		m.metricService.SetGnfdSavedBlock(event.ChallengeId)
 	}
+	m.metricService.SetGnfdSavedBlock(b.Height)
 	if err != nil {
 		return err
 	}

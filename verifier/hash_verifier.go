@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"golang.org/x/sync/semaphore"
 	"io"
 	"strings"
@@ -29,10 +30,11 @@ type Verifier struct {
 	mtx                   sync.RWMutex
 	dataProvider          DataProvider
 	limiterSemaphore      *semaphore.Weighted
+	metricService         *metrics.MetricService
 }
 
 func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
-	deduplicationInterval uint64, dataProvider DataProvider,
+	deduplicationInterval uint64, dataProvider DataProvider, metricService *metrics.MetricService,
 ) *Verifier {
 	limiterSemaphore := semaphore.NewWeighted(20)
 	return &Verifier{
@@ -42,6 +44,7 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
 		mtx:                   sync.RWMutex{},
 		dataProvider:          dataProvider,
 		limiterSemaphore:      limiterSemaphore,
+		metricService:         metricService,
 	}
 }
 
@@ -129,6 +132,7 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 }
 
 func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
+	startTime := time.Now()
 	logging.Logger.Infof("verifier started for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	currentHeight := v.executor.GetCachedBlockHeight()
 	if err := v.preCheck(event, currentHeight); err != nil {
@@ -192,12 +196,15 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", hex.EncodeToString(spRootHash), event.ChallengeId)
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
-	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
 		return err
 	}
+	// Log duration
+	elaspedTime := time.Since(startTime)
+	v.metricService.SetHashVerifierDuration(elaspedTime)
+	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	return nil
 }
 
@@ -243,10 +250,24 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 }
 
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
-	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
+		// TODO: Revert this if debugging
 		//return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
-		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		if err != nil {
+			return err
+		}
+		// update metrics if no err
+		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncChallengeFailed()
+		return err
 	}
-	return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+	err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+	if err != nil {
+		return err
+	}
+	// update metrics if no err
+	v.metricService.IncVerifiedChallenges()
+	v.metricService.IncChallengeSuccess()
+	return err
 }

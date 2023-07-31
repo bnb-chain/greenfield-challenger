@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 
 	"github.com/bnb-chain/greenfield-challenger/attest"
 
@@ -30,6 +31,7 @@ type App struct {
 	voteCollator    *vote.VoteCollator
 	txSubmitter     *submitter.TxSubmitter
 	attestMonitor   *attest.AttestMonitor
+	metricService   *metrics.MetricService
 	dbWiper         *wiper.DBWiper
 }
 
@@ -76,23 +78,25 @@ func NewApp(cfg *config.Config) *App {
 
 	executor := executor.NewExecutor(cfg)
 
+	metricService := metrics.NewMetricService(cfg)
+
 	monitorDataHandler := monitor.NewDataHandler(daoManager)
-	monitor := monitor.NewMonitor(executor, monitorDataHandler)
+	monitor := monitor.NewMonitor(executor, monitorDataHandler, metricService)
 
 	verifierDataHandler := verifier.NewDataHandler(daoManager)
-	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler)
+	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler, metricService)
 
 	signer := vote.NewVoteSigner(executor.BlsPrivKey)
 	voteDataHandler := vote.NewDataHandler(daoManager, executor)
-	voteCollector := vote.NewVoteCollector(cfg, executor, voteDataHandler)
-	voteBroadcaster := vote.NewVoteBroadcaster(cfg, signer, executor, voteDataHandler)
-	voteCollator := vote.NewVoteCollator(cfg, signer, executor, voteDataHandler)
+	voteCollector := vote.NewVoteCollector(cfg, executor, voteDataHandler, metricService)
+	voteBroadcaster := vote.NewVoteBroadcaster(cfg, signer, executor, voteDataHandler, metricService)
+	voteCollator := vote.NewVoteCollator(cfg, signer, executor, voteDataHandler, metricService)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
-	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
+	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler, metricService)
 
 	attestDataHandler := attest.NewDataHandler(daoManager)
-	attestMonitor := attest.NewAttestMonitor(executor, attestDataHandler)
+	attestMonitor := attest.NewAttestMonitor(executor, attestDataHandler, metricService)
 
 	dbWiper := wiper.NewDBWiper(daoManager)
 
@@ -105,6 +109,7 @@ func NewApp(cfg *config.Config) *App {
 		voteCollator:    voteCollator,
 		attestMonitor:   attestMonitor,
 		txSubmitter:     txSubmitter,
+		metricService:   metricService,
 		dbWiper:         dbWiper,
 	}
 }
@@ -119,6 +124,7 @@ func (a *App) Start() {
 	go a.voteBroadcaster.BroadcastVotesLoop()
 	go a.voteCollator.CollateVotesLoop()
 	go a.attestMonitor.UpdateAttestedChallengeIdLoop()
+	go a.metricService.Start()
 	a.txSubmitter.SubmitTransactionLoop()
 }
 

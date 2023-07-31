@@ -1,6 +1,7 @@
 package attest
 
 import (
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"sync"
 	"time"
 
@@ -14,14 +15,16 @@ type AttestMonitor struct {
 	mtx                  sync.RWMutex
 	attestedChallengeIds map[uint64]bool // used to save the last attested challenge id
 	dataProvider         DataProvider
+	metricService        *metrics.MetricService
 }
 
-func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider) *AttestMonitor {
+func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService) *AttestMonitor {
 	return &AttestMonitor{
 		executor:             executor,
 		mtx:                  sync.RWMutex{},
 		attestedChallengeIds: make(map[uint64]bool, 0),
 		dataProvider:         dataProvider,
+		metricService:        metricService,
 	}
 }
 
