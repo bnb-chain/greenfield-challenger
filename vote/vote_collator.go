@@ -3,6 +3,7 @@ package vote
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -14,22 +15,24 @@ import (
 )
 
 type VoteCollator struct {
-	config       *config.Config
-	signer       *VoteSigner
-	executor     *executor.Executor
-	blsPublicKey []byte
-	dataProvider DataProvider
+	config        *config.Config
+	signer        *VoteSigner
+	executor      *executor.Executor
+	blsPublicKey  []byte
+	dataProvider  DataProvider
+	metricService *metrics.MetricService
 }
 
 func NewVoteCollator(cfg *config.Config, signer *VoteSigner,
-	executor *executor.Executor, collatorDataProvider DataProvider,
+	executor *executor.Executor, collatorDataProvider DataProvider, metricService *metrics.MetricService,
 ) *VoteCollator {
 	return &VoteCollator{
-		config:       cfg,
-		signer:       signer,
-		executor:     executor,
-		dataProvider: collatorDataProvider,
-		blsPublicKey: executor.BlsPubKey,
+		config:        cfg,
+		signer:        signer,
+		executor:      executor,
+		dataProvider:  collatorDataProvider,
+		blsPublicKey:  executor.BlsPubKey,
+		metricService: metricService,
 	}
 }
 

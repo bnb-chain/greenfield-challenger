@@ -3,6 +3,7 @@ package submitter
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	lru "github.com/hashicorp/golang-lru"
 	"time"
@@ -27,9 +28,10 @@ type TxSubmitter struct {
 	cachedEventHash *lru.Cache
 	feeAmount       sdk.Coins
 	DataProvider
+	metricService *metrics.MetricService
 }
 
-func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDataProvider DataProvider) *TxSubmitter {
+func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDataProvider DataProvider, metricService *metrics.MetricService) *TxSubmitter {
 	feeAmount, ok := math.NewIntFromString(cfg.GreenfieldConfig.FeeAmount)
 	if !ok {
 		logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount: ", cfg.GreenfieldConfig.FeeAmount)
@@ -46,6 +48,7 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDa
 		feeAmount:       feeCoins,
 		cachedEventHash: lruCache,
 		DataProvider:    submitterDataProvider,
+		metricService:   metricService,
 	}
 }
 

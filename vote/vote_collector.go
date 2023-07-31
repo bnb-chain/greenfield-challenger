@@ -3,6 +3,7 @@ package vote
 import (
 	"bytes"
 	"encoding/hex"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"sync"
 	"time"
 
@@ -14,18 +15,20 @@ import (
 )
 
 type VoteCollector struct {
-	config       *config.Config
-	executor     *executor.Executor
-	mtx          sync.RWMutex
-	dataProvider DataProvider
+	config        *config.Config
+	executor      *executor.Executor
+	mtx           sync.RWMutex
+	dataProvider  DataProvider
+	metricService *metrics.MetricService
 }
 
-func NewVoteCollector(cfg *config.Config, executor *executor.Executor, collectorDataProvider DataProvider) *VoteCollector {
+func NewVoteCollector(cfg *config.Config, executor *executor.Executor, collectorDataProvider DataProvider, metricService *metrics.MetricService) *VoteCollector {
 	return &VoteCollector{
-		config:       cfg,
-		executor:     executor,
-		mtx:          sync.RWMutex{},
-		dataProvider: collectorDataProvider,
+		config:        cfg,
+		executor:      executor,
+		mtx:           sync.RWMutex{},
+		dataProvider:  collectorDataProvider,
+		metricService: metricService,
 	}
 }
 
