@@ -129,13 +129,20 @@ func (cfg *DBConfig) Validate() {
 }
 
 type MetricsConfig struct {
-	Port string `json:"port"`
+	Port uint16 `json:"port"`
+}
+
+func (cfg *MetricsConfig) Validate() {
+	if cfg.Port <= 0 || cfg.Port > 65535 {
+		panic("port should be within (0, 65535]")
+	}
 }
 
 func (cfg *Config) Validate() {
 	cfg.LogConfig.Validate()
 	cfg.DBConfig.Validate()
 	cfg.GreenfieldConfig.Validate()
+	cfg.MetricsConfig.Validate()
 }
 
 func ParseConfigFromJson(content string) *Config {
