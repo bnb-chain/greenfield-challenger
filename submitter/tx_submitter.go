@@ -151,6 +151,7 @@ func (s *TxSubmitter) getSignatureAndBitSet(event *model.Event) ([]byte, *bitset
 
 // submitTransaction creates and submits the transaction.
 func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd uint64, aggregatedSignature []byte, valBitSet *bitset.BitSet) error {
+	startTime := time.Now()
 	submittedAttempts := 0
 	for {
 		if time.Now().Unix() > int64(attestPeriodEnd) {
@@ -187,6 +188,10 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		}
 		// Update event status to include in Attest Monitor
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
+
+		elaspedTime := time.Since(startTime)
+		s.metricService.SetSubmitterDuration(elaspedTime)
+		s.metricService.SetSubmitterChallenges(event.ChallengeId)
 		return err
 	}
 }

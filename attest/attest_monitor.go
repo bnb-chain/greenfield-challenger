@@ -81,4 +81,6 @@ func (a *AttestMonitor) updateEventStatus(challengeId uint64) {
 	if err != nil {
 		logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
 	}
+	a.metricService.SetAttestedChallenges(challengeId)
+	a.metricService.IncChallengeAttested()
 }

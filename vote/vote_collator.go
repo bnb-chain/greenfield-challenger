@@ -68,6 +68,8 @@ func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 	if err != nil {
 		return err
 	}
+	startTime := time.Now()
+
 	err = p.prepareEnoughValidVotesForEvent(event)
 	if err != nil {
 		return err
@@ -76,6 +78,10 @@ func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 	if err != nil {
 		return err
 	}
+
+	elaspedTime := time.Since(startTime)
+	p.metricService.SetCollatorDuration(elaspedTime)
+	p.metricService.SetCollatorChallenges(event.ChallengeId)
 	logging.Logger.Infof("collator completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	return nil
 }

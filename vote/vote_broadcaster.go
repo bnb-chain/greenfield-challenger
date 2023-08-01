@@ -90,6 +90,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 }
 
 func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, event *model.Event) error {
+	startTime := time.Now()
 	err := p.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
@@ -105,6 +106,11 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 		return fmt.Errorf("failed to broadcast vote for challengeId: %d", event.ChallengeId)
 	}
 	logging.Logger.Infof("vote broadcasted for challengeId: %d, height: %d", event.ChallengeId, event.Height)
+
+	// Metrics
+	elaspedTime := time.Since(startTime)
+	p.metricService.SetBroadcastedChallenges(event.ChallengeId)
+	p.metricService.SetBroadcasterDuration(elaspedTime)
 	return nil
 }
 
