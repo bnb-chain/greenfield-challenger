@@ -36,9 +36,6 @@ const (
 	// Attest Monitor
 	MetricChallengeAttested = "challenge_attested"
 	MetricAttestedCount     = "attested_count"
-	// speed, errors
-	// challengeId, starttime, endtime
-	// error inc
 )
 
 type MetricService struct {
@@ -64,6 +61,7 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricGnfdSavedEvent] = gnfdSavedEventMetric
 	prometheus.MustRegister(gnfdSavedEventMetric)
 
+	// Hash Verifier
 	verifiedChallengesMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: MetricVerifiedChallenges,
 		Help: "Verified challenges in database",
@@ -78,26 +76,107 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricHashVerifierDuration] = hashVerifierDurationMetric
 	prometheus.MustRegister(hashVerifierDurationMetric)
 
-	challengeFailedMetric := prometheus.NewGauge(prometheus.GaugeOpts{
+	challengeFailedMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricChallengeFailed,
 		Help: "Failed challenges in database",
 	})
 	ms[MetricChallengeFailed] = challengeFailedMetric
 	prometheus.MustRegister(challengeFailedMetric)
 
-	challengeSuccessMetric := prometheus.NewGauge(prometheus.GaugeOpts{
+	challengeSuccessMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricChallengeSuccess,
 		Help: "Succeeded challenges in database",
 	})
 	ms[MetricChallengeSuccess] = challengeSuccessMetric
 	prometheus.MustRegister(challengeSuccessMetric)
 
+	hashVerifierErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricHashVerifierErr,
+		Help: "Hash verifier error count",
+	})
+	ms[MetricHashVerifierErr] = hashVerifierErrCountMetric
+	prometheus.MustRegister(hashVerifierErrCountMetric)
+
+	// Broadcaster
+	broadcasterErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricBroadcasterErr,
+		Help: "Succeeded challenges in database",
+	})
+	ms[MetricBroadcasterErr] = broadcasterErrCountMetric
+	prometheus.MustRegister(broadcasterErrCountMetric)
+
+	broadcastedChallengesMetric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: MetricBroadcastedChallenges,
+		Help: "Broadcasted challengeID",
+	})
+	ms[MetricBroadcastedChallenges] = broadcastedChallengesMetric
+	prometheus.MustRegister(broadcastedChallengesMetric)
+
+	broadcastedDurationMetric := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: MetricBroadcasterDuration,
+		Help: "Broadcaster duration for 1 challenge",
+	})
+	ms[MetricBroadcasterDuration] = broadcastedDurationMetric
+	prometheus.MustRegister(broadcastedDurationMetric)
+
+	// Collator
+	collatorErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricCollatorErr,
+		Help: "Collator error count",
+	})
+	ms[MetricCollatorErr] = collatorErrCountMetric
+	prometheus.MustRegister(collatorErrCountMetric)
+
+	collatedChallengesMetric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: MetricCollatedChallenges,
+		Help: "Collated challengeID",
+	})
+	ms[MetricCollatedChallenges] = collatedChallengesMetric
+	prometheus.MustRegister(collatedChallengesMetric)
+
+	collatedDurationMetric := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: MetricCollatorDuration,
+		Help: "Collator duration for 1 challenge",
+	})
+	ms[MetricCollatorDuration] = collatedDurationMetric
+	prometheus.MustRegister(collatedDurationMetric)
+
+	// Submitter
+	submitterErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricSubmitterErr,
+		Help: "Submitter error count",
+	})
+	ms[MetricSubmitterErr] = submitterErrCountMetric
+	prometheus.MustRegister(submitterErrCountMetric)
+
+	submitterChallengesMetric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: MetricSubmittedChallenges,
+		Help: "Submitted challengeID",
+	})
+	ms[MetricSubmittedChallenges] = submitterChallengesMetric
+	prometheus.MustRegister(submitterChallengesMetric)
+
+	submitterDurationMetric := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: MetricSubmitterDuration,
+		Help: "Submitter duration for 1 challengeID",
+	})
+	ms[MetricSubmitterDuration] = submitterDurationMetric
+	prometheus.MustRegister(submitterDurationMetric)
+
+	// Attest Monitor
 	challengeAttestedMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: MetricChallengeAttested,
-		Help: "Saved block height for Greenfield in database",
+		Help: "Attested challengeID",
 	})
 	ms[MetricChallengeAttested] = challengeAttestedMetric
 	prometheus.MustRegister(challengeAttestedMetric)
+
+	challengeAttestedCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricAttestedCount,
+		Help: "Attested challenges count",
+	})
+	ms[MetricAttestedCount] = challengeAttestedCountMetric
+	prometheus.MustRegister(challengeAttestedCountMetric)
 
 	return &MetricService{
 		MetricsMap: ms,
@@ -123,8 +202,8 @@ func (m *MetricService) SetGnfdSavedEvent(challengeId uint64) {
 }
 
 // Hash Verifier
-func (m *MetricService) IncVerifiedChallenges() {
-	m.MetricsMap[MetricVerifiedChallenges].(prometheus.Counter).Inc()
+func (m *MetricService) SetVerifiedChallenges(challengeId uint64) {
+	m.MetricsMap[MetricVerifiedChallenges].(prometheus.Gauge).Set(float64(challengeId))
 }
 
 func (m *MetricService) SetHashVerifierDuration(duration time.Duration) {
@@ -139,21 +218,54 @@ func (m *MetricService) IncChallengeSuccess() {
 	m.MetricsMap[MetricChallengeSuccess].(prometheus.Counter).Inc()
 }
 
-func (m *MetricService) IncChallengeAttested() {
-	m.MetricsMap[MetricChallengeAttested].(prometheus.Counter).Inc()
+func (m *MetricService) IncHashVerifierErr() {
+	m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
 }
 
 // Broadcaster
+func (m *MetricService) SetBroadcastedChallenges(challengeId uint64) {
+	m.MetricsMap[MetricBroadcastedChallenges].(prometheus.Gauge).Set(float64(challengeId))
+}
+
 func (m *MetricService) SetBroadcasterDuration(duration time.Duration) {
 	m.MetricsMap[MetricBroadcasterDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
+func (m *MetricService) IncBroadcasterErr() {
+	m.MetricsMap[MetricBroadcasterErr].(prometheus.Counter).Inc()
+}
+
 // Collator
+func (m *MetricService) SetCollatorChallenges(challengeId uint64) {
+	m.MetricsMap[MetricCollatedChallenges].(prometheus.Gauge).Set(float64(challengeId))
+}
+
 func (m *MetricService) SetCollatorDuration(duration time.Duration) {
 	m.MetricsMap[MetricCollatorDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
+func (m *MetricService) IncCollatorErr() {
+	m.MetricsMap[MetricCollatorErr].(prometheus.Counter).Inc()
+}
+
 // Submitter
+func (m *MetricService) SetSubmitterChallenges(challengeId uint64) {
+	m.MetricsMap[MetricSubmittedChallenges].(prometheus.Gauge).Set(float64(challengeId))
+}
+
 func (m *MetricService) SetSubmitterDuration(duration time.Duration) {
 	m.MetricsMap[MetricSubmitterDuration].(prometheus.Histogram).Observe(duration.Seconds())
+}
+
+func (m *MetricService) IncSubmitterErr() {
+	m.MetricsMap[MetricSubmitterErr].(prometheus.Counter).Inc()
+}
+
+// Attest Monitor
+func (m *MetricService) SetAttestedChallenges(challengeId uint64) {
+	m.MetricsMap[MetricChallengeAttested].(prometheus.Gauge).Set(float64(challengeId))
+}
+
+func (m *MetricService) IncChallengeAttested() {
+	m.MetricsMap[MetricAttestedCount].(prometheus.Counter).Inc()
 }
