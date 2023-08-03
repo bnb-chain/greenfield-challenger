@@ -73,7 +73,11 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
-
+	if err != nil {
+		v.metricService.IncHashVerifierErr()
+		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
+		return err
+	}
 	// TODO: Remove after debugging
 	fetchedEvents := []uint64{}
 	for _, v := range events {
@@ -81,10 +85,6 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	}
 	logging.Logger.Infof("verifier fetched these events for verification: %+v", fetchedEvents)
 
-	if err != nil {
-		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
-		return err
-	}
 	if len(events) == 0 {
 		time.Sleep(common.RetryInterval)
 		return nil
@@ -171,6 +171,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if challengeResErr != nil {
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
+			v.metricService.IncHashVerifierErr()
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		return err
@@ -199,6 +200,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
+		v.metricService.IncHashVerifierErr()
 		return err
 	}
 	// Log duration

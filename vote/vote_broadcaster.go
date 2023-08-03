@@ -47,6 +47,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 		// Ask about this function
 		events, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
 		if err != nil {
+			p.metricService.IncBroadcasterErr()
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			continue
 		}
@@ -64,6 +65,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 					if strings.Contains(err.Error(), "Duplicate") {
 						logging.Logger.Errorf("[non-blocking error] broadcaster was trying to save a duplicated vote after clearing cache for challengeId: %d, err=%+v", event.ChallengeId, err.Error())
 					} else {
+						p.metricService.IncBroadcasterErr()
 						logging.Logger.Errorf("broadcaster ran into error trying to construct vote for challengeId: %d, err=%+v", event.ChallengeId, err.Error())
 						continue
 					}
@@ -73,6 +75,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 
 			err = p.broadcastForSingleEvent(localVote, event)
 			if err != nil {
+				p.metricService.IncBroadcasterErr()
 				continue
 			}
 			time.Sleep(50 * time.Millisecond)
