@@ -260,7 +260,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 			return err
 		}
 		// update metrics if no err
-		v.metricService.SetVerifiedChallenges(challengeId)
+		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		return err
 	}
@@ -269,7 +269,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 		return err
 	}
 	// update metrics if no err
-	v.metricService.SetVerifiedChallenges(challengeId)
+	v.metricService.IncVerifiedChallenges()
 	v.metricService.IncChallengeSuccess()
 	return err
 }
