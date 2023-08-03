@@ -62,6 +62,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
+			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
 		}
@@ -77,6 +78,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			}
 			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
+				s.metricService.IncSubmitterErr()
 				logging.Logger.Errorf("tx submitter err", err)
 				continue
 			}

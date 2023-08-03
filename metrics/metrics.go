@@ -15,24 +15,38 @@ const (
 	// Monitor
 	MetricGnfdSavedBlock = "gnfd_saved_block"
 	MetricGnfdSavedEvent = "gnfd_saved_event"
+	// increase(gnfd_saved_block[1m])
+	// increase(gnfd_saved_event[1m]) fix this
+
 	// Verifier
 	MetricVerifiedChallenges   = "verified_challenges"
 	MetricHashVerifierDuration = "hash_verifier_duration"
 	MetricChallengeFailed      = "challenge_failed"
 	MetricChallengeSuccess     = "challenge_success"
 	MetricHashVerifierErr      = "hash_verifier_error_count"
+	// increase(verified_challenges[1m])
+	// increase(challenge_success[1m])
+	// increase(challenge_failed[1m])
+
 	// Vote Broadcaster
 	MetricBroadcastedChallenges = "broadcasted_challenges"
 	MetricBroadcasterDuration   = "broadcaster_duration"
 	MetricBroadcasterErr        = "broadcaster_error_count"
+	// increase(broadcasted_challenges[3h]) check increase for heartbeat interval
+
+	// Vote Collector
+	// TODO: Do we need to check how many votes collected per challengeId?
+
 	// Vote Collator
 	MetricCollatedChallenges = "collated_challenges"
 	MetricCollatorDuration   = "collator_duration"
 	MetricCollatorErr        = "collator_error_count"
+
 	// Tx Submitter
 	MetricSubmittedChallenges = "submitted_challenges"
 	MetricSubmitterDuration   = "submitter_duration"
 	MetricSubmitterErr        = "submitter_error_count"
+
 	// Attest Monitor
 	MetricChallengeAttested = "challenge_attested"
 	MetricAttestedCount     = "attested_count"
