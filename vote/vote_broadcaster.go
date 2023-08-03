@@ -112,7 +112,7 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 
 	// Metrics
 	elaspedTime := time.Since(startTime)
-	p.metricService.SetBroadcastedChallenges(event.ChallengeId)
+	p.metricService.IncBroadcastedChallenges()
 	p.metricService.SetBroadcasterDuration(elaspedTime)
 	return nil
 }
