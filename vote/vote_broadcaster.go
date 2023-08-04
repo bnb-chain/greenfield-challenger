@@ -2,9 +2,10 @@ package vote
 
 import (
 	"fmt"
-	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"strings"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"

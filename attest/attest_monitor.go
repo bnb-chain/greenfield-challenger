@@ -1,9 +1,10 @@
 package attest
 
 import (
-	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"sync"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"

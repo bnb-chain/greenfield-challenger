@@ -1,10 +1,11 @@
 package monitor
 
 import (
-	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -157,7 +158,7 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 	err = m.dataProvider.SaveBlockAndEvents(b, events)
 	for _, event := range events {
 		logging.Logger.Debugf("monitor event saved for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
-		m.metricService.SetGnfdSavedBlock(event.ChallengeId)
+		m.metricService.SetGnfdSavedEvent(event.ChallengeId)
 	}
 	m.metricService.SetGnfdSavedBlock(b.Height)
 	if err != nil {

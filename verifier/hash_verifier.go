@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"golang.org/x/sync/semaphore"
 	"io"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-common/go/hash"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
 	"github.com/panjf2000/ants/v2"
@@ -169,6 +169,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
+		v.metricService.IncHashVerifierSpApiErr()
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
 			v.metricService.IncHashVerifierErr()
@@ -254,7 +255,7 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	if bytes.Equal(chainRootHash, spRootHash) {
 		// TODO: Revert this if debugging
-		//return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+		// return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
 		if err != nil {
 			return err

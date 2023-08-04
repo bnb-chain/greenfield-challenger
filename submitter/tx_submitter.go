@@ -1,25 +1,24 @@
 package submitter
 
 import (
+	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
-	"github.com/bnb-chain/greenfield-challenger/metrics"
-	"github.com/cosmos/cosmos-sdk/types/tx"
-	lru "github.com/hashicorp/golang-lru"
 	"time"
 
-	"github.com/willf/bitset"
-
-	"cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield/sdk/types"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/willf/bitset"
 )
 
 type TxSubmitter struct {

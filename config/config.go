@@ -1,10 +1,11 @@
 package config
 
 import (
-	"cosmossdk.io/math"
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"cosmossdk.io/math"
 )
 
 type Config struct {

@@ -3,7 +3,6 @@ package vote
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -11,6 +10,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	tmtypes "github.com/cometbft/cometbft/types"
 )
 

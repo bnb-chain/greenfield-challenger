@@ -5,39 +5,32 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/bnb-chain/greenfield-challenger/config"
 )
 
 const (
 	// Monitor
 	MetricGnfdSavedBlock = "gnfd_saved_block"
 	MetricGnfdSavedEvent = "gnfd_saved_event"
-	// increase(gnfd_saved_block[1m])
-	// increase(gnfd_saved_event[1m]) fix this
 
 	// Verifier
-	MetricVerifiedChallenges   = "verified_challenges"
-	MetricChallengeFailed      = "challenge_failed"
-	MetricChallengeSuccess     = "challenge_success"
-	MetricHashVerifierErr      = "hash_verifier_error_count"
-	MetricHashVerifierDuration = "hash_verifier_duration"
-	// increase(verified_challenges[1m])
-	// increase(challenge_success[1m])
-	// increase(challenge_failed[1m])
+	MetricVerifiedChallenges       = "verified_challenges"
+	MetricVerifiedChallengeFailed  = "challenge_failed"
+	MetricVerifiedChallengeSuccess = "challenge_success"
+	MetricHashVerifierErr          = "hash_verifier_error_count"
+	MetricSpAPIErr                 = "hash_verifier_sp_api_error"
+	MetricHashVerifierDuration     = "hash_verifier_duration"
 
 	// Vote Broadcaster
 	MetricBroadcastedChallenges = "broadcasted_challenges"
 	MetricBroadcasterDuration   = "broadcaster_duration"
 	MetricBroadcasterErr        = "broadcaster_error_count"
-	// increase(broadcasted_challenges[3h]) check increase for heartbeat interval
 
 	// Vote Collector
-	// TODO: Do we need to check how many votes collected per challengeId?
-	// TODO: Should error be a counter or challengeId?
-	// Compare duration monitor/verifier verifier/broadcaster broadcaster/collator collator/submitter
+	MetricsVoteCollectorErr = "vote_collector_error_count"
+	MetricsVotesCollected   = "votes_collected"
 
 	// Vote Collator
 	MetricCollatedChallenges = "collated_challenges"
@@ -79,7 +72,7 @@ func NewMetricService(config *config.Config) *MetricService {
 	// Hash Verifier
 	verifiedChallengesMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricVerifiedChallenges,
-		Help: "Verified challenges in database",
+		Help: "Verified challenge count",
 	})
 	ms[MetricVerifiedChallenges] = verifiedChallengesMetric
 	prometheus.MustRegister(verifiedChallengesMetric)
@@ -92,17 +85,17 @@ func NewMetricService(config *config.Config) *MetricService {
 	prometheus.MustRegister(hashVerifierDurationMetric)
 
 	challengeFailedMetric := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: MetricChallengeFailed,
+		Name: MetricVerifiedChallengeFailed,
 		Help: "Failed challenges in database",
 	})
-	ms[MetricChallengeFailed] = challengeFailedMetric
+	ms[MetricVerifiedChallengeFailed] = challengeFailedMetric
 	prometheus.MustRegister(challengeFailedMetric)
 
 	challengeSuccessMetric := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: MetricChallengeSuccess,
+		Name: MetricVerifiedChallengeSuccess,
 		Help: "Succeeded challenges in database",
 	})
-	ms[MetricChallengeSuccess] = challengeSuccessMetric
+	ms[MetricVerifiedChallengeSuccess] = challengeSuccessMetric
 	prometheus.MustRegister(challengeSuccessMetric)
 
 	hashVerifierErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
@@ -112,17 +105,24 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricHashVerifierErr] = hashVerifierErrCountMetric
 	prometheus.MustRegister(hashVerifierErrCountMetric)
 
+	hashVerifierSpApiErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricSpAPIErr,
+		Help: "Hash verifier SP API error count",
+	})
+	ms[MetricSpAPIErr] = hashVerifierSpApiErrCountMetric
+	prometheus.MustRegister(hashVerifierSpApiErrCountMetric)
+
 	// Broadcaster
 	broadcasterErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricBroadcasterErr,
-		Help: "Succeeded challenges in database",
+		Help: "Broadcaster error count",
 	})
 	ms[MetricBroadcasterErr] = broadcasterErrCountMetric
 	prometheus.MustRegister(broadcasterErrCountMetric)
 
 	broadcastedChallengesMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricBroadcastedChallenges,
-		Help: "Broadcasted challengeID",
+		Help: "Broadcasted challenge count",
 	})
 	ms[MetricBroadcastedChallenges] = broadcastedChallengesMetric
 	prometheus.MustRegister(broadcastedChallengesMetric)
@@ -134,6 +134,21 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricBroadcasterDuration] = broadcastedDurationMetric
 	prometheus.MustRegister(broadcastedDurationMetric)
 
+	// Vote Collector
+	voteCollectorErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricsVoteCollectorErr,
+		Help: "Vote Collector error count",
+	})
+	ms[MetricsVoteCollectorErr] = voteCollectorErrCountMetric
+	prometheus.MustRegister(voteCollectorErrCountMetric)
+
+	votesCollectedMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricsVotesCollected,
+		Help: "Votes collected count",
+	})
+	ms[MetricsVotesCollected] = votesCollectedMetric
+	prometheus.MustRegister(votesCollectedMetric)
+
 	// Collator
 	collatorErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricCollatorErr,
@@ -144,7 +159,7 @@ func NewMetricService(config *config.Config) *MetricService {
 
 	collatedChallengesMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricCollatedChallenges,
-		Help: "Collated challengeID",
+		Help: "Collated challenge count",
 	})
 	ms[MetricCollatedChallenges] = collatedChallengesMetric
 	prometheus.MustRegister(collatedChallengesMetric)
@@ -166,7 +181,7 @@ func NewMetricService(config *config.Config) *MetricService {
 
 	submitterChallengesMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricSubmittedChallenges,
-		Help: "Submitted challengeID",
+		Help: "Submitted challenge count",
 	})
 	ms[MetricSubmittedChallenges] = submitterChallengesMetric
 	prometheus.MustRegister(submitterChallengesMetric)
@@ -219,15 +234,19 @@ func (m *MetricService) SetHashVerifierDuration(duration time.Duration) {
 }
 
 func (m *MetricService) IncChallengeFailed() {
-	m.MetricsMap[MetricChallengeFailed].(prometheus.Counter).Inc()
+	m.MetricsMap[MetricVerifiedChallengeFailed].(prometheus.Counter).Inc()
 }
 
 func (m *MetricService) IncChallengeSuccess() {
-	m.MetricsMap[MetricChallengeSuccess].(prometheus.Counter).Inc()
+	m.MetricsMap[MetricVerifiedChallengeSuccess].(prometheus.Counter).Inc()
 }
 
 func (m *MetricService) IncHashVerifierErr() {
 	m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
+}
+
+func (m *MetricService) IncHashVerifierSpApiErr() {
+	m.MetricsMap[MetricSpAPIErr].(prometheus.Counter).Inc()
 }
 
 // Broadcaster
@@ -241,6 +260,15 @@ func (m *MetricService) SetBroadcasterDuration(duration time.Duration) {
 
 func (m *MetricService) IncBroadcasterErr() {
 	m.MetricsMap[MetricBroadcasterErr].(prometheus.Counter).Inc()
+}
+
+// Vote Collector
+func (m *MetricService) IncVoteCollectorErr() {
+	m.MetricsMap[MetricsVoteCollectorErr].(prometheus.Counter).Inc()
+}
+
+func (m *MetricService) IncVotesCollected() {
+	m.MetricsMap[MetricsVotesCollected].(prometheus.Counter).Inc()
 }
 
 // Collator

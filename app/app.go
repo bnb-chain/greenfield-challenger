@@ -3,23 +3,22 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bnb-chain/greenfield-challenger/metrics"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
 	"github.com/bnb-chain/greenfield-challenger/attest"
-
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-challenger/monitor"
 	"github.com/bnb-chain/greenfield-challenger/submitter"
 	"github.com/bnb-chain/greenfield-challenger/verifier"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield-challenger/wiper"
 	"github.com/spf13/viper"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 type App struct {
@@ -46,7 +45,7 @@ func NewApp(cfg *config.Config) *App {
 
 	db, err := gorm.Open(mysql.Open(dbPath), &gorm.Config{})
 
-	//only for debug purpose
+	// only for debug purpose
 	db = db.Debug()
 
 	if err != nil {
