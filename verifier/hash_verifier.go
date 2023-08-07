@@ -255,14 +255,13 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	if bytes.Equal(chainRootHash, spRootHash) {
 		// TODO: Revert this if debugging
-		// return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
-		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 		if err != nil {
 			return err
 		}
 		// update metrics if no err
 		v.metricService.IncVerifiedChallenges()
-		v.metricService.IncChallengeFailed()
+		v.metricService.IncChallengeSuccess()
 
 		//heartbeatInterval, err := v.executor.QueryChallengeHeartbeatInterval()
 		//if err != nil {
