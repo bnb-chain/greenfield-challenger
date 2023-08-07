@@ -47,8 +47,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
-		// Ask about this function
-		events, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
+		events, heartbeatEventCount, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
 		if err != nil {
 			p.metricService.IncBroadcasterErr()
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
@@ -57,6 +56,11 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 		if len(events) == 0 {
 			time.Sleep(RetryInterval)
 			continue
+		}
+		if heartbeatEventCount != 0 {
+			for i := uint64(0); i < heartbeatEventCount; i++ {
+				p.metricService.IncHeartbeatEvents()
+			}
 		}
 
 		for _, event := range events {

@@ -19,6 +19,7 @@ const (
 	MetricVerifiedChallenges       = "verified_challenges"
 	MetricVerifiedChallengeFailed  = "challenge_failed"
 	MetricVerifiedChallengeSuccess = "challenge_success"
+	MetricHeartbeatEvents          = "heartbeat_events"
 	MetricHashVerifierErr          = "hash_verifier_error_count"
 	MetricSpAPIErr                 = "hash_verifier_sp_api_error"
 	MetricHashVerifierDuration     = "hash_verifier_duration"
@@ -97,6 +98,13 @@ func NewMetricService(config *config.Config) *MetricService {
 	})
 	ms[MetricVerifiedChallengeSuccess] = challengeSuccessMetric
 	prometheus.MustRegister(challengeSuccessMetric)
+
+	heartbeatEventsMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricHeartbeatEvents,
+		Help: "Succeeded challenges in database",
+	})
+	ms[MetricHeartbeatEvents] = heartbeatEventsMetric
+	prometheus.MustRegister(heartbeatEventsMetric)
 
 	hashVerifierErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricHashVerifierErr,
@@ -239,6 +247,10 @@ func (m *MetricService) IncChallengeFailed() {
 
 func (m *MetricService) IncChallengeSuccess() {
 	m.MetricsMap[MetricVerifiedChallengeSuccess].(prometheus.Counter).Inc()
+}
+
+func (m *MetricService) IncHeartbeatEvents() {
+	m.MetricsMap[MetricHeartbeatEvents].(prometheus.Counter).Inc()
 }
 
 func (m *MetricService) IncHashVerifierErr() {

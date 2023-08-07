@@ -263,6 +263,15 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 		// update metrics if no err
 		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
+
+		//heartbeatInterval, err := v.executor.QueryChallengeHeartbeatInterval()
+		//if err != nil {
+		//	return err
+		//}
+		//if challengeId%heartbeatInterval == 0 {
+		//	v.metricService.IncHeartbeatEvent()
+		//}
+		//
 		return err
 	}
 	err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
