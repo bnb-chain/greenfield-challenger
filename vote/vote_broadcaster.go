@@ -44,7 +44,6 @@ func NewVoteBroadcaster(cfg *config.Config, signer *VoteSigner,
 }
 
 func (p *VoteBroadcaster) BroadcastVotesLoop() {
-	// Event lasts for 300 blocks, 2x for redundancy
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
 		events, heartbeatEventCount, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
@@ -78,6 +77,10 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 					}
 				}
 				p.cachedLocalVote.Add(event.ChallengeId, localVote)
+				// Incrementing this before broadcasting to prevent the same challengeID from being incremented multiple times
+				// does not mean that it has been successfully broadcasted, check error metrics for broadcast errors.
+				p.metricService.IncBroadcastedChallenges()
+				logging.Logger.Infof("broadcaster metric increased for challengeId: %d", event.ChallengeId)
 			}
 
 			err = p.broadcastForSingleEvent(localVote.(*votepool.Vote), event)
@@ -112,7 +115,6 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 
 	// Metrics
 	elaspedTime := time.Since(startTime)
-	p.metricService.IncBroadcastedChallenges()
 	p.metricService.SetBroadcasterDuration(elaspedTime)
 	return nil
 }

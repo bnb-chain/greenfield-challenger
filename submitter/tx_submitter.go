@@ -193,6 +193,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		elaspedTime := time.Since(startTime)
 		s.metricService.SetSubmitterDuration(elaspedTime)
 		s.metricService.IncSubmittedChallenges()
+		logging.Logger.Infof("submitter metrics increased for challengeId %d", event.ChallengeId)
 		return err
 	}
 }
