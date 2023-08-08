@@ -80,7 +80,7 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 				// Incrementing this before broadcasting to prevent the same challengeID from being incremented multiple times
 				// does not mean that it has been successfully broadcasted, check error metrics for broadcast errors.
 				p.metricService.IncBroadcastedChallenges()
-				logging.Logger.Infof("broadcaster metric increased for challengeId: %d", event.ChallengeId)
+				logging.Logger.Infof("broadcaster metrics increased for challengeId %d", event.ChallengeId)
 			}
 
 			err = p.broadcastForSingleEvent(localVote.(*votepool.Vote), event)
