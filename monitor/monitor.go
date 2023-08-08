@@ -159,8 +159,10 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 	for _, event := range events {
 		logging.Logger.Debugf("monitor event saved for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 		m.metricService.SetGnfdSavedEvent(event.ChallengeId)
+		m.metricService.IncGnfdSavedEventCount()
 	}
 	m.metricService.SetGnfdSavedBlock(b.Height)
+	m.metricService.IncGnfdSavedBlockCount()
 	if err != nil {
 		return err
 	}

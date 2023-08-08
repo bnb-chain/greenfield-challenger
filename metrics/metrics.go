@@ -12,8 +12,10 @@ import (
 
 const (
 	// Monitor
-	MetricGnfdSavedBlock = "gnfd_saved_block"
-	MetricGnfdSavedEvent = "gnfd_saved_event"
+	MetricGnfdSavedBlock      = "gnfd_saved_block"
+	MetricGnfdSavedBlockCount = "gnfd_saved_block_count"
+	MetricGnfdSavedEvent      = "gnfd_saved_event"
+	MetricGnfdSavedEventCount = "gnfd_saved_event_count"
 
 	// Verifier
 	MetricVerifiedChallenges       = "verified_challenges"
@@ -63,12 +65,26 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricGnfdSavedBlock] = gnfdSavedBlockMetric
 	prometheus.MustRegister(gnfdSavedBlockMetric)
 
+	gnfdSavedBlockCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricGnfdSavedBlockCount,
+		Help: "Saved block count for Greenfield in database",
+	})
+	ms[MetricGnfdSavedBlockCount] = gnfdSavedBlockCountMetric
+	prometheus.MustRegister(gnfdSavedBlockCountMetric)
+
 	gnfdSavedEventMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: MetricGnfdSavedEvent,
 		Help: "Saved event challengeId in database",
 	})
 	ms[MetricGnfdSavedEvent] = gnfdSavedEventMetric
 	prometheus.MustRegister(gnfdSavedEventMetric)
+
+	gnfdSavedEventCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricGnfdSavedEventCount,
+		Help: "Saved gnfd event count in database",
+	})
+	ms[MetricGnfdSavedEventCount] = gnfdSavedEventCountMetric
+	prometheus.MustRegister(gnfdSavedEventCountMetric)
 
 	// Hash Verifier
 	verifiedChallengesMetric := prometheus.NewCounter(prometheus.CounterOpts{
@@ -101,7 +117,7 @@ func NewMetricService(config *config.Config) *MetricService {
 
 	heartbeatEventsMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricHeartbeatEvents,
-		Help: "Succeeded challenges in database",
+		Help: "Heartbeat challenges",
 	})
 	ms[MetricHeartbeatEvents] = heartbeatEventsMetric
 	prometheus.MustRegister(heartbeatEventsMetric)
@@ -228,8 +244,16 @@ func (m *MetricService) SetGnfdSavedBlock(height uint64) {
 	m.MetricsMap[MetricGnfdSavedBlock].(prometheus.Gauge).Set(float64(height))
 }
 
+func (m *MetricService) IncGnfdSavedBlockCount() {
+	m.MetricsMap[MetricGnfdSavedBlockCount].(prometheus.Counter).Inc()
+}
+
 func (m *MetricService) SetGnfdSavedEvent(challengeId uint64) {
 	m.MetricsMap[MetricGnfdSavedEvent].(prometheus.Gauge).Set(float64(challengeId))
+}
+
+func (m *MetricService) IncGnfdSavedEventCount() {
+	m.MetricsMap[MetricGnfdSavedEventCount].(prometheus.Counter).Inc()
 }
 
 // Hash Verifier

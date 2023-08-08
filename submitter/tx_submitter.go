@@ -61,6 +61,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
+			logging.Logger.Infof("submitter error metrics increased at fetch events")
 			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
@@ -77,7 +78,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			}
 			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
-				logging.Logger.Errorf("tx submitter err", err)
+				logging.Logger.Errorf("tx submitter ran into an error while trying to attest, err=%+v", err.Error())
 				continue
 			}
 			time.Sleep(TxSubmitInterval)
@@ -113,6 +114,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Calculate event hash and use it to fetch votes and validator bitset
 	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
+		logging.Logger.Infof("submitter error metrics increased at calculating event hash")
 		s.metricService.IncSubmitterErr()
 		return err
 	}
@@ -160,6 +162,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		}
 
 		if submittedAttempts > common.MaxSubmitAttempts {
+			logging.Logger.Infof("submitter metrics increased at submit attempts")
 			s.metricService.IncSubmitterErr()
 			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d", event.ChallengeId)
 		}
