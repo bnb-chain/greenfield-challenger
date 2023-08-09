@@ -61,7 +61,6 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
-			logging.Logger.Infof("submitter error metrics increased at fetch events")
 			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
@@ -114,7 +113,6 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Calculate event hash and use it to fetch votes and validator bitset
 	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
-		logging.Logger.Infof("submitter error metrics increased at calculating event hash")
 		s.metricService.IncSubmitterErr()
 		return err
 	}
@@ -162,8 +160,6 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		}
 
 		if submittedAttempts > common.MaxSubmitAttempts {
-			logging.Logger.Infof("submitter metrics increased at submit attempts")
-			s.metricService.IncSubmitterErr()
 			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d", event.ChallengeId)
 		}
 
@@ -187,6 +183,8 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Submit transaction
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
+			s.metricService.IncSubmitterErr()
+			logging.Logger.Infof("submitter metrics attest")
 			logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
 			submittedAttempts++
 			time.Sleep(TxSubmitInterval)
@@ -195,6 +193,8 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Update event status to include in Attest Monitor
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		if err != nil {
+			logging.Logger.Infof("submitter metrics db")
+			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("submitter succeeded in attesting but failed to update database, err=%+v", err.Error())
 			continue
 		}
