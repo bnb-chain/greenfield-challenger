@@ -33,10 +33,15 @@ type Verifier struct {
 	metricService         *metrics.MetricService
 }
 
-func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
-	deduplicationInterval uint64, dataProvider DataProvider, metricService *metrics.MetricService,
+func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService,
 ) *Verifier {
 	limiterSemaphore := semaphore.NewWeighted(20)
+
+	deduplicationInterval, err := executor.QueryChallengeSlashCoolingOffPeriod()
+	if err != nil {
+		logging.Logger.Errorf("verifier failed to query slash cooling off period, err=%+v", err)
+	}
+
 	return &Verifier{
 		config:                cfg,
 		executor:              executor,
@@ -255,13 +260,13 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	if bytes.Equal(chainRootHash, spRootHash) {
 		// TODO: Revert this if debugging
-		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
 		if err != nil {
 			return err
 		}
 		// update metrics if no err
 		v.metricService.IncVerifiedChallenges()
-		v.metricService.IncChallengeFailed()
+		v.metricService.IncChallengeSuccess()
 		return err
 	}
 	err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)

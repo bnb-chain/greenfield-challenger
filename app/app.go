@@ -83,7 +83,7 @@ func NewApp(cfg *config.Config) *App {
 	monitor := monitor.NewMonitor(executor, monitorDataHandler, metricService)
 
 	verifierDataHandler := verifier.NewDataHandler(daoManager)
-	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler, metricService)
+	hashVerifier := verifier.NewHashVerifier(cfg, executor, verifierDataHandler, metricService)
 
 	signer := vote.NewVoteSigner(executor.BlsPrivKey)
 	voteDataHandler := vote.NewDataHandler(daoManager, executor)
