@@ -1,24 +1,24 @@
 package submitter
 
 import (
+	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/types/tx"
-	lru "github.com/hashicorp/golang-lru"
 	"time"
 
-	"github.com/willf/bitset"
-
-	"cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield/sdk/types"
 	challengetypes "github.com/bnb-chain/greenfield/x/challenge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/willf/bitset"
 )
 
 type TxSubmitter struct {
@@ -27,9 +27,10 @@ type TxSubmitter struct {
 	cachedEventHash *lru.Cache
 	feeAmount       sdk.Coins
 	DataProvider
+	metricService *metrics.MetricService
 }
 
-func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDataProvider DataProvider) *TxSubmitter {
+func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDataProvider DataProvider, metricService *metrics.MetricService) *TxSubmitter {
 	feeAmount, ok := math.NewIntFromString(cfg.GreenfieldConfig.FeeAmount)
 	if !ok {
 		logging.Logger.Errorf("error converting fee_amount to math.Int, fee_amount: ", cfg.GreenfieldConfig.FeeAmount)
@@ -46,6 +47,7 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDa
 		feeAmount:       feeCoins,
 		cachedEventHash: lruCache,
 		DataProvider:    submitterDataProvider,
+		metricService:   metricService,
 	}
 }
 
@@ -59,6 +61,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
+			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
 		}
@@ -74,7 +77,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			}
 			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
-				logging.Logger.Errorf("tx submitter err", err)
+				logging.Logger.Errorf("tx submitter ran into an error while trying to attest, err=%+v", err.Error())
 				continue
 			}
 			time.Sleep(TxSubmitInterval)
@@ -110,6 +113,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Calculate event hash and use it to fetch votes and validator bitset
 	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
+		s.metricService.IncSubmitterErr()
 		return err
 	}
 	return s.submitTransactionLoop(event, attestPeriodEnd, aggregatedSignature, valBitSet)
@@ -148,6 +152,7 @@ func (s *TxSubmitter) getSignatureAndBitSet(event *model.Event) ([]byte, *bitset
 
 // submitTransaction creates and submits the transaction.
 func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd uint64, aggregatedSignature []byte, valBitSet *bitset.BitSet) error {
+	startTime := time.Now()
 	submittedAttempts := 0
 	for {
 		if time.Now().Unix() > int64(attestPeriodEnd) {
@@ -178,12 +183,24 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Submit transaction
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
+			s.metricService.IncSubmitterErr()
+			logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
 			submittedAttempts++
 			time.Sleep(TxSubmitInterval)
 			continue
 		}
 		// Update event status to include in Attest Monitor
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
+		if err != nil {
+			s.metricService.IncSubmitterErr()
+			logging.Logger.Errorf("submitter succeeded in attesting but failed to update database, err=%+v", err.Error())
+			continue
+		}
+
+		elaspedTime := time.Since(startTime)
+		s.metricService.SetSubmitterDuration(elaspedTime)
+		s.metricService.IncSubmittedChallenges()
+		logging.Logger.Infof("submitter metrics increased for challengeId %d, elasped time %+v", event.ChallengeId, elaspedTime)
 		return err
 	}
 }

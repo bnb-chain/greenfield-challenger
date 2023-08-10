@@ -10,7 +10,7 @@ import (
 
 var (
 	// Logger instance for quick declarative logging levels
-	Logger = logging.MustGetLogger("inscription-challenger")
+	Logger = logging.MustGetLogger("greenfield-challenger")
 	// log levels that are available
 	levels = map[string]logging.Level{
 		"CRITICAL": logging.CRITICAL,

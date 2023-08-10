@@ -3,22 +3,21 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
 	"github.com/bnb-chain/greenfield-challenger/attest"
-
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
-	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-challenger/monitor"
 	"github.com/bnb-chain/greenfield-challenger/submitter"
 	"github.com/bnb-chain/greenfield-challenger/verifier"
 	"github.com/bnb-chain/greenfield-challenger/vote"
 	"github.com/bnb-chain/greenfield-challenger/wiper"
 	"github.com/spf13/viper"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 type App struct {
@@ -30,6 +29,7 @@ type App struct {
 	voteCollator    *vote.VoteCollator
 	txSubmitter     *submitter.TxSubmitter
 	attestMonitor   *attest.AttestMonitor
+	metricService   *metrics.MetricService
 	dbWiper         *wiper.DBWiper
 }
 
@@ -44,7 +44,7 @@ func NewApp(cfg *config.Config) *App {
 
 	db, err := gorm.Open(mysql.Open(dbPath), &gorm.Config{})
 
-	//only for debug purpose
+	// only for debug purpose
 	db = db.Debug()
 
 	if err != nil {
@@ -58,12 +58,13 @@ func NewApp(cfg *config.Config) *App {
 	dbConfig.SetMaxIdleConns(cfg.DBConfig.MaxIdleConns)
 	dbConfig.SetMaxOpenConns(cfg.DBConfig.MaxOpenConns)
 
-	if cfg.DBConfig.DebugMode {
-		err = ResetDB(db, &model.Block{}, &model.Event{}, &model.Vote{})
-		if err != nil {
-			logging.Logger.Errorf("reset db error, err=%+v", err.Error())
-		}
-	}
+	// For clearing database during debugging
+	//if cfg.DBConfig.DebugMode {
+	//	err = ResetDB(db, &model.Block{}, &model.Event{}, &model.Vote{})
+	//	if err != nil {
+	//		logging.Logger.Errorf("reset db error, err=%+v", err.Error())
+	//	}
+	//}
 
 	model.InitBlockTable(db)
 	model.InitEventTable(db)
@@ -76,23 +77,25 @@ func NewApp(cfg *config.Config) *App {
 
 	executor := executor.NewExecutor(cfg)
 
+	metricService := metrics.NewMetricService(cfg)
+
 	monitorDataHandler := monitor.NewDataHandler(daoManager)
-	monitor := monitor.NewMonitor(executor, monitorDataHandler)
+	monitor := monitor.NewMonitor(executor, monitorDataHandler, metricService)
 
 	verifierDataHandler := verifier.NewDataHandler(daoManager)
-	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler)
+	hashVerifier := verifier.NewHashVerifier(cfg, executor, cfg.GreenfieldConfig.DeduplicationInterval, verifierDataHandler, metricService)
 
 	signer := vote.NewVoteSigner(executor.BlsPrivKey)
 	voteDataHandler := vote.NewDataHandler(daoManager, executor)
-	voteCollector := vote.NewVoteCollector(cfg, executor, voteDataHandler)
-	voteBroadcaster := vote.NewVoteBroadcaster(cfg, signer, executor, voteDataHandler)
-	voteCollator := vote.NewVoteCollator(cfg, signer, executor, voteDataHandler)
+	voteCollector := vote.NewVoteCollector(cfg, executor, voteDataHandler, metricService)
+	voteBroadcaster := vote.NewVoteBroadcaster(cfg, signer, executor, voteDataHandler, metricService)
+	voteCollator := vote.NewVoteCollator(cfg, signer, executor, voteDataHandler, metricService)
 
 	txDataHandler := submitter.NewDataHandler(daoManager, executor)
-	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler)
+	txSubmitter := submitter.NewTxSubmitter(cfg, executor, txDataHandler, metricService)
 
 	attestDataHandler := attest.NewDataHandler(daoManager)
-	attestMonitor := attest.NewAttestMonitor(executor, attestDataHandler)
+	attestMonitor := attest.NewAttestMonitor(executor, attestDataHandler, metricService)
 
 	dbWiper := wiper.NewDBWiper(daoManager)
 
@@ -105,6 +108,7 @@ func NewApp(cfg *config.Config) *App {
 		voteCollator:    voteCollator,
 		attestMonitor:   attestMonitor,
 		txSubmitter:     txSubmitter,
+		metricService:   metricService,
 		dbWiper:         dbWiper,
 	}
 }
@@ -119,6 +123,7 @@ func (a *App) Start() {
 	go a.voteBroadcaster.BroadcastVotesLoop()
 	go a.voteCollator.CollateVotesLoop()
 	go a.attestMonitor.UpdateAttestedChallengeIdLoop()
+	go a.metricService.Start()
 	a.txSubmitter.SubmitTransactionLoop()
 }
 

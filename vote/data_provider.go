@@ -8,7 +8,7 @@ import (
 )
 
 type DataProvider interface {
-	FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, error)
+	FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, uint64, error)
 	FetchEventsForCollate(currentHeight uint64) ([]*model.Event, error)
 	FetchVotesForCollate(eventHash string) ([]*model.Vote, error)
 	UpdateEventStatus(challengeId uint64, status model.EventStatus) error
@@ -30,27 +30,31 @@ func NewDataHandler(daoManager *dao.DaoManager, executor *executor.Executor) *Da
 	}
 }
 
-func (h *DataHandler) FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, error) {
+func (h *DataHandler) FetchEventsForSelfVote(currentHeight uint64) ([]*model.Event, uint64, error) {
 	events, err := h.daoManager.GetUnexpiredEventsByStatus(currentHeight, model.Verified)
 	if err != nil {
 		logging.Logger.Errorf("failed to fetch events for self vote, err=%+v", err.Error())
-		return nil, err
+		return nil, 0, err
 	}
 	heartbeatInterval, err := h.executor.QueryChallengeHeartbeatInterval()
 	logging.Logger.Infof("heartbeat interval is %d", heartbeatInterval)
 	if err != nil {
 		logging.Logger.Errorf("error querying heartbeat interval, err=%+v", err.Error())
-		return nil, err
+		return nil, 0, err
 	}
 	result := make([]*model.Event, 0)
+	heartbeatEventCount := 0
 	for _, e := range events {
-		if e.VerifyResult == model.HashMismatched || e.ChallengeId%heartbeatInterval == 0 {
+		if e.VerifyResult == model.HashMismatched {
 			result = append(result, e)
+		} else if e.ChallengeId%heartbeatInterval == 0 {
+			result = append(result, e)
+			heartbeatEventCount++
 		}
 		// it means if a challenge cannot be handled correctly, it will be skipped
 		h.lastIdForSelfVote = e.ChallengeId
 	}
-	return result, nil
+	return result, uint64(heartbeatEventCount), nil
 }
 
 func (h *DataHandler) FetchEventsForCollate(currentHeight uint64) ([]*model.Event, error) {

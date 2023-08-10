@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bnb-chain/greenfield-challenger/metrics"
+
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
@@ -14,14 +16,16 @@ type AttestMonitor struct {
 	mtx                  sync.RWMutex
 	attestedChallengeIds map[uint64]bool // used to save the last attested challenge id
 	dataProvider         DataProvider
+	metricService        *metrics.MetricService
 }
 
-func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider) *AttestMonitor {
+func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService) *AttestMonitor {
 	return &AttestMonitor{
 		executor:             executor,
 		mtx:                  sync.RWMutex{},
 		attestedChallengeIds: make(map[uint64]bool, 0),
 		dataProvider:         dataProvider,
+		metricService:        metricService,
 	}
 }
 
@@ -78,4 +82,5 @@ func (a *AttestMonitor) updateEventStatus(challengeId uint64) {
 	if err != nil {
 		logging.Logger.Errorf("update attested event status error, err=%s", err.Error())
 	}
+	a.metricService.IncAttestedChallenges()
 }
