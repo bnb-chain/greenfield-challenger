@@ -183,8 +183,10 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Submit transaction
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
+			if err != nil {
+				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
+			}
 			s.metricService.IncSubmitterErr()
-			logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
 			submittedAttempts++
 			time.Sleep(TxSubmitInterval)
 			continue
