@@ -185,6 +185,8 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		if err != nil || !attestRes {
 			if err != nil {
 				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
+			} else {
+				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d", event.ChallengeId, submittedAttempts)
 			}
 			s.metricService.IncSubmitterErr()
 			submittedAttempts++
