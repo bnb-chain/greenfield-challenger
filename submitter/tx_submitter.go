@@ -184,7 +184,6 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
 			s.metricService.IncSubmitterErr()
-			logging.Logger.Infof("submitter metrics attest")
 			logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
 			submittedAttempts++
 			time.Sleep(TxSubmitInterval)
@@ -193,7 +192,6 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Update event status to include in Attest Monitor
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		if err != nil {
-			logging.Logger.Infof("submitter metrics db")
 			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("submitter succeeded in attesting but failed to update database, err=%+v", err.Error())
 			continue

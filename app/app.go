@@ -11,7 +11,6 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/dao"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
-	"github.com/bnb-chain/greenfield-challenger/logging"
 	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-challenger/monitor"
 	"github.com/bnb-chain/greenfield-challenger/submitter"
@@ -59,12 +58,13 @@ func NewApp(cfg *config.Config) *App {
 	dbConfig.SetMaxIdleConns(cfg.DBConfig.MaxIdleConns)
 	dbConfig.SetMaxOpenConns(cfg.DBConfig.MaxOpenConns)
 
-	if cfg.DBConfig.DebugMode {
-		err = ResetDB(db, &model.Block{}, &model.Event{}, &model.Vote{})
-		if err != nil {
-			logging.Logger.Errorf("reset db error, err=%+v", err.Error())
-		}
-	}
+	// For clearing database during debugging
+	//if cfg.DBConfig.DebugMode {
+	//	err = ResetDB(db, &model.Block{}, &model.Event{}, &model.Vote{})
+	//	if err != nil {
+	//		logging.Logger.Errorf("reset db error, err=%+v", err.Error())
+	//	}
+	//}
 
 	model.InitBlockTable(db)
 	model.InitEventTable(db)
