@@ -294,6 +294,7 @@ func (e *Executor) QueryChallengeSlashCoolingOffPeriod() (uint64, error) {
 		logging.Logger.Errorf("query challenge params failed, err=%+v", err.Error())
 		return 0, err
 	}
+	logging.Logger.Infof("challenge slash cooling off period: %d", params.Params.SlashCoolingOffPeriod)
 	return params.Params.SlashCoolingOffPeriod, nil
 }
 
