@@ -17,18 +17,17 @@ type Config struct {
 }
 
 type GreenfieldConfig struct {
-	KeyType               string   `json:"key_type"`
-	AWSRegion             string   `json:"aws_region"`
-	AWSSecretName         string   `json:"aws_secret_name"`
-	AWSBlsSecretName      string   `json:"aws_bls_secret_name"`
-	PrivateKey            string   `json:"private_key"`
-	BlsPrivateKey         string   `json:"bls_private_key"`
-	RPCAddrs              []string `json:"rpc_addrs"`
-	ChainIdString         string   `json:"chain_id_string"`
-	GasLimit              uint64   `json:"gas_limit"`
-	FeeAmount             string   `json:"fee_amount"`
-	FeeDenom              string   `json:"fee_denom"`
-	DeduplicationInterval uint64   `json:"deduplication_interval"`
+	KeyType          string   `json:"key_type"`
+	AWSRegion        string   `json:"aws_region"`
+	AWSSecretName    string   `json:"aws_secret_name"`
+	AWSBlsSecretName string   `json:"aws_bls_secret_name"`
+	PrivateKey       string   `json:"private_key"`
+	BlsPrivateKey    string   `json:"bls_private_key"`
+	RPCAddrs         []string `json:"rpc_addrs"`
+	ChainIdString    string   `json:"chain_id_string"`
+	GasLimit         uint64   `json:"gas_limit"`
+	FeeAmount        string   `json:"fee_amount"`
+	FeeDenom         string   `json:"fee_denom"`
 }
 
 func (cfg *GreenfieldConfig) Validate() {
@@ -69,9 +68,6 @@ func (cfg *GreenfieldConfig) Validate() {
 	}
 	if cfg.FeeDenom == "" {
 		panic("fee_denom should not be empty")
-	}
-	if cfg.DeduplicationInterval == 0 {
-		panic("deduplication_interval should not be 0")
 	}
 	feeAmount, ok := math.NewIntFromString(cfg.FeeAmount)
 	if !ok {

@@ -4,6 +4,7 @@ import (
 	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
@@ -160,6 +161,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		}
 
 		if submittedAttempts > common.MaxSubmitAttempts {
+			s.metricService.IncSubmitterErr()
 			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d", event.ChallengeId)
 		}
 
@@ -183,8 +185,20 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Submit transaction
 		attestRes, err := s.executor.AttestChallenge(s.executor.GetAddr(), event.ChallengerAddress, event.SpOperatorAddress, event.ChallengeId, math.NewUintFromString(event.ObjectId), voteResult, valBitSet.Bytes(), aggregatedSignature, txOpts)
 		if err != nil || !attestRes {
-			s.metricService.IncSubmitterErr()
-			logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
+			// Handle cases where the challenge wasn't successfully attested but no error was returned
+			if err != nil {
+				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d, err=%+v", event.ChallengeId, submittedAttempts, err.Error())
+				// Handle cases where a storage provider was recently slashed
+				if strings.Contains(err.Error(), "duplicated slash") {
+					dbErr := s.DataProvider.UpdateEventStatus(event.ChallengeId, model.DuplicatedSlash)
+					if dbErr != nil {
+						return dbErr
+					}
+					return err
+				}
+			} else {
+				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d", event.ChallengeId, submittedAttempts)
+			}
 			submittedAttempts++
 			time.Sleep(TxSubmitInterval)
 			continue
@@ -192,7 +206,6 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		// Update event status to include in Attest Monitor
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		if err != nil {
-			s.metricService.IncSubmitterErr()
 			logging.Logger.Errorf("submitter succeeded in attesting but failed to update database, err=%+v", err.Error())
 			continue
 		}

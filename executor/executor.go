@@ -287,6 +287,17 @@ func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
 	return heartbeatInterval, nil
 }
 
+func (e *Executor) QueryChallengeSlashCoolingOffPeriod() (uint64, error) {
+	client := e.clients.GetClient().Client
+	params, err := client.ChallengeParams(context.Background(), &challengetypes.QueryParamsRequest{})
+	if err != nil {
+		logging.Logger.Errorf("query challenge params failed, err=%+v", err.Error())
+		return 0, err
+	}
+	logging.Logger.Infof("challenge slash cooling off period: %d", params.Params.SlashCoolingOffPeriod)
+	return params.Params.SlashCoolingOffPeriod, nil
+}
+
 func (e *Executor) UpdateHeartbeatIntervalLoop() {
 	ticker := time.NewTicker(QueryHeartbeatIntervalInterval)
 	for range ticker.C {

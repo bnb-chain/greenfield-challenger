@@ -33,10 +33,15 @@ type Verifier struct {
 	metricService         *metrics.MetricService
 }
 
-func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
-	deduplicationInterval uint64, dataProvider DataProvider, metricService *metrics.MetricService,
+func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService,
 ) *Verifier {
 	limiterSemaphore := semaphore.NewWeighted(20)
+
+	deduplicationInterval, err := executor.QueryChallengeSlashCoolingOffPeriod()
+	if err != nil {
+		logging.Logger.Errorf("verifier failed to query slash cooling off period, err=%+v", err)
+	}
+
 	return &Verifier{
 		config:                cfg,
 		executor:              executor,
