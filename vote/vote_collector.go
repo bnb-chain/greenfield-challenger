@@ -9,23 +9,26 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/config"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cometbft/cometbft/votepool"
 )
 
 type VoteCollector struct {
-	config       *config.Config
-	executor     *executor.Executor
-	mtx          sync.RWMutex
-	dataProvider DataProvider
+	config        *config.Config
+	executor      *executor.Executor
+	mtx           sync.RWMutex
+	dataProvider  DataProvider
+	metricService *metrics.MetricService
 }
 
-func NewVoteCollector(cfg *config.Config, executor *executor.Executor, collectorDataProvider DataProvider) *VoteCollector {
+func NewVoteCollector(cfg *config.Config, executor *executor.Executor, collectorDataProvider DataProvider, metricService *metrics.MetricService) *VoteCollector {
 	return &VoteCollector{
-		config:       cfg,
-		executor:     executor,
-		mtx:          sync.RWMutex{},
-		dataProvider: collectorDataProvider,
+		config:        cfg,
+		executor:      executor,
+		mtx:           sync.RWMutex{},
+		dataProvider:  collectorDataProvider,
+		metricService: metricService,
 	}
 }
 
@@ -43,10 +46,14 @@ func (p *VoteCollector) collectVotes() error {
 	eventType := votepool.DataAvailabilityChallengeEvent
 	queriedVotes, err := p.executor.QueryVotes(eventType)
 	if err != nil {
+		p.metricService.IncVoteCollectorErr()
 		logging.Logger.Errorf("vote collector failed to query votes, err=%+v", err.Error())
 		return err
 	}
 	logging.Logger.Infof("number of votes collected: %d", len(queriedVotes))
+	for range queriedVotes {
+		p.metricService.IncVotesCollected()
+	}
 
 	if len(queriedVotes) == 0 {
 		time.Sleep(RetryInterval)
@@ -55,6 +62,7 @@ func (p *VoteCollector) collectVotes() error {
 
 	validators, err := p.executor.QueryCachedLatestValidators()
 	if err != nil {
+		p.metricService.IncVoteCollectorErr()
 		logging.Logger.Errorf("vote collector ran into error querying validators, err=%+v", err.Error())
 		return err
 	}
@@ -62,6 +70,7 @@ func (p *VoteCollector) collectVotes() error {
 	for _, v := range queriedVotes {
 		exists, err := p.dataProvider.IsVoteExists(hex.EncodeToString(v.EventHash), hex.EncodeToString(v.PubKey))
 		if err != nil {
+			p.metricService.IncVoteCollectorErr()
 			logging.Logger.Errorf("vote collector ran into an error while checking if vote exists, err=%+v", err.Error())
 			continue
 		}
@@ -81,6 +90,7 @@ func (p *VoteCollector) collectVotes() error {
 
 		err = p.dataProvider.SaveVote(EntityToDto(v, uint64(0)))
 		if err != nil {
+			p.metricService.IncVoteCollectorErr()
 			return err
 		}
 		logging.Logger.Infof("vote saved: %s", hex.EncodeToString(v.Signature))

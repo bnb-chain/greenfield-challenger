@@ -43,6 +43,7 @@ const (
 	SelfAttested
 	Attested // Event has been submitted for tx
 	Duplicated
+	DuplicatedSlash
 )
 
 type VerifyResult int

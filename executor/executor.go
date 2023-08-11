@@ -287,6 +287,17 @@ func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
 	return heartbeatInterval, nil
 }
 
+func (e *Executor) QueryChallengeSlashCoolingOffPeriod() (uint64, error) {
+	client := e.clients.GetClient().Client
+	params, err := client.ChallengeParams(context.Background(), &challengetypes.QueryParamsRequest{})
+	if err != nil {
+		logging.Logger.Errorf("query challenge params failed, err=%+v", err.Error())
+		return 0, err
+	}
+	logging.Logger.Infof("challenge slash cooling off period: %d", params.Params.SlashCoolingOffPeriod)
+	return params.Params.SlashCoolingOffPeriod, nil
+}
+
 func (e *Executor) UpdateHeartbeatIntervalLoop() {
 	ticker := time.NewTicker(QueryHeartbeatIntervalInterval)
 	for range ticker.C {
@@ -321,11 +332,11 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 		return "", err
 	}
 	res, err := client.GetStorageProviderInfo(context.Background(), spAddr)
-	logging.Logger.Infof("response res.endpoint %s", res.Endpoint)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to query storage provider %s, err=%+v", address, err.Error())
 		return "", err
 	}
+	logging.Logger.Infof("response res.endpoint %s", res.Endpoint)
 
 	return res.Endpoint, nil
 }

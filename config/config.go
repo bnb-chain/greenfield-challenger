@@ -1,10 +1,11 @@
 package config
 
 import (
-	"cosmossdk.io/math"
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"cosmossdk.io/math"
 )
 
 type Config struct {
@@ -12,21 +13,21 @@ type Config struct {
 	LogConfig        LogConfig        `json:"log_config"`
 	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
+	MetricsConfig    MetricsConfig    `json:"metrics_config"`
 }
 
 type GreenfieldConfig struct {
-	KeyType               string   `json:"key_type"`
-	AWSRegion             string   `json:"aws_region"`
-	AWSSecretName         string   `json:"aws_secret_name"`
-	AWSBlsSecretName      string   `json:"aws_bls_secret_name"`
-	PrivateKey            string   `json:"private_key"`
-	BlsPrivateKey         string   `json:"bls_private_key"`
-	RPCAddrs              []string `json:"rpc_addrs"`
-	ChainIdString         string   `json:"chain_id_string"`
-	GasLimit              uint64   `json:"gas_limit"`
-	FeeAmount             string   `json:"fee_amount"`
-	FeeDenom              string   `json:"fee_denom"`
-	DeduplicationInterval uint64   `json:"deduplication_interval"`
+	KeyType          string   `json:"key_type"`
+	AWSRegion        string   `json:"aws_region"`
+	AWSSecretName    string   `json:"aws_secret_name"`
+	AWSBlsSecretName string   `json:"aws_bls_secret_name"`
+	PrivateKey       string   `json:"private_key"`
+	BlsPrivateKey    string   `json:"bls_private_key"`
+	RPCAddrs         []string `json:"rpc_addrs"`
+	ChainIdString    string   `json:"chain_id_string"`
+	GasLimit         uint64   `json:"gas_limit"`
+	FeeAmount        string   `json:"fee_amount"`
+	FeeDenom         string   `json:"fee_denom"`
 }
 
 func (cfg *GreenfieldConfig) Validate() {
@@ -67,9 +68,6 @@ func (cfg *GreenfieldConfig) Validate() {
 	}
 	if cfg.FeeDenom == "" {
 		panic("fee_denom should not be empty")
-	}
-	if cfg.DeduplicationInterval == 0 {
-		panic("deduplication_interval should not be 0")
 	}
 	feeAmount, ok := math.NewIntFromString(cfg.FeeAmount)
 	if !ok {
@@ -127,10 +125,21 @@ func (cfg *DBConfig) Validate() {
 	}
 }
 
+type MetricsConfig struct {
+	Port uint16 `json:"port"`
+}
+
+func (cfg *MetricsConfig) Validate() {
+	if cfg.Port <= 0 || cfg.Port > 65535 {
+		panic("port should be within (0, 65535]")
+	}
+}
+
 func (cfg *Config) Validate() {
 	cfg.LogConfig.Validate()
 	cfg.DBConfig.Validate()
 	cfg.GreenfieldConfig.Validate()
+	cfg.MetricsConfig.Validate()
 }
 
 func ParseConfigFromJson(content string) *Config {

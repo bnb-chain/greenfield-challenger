@@ -16,6 +16,7 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/db/model"
 	"github.com/bnb-chain/greenfield-challenger/executor"
 	"github.com/bnb-chain/greenfield-challenger/logging"
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-common/go/hash"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
 	"github.com/panjf2000/ants/v2"
@@ -29,12 +30,18 @@ type Verifier struct {
 	mtx                   sync.RWMutex
 	dataProvider          DataProvider
 	limiterSemaphore      *semaphore.Weighted
+	metricService         *metrics.MetricService
 }
 
-func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
-	deduplicationInterval uint64, dataProvider DataProvider,
+func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService,
 ) *Verifier {
 	limiterSemaphore := semaphore.NewWeighted(20)
+
+	deduplicationInterval, err := executor.QueryChallengeSlashCoolingOffPeriod()
+	if err != nil {
+		logging.Logger.Errorf("verifier failed to query slash cooling off period, err=%+v", err)
+	}
+
 	return &Verifier{
 		config:                cfg,
 		executor:              executor,
@@ -42,6 +49,7 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor,
 		mtx:                   sync.RWMutex{},
 		dataProvider:          dataProvider,
 		limiterSemaphore:      limiterSemaphore,
+		metricService:         metricService,
 	}
 }
 
@@ -70,7 +78,11 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
-
+	if err != nil {
+		v.metricService.IncHashVerifierErr()
+		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
+		return err
+	}
 	// TODO: Remove after debugging
 	fetchedEvents := []uint64{}
 	for _, v := range events {
@@ -78,10 +90,6 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 	}
 	logging.Logger.Infof("verifier fetched these events for verification: %+v", fetchedEvents)
 
-	if err != nil {
-		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
-		return err
-	}
 	if len(events) == 0 {
 		time.Sleep(common.RetryInterval)
 		return nil
@@ -129,6 +137,7 @@ func (v *Verifier) verifyHash(pool *ants.Pool) error {
 }
 
 func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
+	startTime := time.Now()
 	logging.Logger.Infof("verifier started for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	currentHeight := v.executor.GetCachedBlockHeight()
 	if err := v.preCheck(event, currentHeight); err != nil {
@@ -165,8 +174,10 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
+		v.metricService.IncHashVerifierSpApiErr()
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
+			v.metricService.IncHashVerifierErr()
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		return err
@@ -192,12 +203,16 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", hex.EncodeToString(spRootHash), event.ChallengeId)
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
-	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
+		v.metricService.IncHashVerifierErr()
 		return err
 	}
+	// Log duration
+	elaspedTime := time.Since(startTime)
+	v.metricService.SetHashVerifierDuration(elaspedTime)
+	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	return nil
 }
 
@@ -243,10 +258,23 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 }
 
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
-	// TODO: Revert this if debugging
 	if bytes.Equal(chainRootHash, spRootHash) {
-		//return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
-		return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		// TODO: Revert this if debugging
+		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
+		if err != nil {
+			return err
+		}
+		// update metrics if no err
+		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncChallengeFailed()
+		return err
 	}
-	return v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+	err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMismatched)
+	if err != nil {
+		return err
+	}
+	// update metrics if no err
+	v.metricService.IncVerifiedChallenges()
+	v.metricService.IncChallengeSuccess()
+	return err
 }

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bnb-chain/greenfield-challenger/metrics"
+
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/db/model"
@@ -18,14 +20,16 @@ import (
 )
 
 type Monitor struct {
-	executor     *executor.Executor
-	dataProvider DataProvider
+	executor      *executor.Executor
+	dataProvider  DataProvider
+	metricService *metrics.MetricService
 }
 
-func NewMonitor(executor *executor.Executor, dataProvider DataProvider) *Monitor {
+func NewMonitor(executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService) *Monitor {
 	return &Monitor{
-		executor:     executor,
-		dataProvider: dataProvider,
+		executor:      executor,
+		dataProvider:  dataProvider,
+		metricService: metricService,
 	}
 }
 
@@ -154,7 +158,11 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 	err = m.dataProvider.SaveBlockAndEvents(b, events)
 	for _, event := range events {
 		logging.Logger.Debugf("monitor event saved for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
+		m.metricService.SetGnfdSavedEvent(event.ChallengeId)
+		m.metricService.IncGnfdSavedEventCount()
 	}
+	m.metricService.SetGnfdSavedBlock(b.Height)
+	m.metricService.IncGnfdSavedBlockCount()
 	if err != nil {
 		return err
 	}

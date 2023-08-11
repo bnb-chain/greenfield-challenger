@@ -2,8 +2,11 @@ package vote
 
 import (
 	"fmt"
+	lru "github.com/hashicorp/golang-lru"
 	"strings"
 	"time"
+
+	"github.com/bnb-chain/greenfield-challenger/metrics"
 
 	"github.com/bnb-chain/greenfield-challenger/common"
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -18,32 +21,34 @@ type VoteBroadcaster struct {
 	signer          *VoteSigner
 	executor        *executor.Executor
 	blsPublicKey    []byte
-	cachedLocalVote map[uint64]*votepool.Vote
+	cachedLocalVote *lru.Cache
 	dataProvider    DataProvider
+	metricService   *metrics.MetricService
 }
 
 func NewVoteBroadcaster(cfg *config.Config, signer *VoteSigner,
-	executor *executor.Executor, broadcasterDataProvider DataProvider,
+	executor *executor.Executor, broadcasterDataProvider DataProvider, metricService *metrics.MetricService,
 ) *VoteBroadcaster {
+	cacheSize := 1000
+	lruCache, _ := lru.New(cacheSize)
+
 	return &VoteBroadcaster{
 		config:          cfg,
 		signer:          signer,
 		executor:        executor,
 		dataProvider:    broadcasterDataProvider,
-		cachedLocalVote: nil,
+		cachedLocalVote: lruCache,
 		blsPublicKey:    executor.BlsPubKey,
+		metricService:   metricService,
 	}
 }
 
 func (p *VoteBroadcaster) BroadcastVotesLoop() {
-	// Event lasts for 300 blocks, 2x for redundancy
-	p.cachedLocalVote = make(map[uint64]*votepool.Vote, common.CacheSize)
-	broadcastLoopCount := 0
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
-		// Ask about this function
-		events, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
+		events, heartbeatEventCount, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
 		if err != nil {
+			p.metricService.IncBroadcasterErr()
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			continue
 		}
@@ -51,35 +56,39 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 			time.Sleep(RetryInterval)
 			continue
 		}
+		if heartbeatEventCount != 0 {
+			for i := uint64(0); i < heartbeatEventCount; i++ {
+				p.metricService.IncHeartbeatEvents()
+			}
+		}
 
 		for _, event := range events {
-			localVote := p.cachedLocalVote[event.ChallengeId]
+			localVote, found := p.cachedLocalVote.Get(event.ChallengeId)
 
-			if localVote == nil {
+			if !found {
 				localVote, err = p.constructVoteAndSign(event)
 				if err != nil {
 					if strings.Contains(err.Error(), "Duplicate") {
 						logging.Logger.Errorf("[non-blocking error] broadcaster was trying to save a duplicated vote after clearing cache for challengeId: %d, err=%+v", event.ChallengeId, err.Error())
 					} else {
+						p.metricService.IncBroadcasterErr()
 						logging.Logger.Errorf("broadcaster ran into error trying to construct vote for challengeId: %d, err=%+v", event.ChallengeId, err.Error())
 						continue
 					}
 				}
-				p.cachedLocalVote[event.ChallengeId] = localVote
+				p.cachedLocalVote.Add(event.ChallengeId, localVote)
+				// Incrementing this before broadcasting to prevent the same challengeID from being incremented multiple times
+				// does not mean that it has been successfully broadcasted, check error metrics for broadcast errors.
+				p.metricService.IncBroadcastedChallenges()
+				logging.Logger.Infof("broadcaster metrics increased for challengeId %d", event.ChallengeId)
 			}
 
-			err = p.broadcastForSingleEvent(localVote, event)
+			err = p.broadcastForSingleEvent(localVote.(*votepool.Vote), event)
 			if err != nil {
+				p.metricService.IncBroadcasterErr()
 				continue
 			}
 			time.Sleep(50 * time.Millisecond)
-		}
-
-		broadcastLoopCount++
-		if broadcastLoopCount == common.CacheClearIterations {
-			// Clear cachedLocalVote every N loops, preCheck cannot catch events expired in between iterations
-			p.cachedLocalVote = make(map[uint64]*votepool.Vote, common.CacheSize)
-			broadcastLoopCount = 0
 		}
 
 		time.Sleep(RetryInterval)
@@ -87,10 +96,11 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 }
 
 func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, event *model.Event) error {
+	startTime := time.Now()
 	err := p.preCheck(event)
 	if err != nil {
 		if err.Error() == common.ErrEventExpired.Error() {
-			delete(p.cachedLocalVote, event.ChallengeId)
+			p.cachedLocalVote.Remove(event.ChallengeId)
 			return err
 		}
 		return err
@@ -102,6 +112,10 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 		return fmt.Errorf("failed to broadcast vote for challengeId: %d", event.ChallengeId)
 	}
 	logging.Logger.Infof("vote broadcasted for challengeId: %d, height: %d", event.ChallengeId, event.Height)
+
+	// Metrics
+	elaspedTime := time.Since(startTime)
+	p.metricService.SetBroadcasterDuration(elaspedTime)
 	return nil
 }
 
