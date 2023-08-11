@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.4
+This release includes a feature and bugfix. Metrics are added in this release.
+
+Features:
+* [#61](https://github.com/bnb-chain/greenfield-challenger/pull/61) feat: add metrics
+
+Bugfixes:
+* [#64](https://github.com/bnb-chain/greenfield-challenger/pull/64) fix: attest monitor missing attested challenges
+
+Chores:
+* [#63](https://github.com/bnb-chain/greenfield-challenger/pull/63) chore: add issue template
+
+
 ## v0.0.3
 This release includes 1 feature and 2 bugfixes.
 
