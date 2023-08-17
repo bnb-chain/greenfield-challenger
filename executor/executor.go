@@ -324,7 +324,6 @@ func (e *Executor) GetHeightLoop() {
 }
 
 func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
-	// TODO: check addr conversion and GetStorageProviderInfo == GetSpEndpoint previously
 	client := e.clients.GetClient().Client
 	spAddr, err := sdk.AccAddressFromHexUnsafe(address)
 	if err != nil {
