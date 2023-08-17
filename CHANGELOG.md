@@ -1,7 +1,7 @@
 # Changelog
 
 ## v0.0.5-alpha.1
-This release updates the dependencies to adapt to Greenfield v0.2.4-alpha.1
+This release updates the dependencies to adapt to Greenfield v0.2.4-alpha.2
 
 ## v0.0.4
 This release includes a feature and bugfix. Metrics are added in this release.
