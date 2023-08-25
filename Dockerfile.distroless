@@ -1,0 +1,39 @@
+FROM balenalib/amd64-debian-golang:latest as builder
+
+# Set up dependencies
+ENV PACKAGES libc6-dev make git  bash build-essential curl
+
+# Install minimum necessary dependencies, remove packages
+RUN apt-get -y update && apt-get -y install $PACKAGES
+
+# Set working directory for the build
+WORKDIR /opt/app
+
+# Add source files
+COPY . .
+
+RUN make build
+
+FROM gcr.io/distroless/cc-debian11:latest
+
+ENV GREENFIELD_CHALLENGER_HOME /opt/app
+
+ENV CONFIG_FILE_PATH $GREENFIELD_CHALLENGER_HOME/config/config.json
+ENV CONFIG_TYPE "local"
+ENV PRIVATE_KEY ""
+ENV BLS_PRIVATE_KEY ""
+ENV DB_PASS ""
+# You need to specify aws s3 config if you want to load config from s3
+ENV AWS_REGION ""
+ENV AWS_SECRET_KEY ""
+
+
+VOLUME [ $GREENFIELD_CHALLENGER_HOME ]
+
+ENV WORKDIR=/app
+WORKDIR ${WORKDIR}
+COPY --from=builder /opt/app/build/greenfield-challenger ${WORKDIR}
+
+
+# Run the app
+ENTRYPOINT ["/app/greenfield-challenger"]
