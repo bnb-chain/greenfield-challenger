@@ -19,7 +19,6 @@ import (
 	"github.com/bnb-chain/greenfield-challenger/metrics"
 	"github.com/bnb-chain/greenfield-common/go/hash"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
-	"github.com/panjf2000/ants/v2"
 )
 
 type Verifier struct {
@@ -56,16 +55,8 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 func (v *Verifier) VerifyHashLoop() {
 	// Event lasts for 300 blocks, 2x for redundancy
 	v.cachedChallengeIds = make(map[uint64]bool, common.CacheSize)
-
-	pool, err := ants.NewPool(30)
-	if err != nil {
-		logging.Logger.Errorf("verifier failed to create ant pool, err=%+v", err.Error())
-		return
-	}
-	defer pool.Release()
-
 	for {
-		err := v.verifyHash(pool)
+		err := v.verifyHash()
 		if err != nil {
 			time.Sleep(common.RetryInterval)
 			continue
@@ -74,7 +65,7 @@ func (v *Verifier) VerifyHashLoop() {
 	}
 }
 
-func (v *Verifier) verifyHash(pool *ants.Pool) error {
+func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
@@ -180,6 +171,8 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 			v.metricService.IncHashVerifierErr()
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
+		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncChallengeSuccess()
 		return err
 	}
 
