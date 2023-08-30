@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.5
+This release updates the dependencies to adapt to Greenfield v0.2.4 and contains 1 new feature.  
+
+Features:  
+* [#73](https://github.com/bnb-chain/greenfield-challenger/pull/73) feat: enable using env vars for config
+
+Chores:
+* [#76](https://github.com/bnb-chain/greenfield-challenger/pull/76) chore: clean up unused code and update dependencies
+
+CI:  
+* [#75](https://github.com/bnb-chain/greenfield-challenger/pull/75) ci: add docker job for tag releasing
+* [#74](https://github.com/bnb-chain/greenfield-challenger/pull/74) ci: Create Dockerfile.distroless
+
+
 ## v0.0.5-alpha.1
 This release updates the dependencies to adapt to Greenfield v0.2.4-alpha.2
 
