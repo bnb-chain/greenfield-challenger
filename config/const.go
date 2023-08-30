@@ -16,4 +16,7 @@ const (
 	AWSConfig              = "aws"
 	KeyTypeLocalPrivateKey = "local_private_key"
 	KeyTypeAWSPrivateKey   = "aws_private_key"
+
+	ConfigType     = "CONFIG_TYPE"
+	ConfigFilePath = "CONFIG_FILE_PATH"
 )
