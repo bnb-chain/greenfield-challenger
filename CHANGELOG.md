@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.6  
+This release updates the dependencies to adapt to Greenfield v0.2.5 and contains 1 new feature.
+
+Features:  
+* [#80](https://github.com/bnb-chain/greenfield-challenger/pull/880) feat: add logging to metrics and waitgroups for goroutines
+
 ## v0.0.5
 This release updates the dependencies to adapt to Greenfield v0.2.4 and contains 1 new feature.  
 
