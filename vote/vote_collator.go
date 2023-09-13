@@ -42,7 +42,7 @@ func (p *VoteCollator) CollateVotesLoop() {
 		events, err := p.dataProvider.FetchEventsForCollate(currentHeight)
 		logging.Logger.Infof("vote processor fetched %d events for collate", len(events))
 		if err != nil {
-			p.metricService.IncCollatorErr()
+			p.metricService.IncCollatorErr(err)
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			time.Sleep(RetryInterval)
 			continue
@@ -77,7 +77,7 @@ func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 	}
 	err = p.dataProvider.UpdateEventStatus(event.ChallengeId, model.EnoughVotesCollected)
 	if err != nil {
-		p.metricService.IncCollatorErr()
+		p.metricService.IncCollatorErr(err)
 		return err
 	}
 
@@ -93,7 +93,7 @@ func (p *VoteCollator) collateForSingleEvent(event *model.Event) error {
 func (p *VoteCollator) prepareEnoughValidVotesForEvent(event *model.Event) error {
 	validators, err := p.executor.QueryCachedLatestValidators()
 	if err != nil {
-		p.metricService.IncCollatorErr()
+		p.metricService.IncCollatorErr(err)
 		return err
 	}
 	if len(validators) == 1 {
@@ -125,7 +125,7 @@ func (p *VoteCollator) queryMoreThanTwoThirdVotesForEvent(event *model.Event, va
 	eventHash := CalculateEventHash(event, p.config.GreenfieldConfig.ChainIdString)
 	queriedVotes, err := p.dataProvider.FetchVotesForCollate(hex.EncodeToString(eventHash))
 	if err != nil {
-		p.metricService.IncCollatorErr()
+		p.metricService.IncCollatorErr(err)
 		logging.Logger.Errorf("failed to query votes for event %d, err=%+v", event.ChallengeId, err.Error())
 		return err
 	}

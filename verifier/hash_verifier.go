@@ -30,6 +30,7 @@ type Verifier struct {
 	dataProvider          DataProvider
 	limiterSemaphore      *semaphore.Weighted
 	metricService         *metrics.MetricService
+	wg                    sync.WaitGroup
 }
 
 func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService,
@@ -64,13 +65,12 @@ func (v *Verifier) VerifyHashLoop() {
 		time.Sleep(VerifyHashLoopInterval)
 	}
 }
-
 func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
 	if err != nil {
-		v.metricService.IncHashVerifierErr()
+		v.metricService.IncHashVerifierErr(err)
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
 	}
@@ -102,9 +102,10 @@ func (v *Verifier) verifyHash() error {
 			logging.Logger.Errorf("failed to acquire semaphore: %v", err)
 			continue
 		}
+		v.wg.Add(1)
 		go func(event *model.Event) {
 			defer v.limiterSemaphore.Release(1)
-			// Call verifyForSingleEvent inside the goroutine
+			defer v.wg.Done()
 			err = v.verifyForSingleEvent(event)
 		}(event)
 
@@ -124,6 +125,9 @@ func (v *Verifier) verifyHash() error {
 			v.mtx.Unlock()
 		}
 	}
+
+	v.wg.Wait()
+
 	return nil
 }
 
@@ -165,10 +169,10 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
-		v.metricService.IncHashVerifierSpApiErr()
+		v.metricService.IncHashVerifierSpApiErr(err)
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
-			v.metricService.IncHashVerifierErr()
+			v.metricService.IncHashVerifierErr(err)
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		v.metricService.IncVerifiedChallenges()
@@ -199,7 +203,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
-		v.metricService.IncHashVerifierErr()
+		v.metricService.IncHashVerifierErr(err)
 		return err
 	}
 	// Log duration

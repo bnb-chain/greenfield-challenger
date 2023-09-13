@@ -62,7 +62,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
-			s.metricService.IncSubmitterErr()
+			s.metricService.IncSubmitterErr(err)
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
 		}
@@ -114,7 +114,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Calculate event hash and use it to fetch votes and validator bitset
 	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
-		s.metricService.IncSubmitterErr()
+		s.metricService.IncSubmitterErr(err)
 		return err
 	}
 	return s.submitTransactionLoop(event, attestPeriodEnd, aggregatedSignature, valBitSet)
@@ -161,7 +161,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		}
 
 		if submittedAttempts > common.MaxSubmitAttempts {
-			s.metricService.IncSubmitterErr()
+			//s.metricService.IncSubmitterErr(err)
 			return fmt.Errorf("submitter exceeded max submit attempts for challengeId: %d", event.ChallengeId)
 		}
 

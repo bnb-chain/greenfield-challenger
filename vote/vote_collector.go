@@ -46,7 +46,7 @@ func (p *VoteCollector) collectVotes() error {
 	eventType := votepool.DataAvailabilityChallengeEvent
 	queriedVotes, err := p.executor.QueryVotes(eventType)
 	if err != nil {
-		p.metricService.IncVoteCollectorErr()
+		p.metricService.IncVoteCollectorErr(err)
 		logging.Logger.Errorf("vote collector failed to query votes, err=%+v", err.Error())
 		return err
 	}
@@ -62,7 +62,7 @@ func (p *VoteCollector) collectVotes() error {
 
 	validators, err := p.executor.QueryCachedLatestValidators()
 	if err != nil {
-		p.metricService.IncVoteCollectorErr()
+		p.metricService.IncVoteCollectorErr(err)
 		logging.Logger.Errorf("vote collector ran into error querying validators, err=%+v", err.Error())
 		return err
 	}
@@ -70,7 +70,7 @@ func (p *VoteCollector) collectVotes() error {
 	for _, v := range queriedVotes {
 		exists, err := p.dataProvider.IsVoteExists(hex.EncodeToString(v.EventHash), hex.EncodeToString(v.PubKey))
 		if err != nil {
-			p.metricService.IncVoteCollectorErr()
+			p.metricService.IncVoteCollectorErr(err)
 			logging.Logger.Errorf("vote collector ran into an error while checking if vote exists, err=%+v", err.Error())
 			continue
 		}
@@ -90,7 +90,7 @@ func (p *VoteCollector) collectVotes() error {
 
 		err = p.dataProvider.SaveVote(EntityToDto(v, uint64(0)))
 		if err != nil {
-			p.metricService.IncVoteCollectorErr()
+			p.metricService.IncVoteCollectorErr(err)
 			return err
 		}
 		logging.Logger.Infof("vote saved: %s", hex.EncodeToString(v.Signature))
