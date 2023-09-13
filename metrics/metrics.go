@@ -279,12 +279,16 @@ func (m *MetricService) IncHeartbeatEvents() {
 }
 
 func (m *MetricService) IncHashVerifierErr(err error) {
-	logging.Logger.Errorf("verifier error count increased, %s", err.Error())
+	if err != nil {
+		logging.Logger.Errorf("verifier error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
 }
 
 func (m *MetricService) IncHashVerifierSpApiErr(err error) {
-	logging.Logger.Errorf("verifier sp api error count increased, %s", err.Error())
+	if err != nil {
+		logging.Logger.Errorf("verifier sp api error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricSpAPIErr].(prometheus.Counter).Inc()
 }
 
@@ -304,7 +308,9 @@ func (m *MetricService) IncBroadcasterErr(err error) {
 
 // Vote Collector
 func (m *MetricService) IncVoteCollectorErr(err error) {
-	logging.Logger.Errorf("vote collector error count increased, %s", err.Error())
+	if err != nil {
+		logging.Logger.Errorf("vote collector error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricsVoteCollectorErr].(prometheus.Counter).Inc()
 }
 
@@ -322,7 +328,9 @@ func (m *MetricService) SetCollatorDuration(duration time.Duration) {
 }
 
 func (m *MetricService) IncCollatorErr(err error) {
-	logging.Logger.Errorf("collator error count increased, %s", err.Error())
+	if err != nil {
+		logging.Logger.Errorf("collator error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricCollatorErr].(prometheus.Counter).Inc()
 }
 
@@ -336,7 +344,9 @@ func (m *MetricService) SetSubmitterDuration(duration time.Duration) {
 }
 
 func (m *MetricService) IncSubmitterErr(err error) {
-	logging.Logger.Errorf("submitter error count increased, %s", err.Error())
+	if err != nil {
+		logging.Logger.Errorf("submitter error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricSubmitterErr].(prometheus.Counter).Inc()
 }
 
