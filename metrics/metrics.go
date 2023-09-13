@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"github.com/bnb-chain/greenfield-challenger/logging"
 	"net/http"
 	"time"
 
@@ -277,11 +278,17 @@ func (m *MetricService) IncHeartbeatEvents() {
 	m.MetricsMap[MetricHeartbeatEvents].(prometheus.Counter).Inc()
 }
 
-func (m *MetricService) IncHashVerifierErr() {
+func (m *MetricService) IncHashVerifierErr(err error) {
+	if err != nil {
+		logging.Logger.Errorf("verifier error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
 }
 
-func (m *MetricService) IncHashVerifierSpApiErr() {
+func (m *MetricService) IncHashVerifierSpApiErr(err error) {
+	if err != nil {
+		logging.Logger.Errorf("verifier sp api error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricSpAPIErr].(prometheus.Counter).Inc()
 }
 
@@ -294,12 +301,16 @@ func (m *MetricService) SetBroadcasterDuration(duration time.Duration) {
 	m.MetricsMap[MetricBroadcasterDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
-func (m *MetricService) IncBroadcasterErr() {
+func (m *MetricService) IncBroadcasterErr(err error) {
+	logging.Logger.Errorf("broadcaster error count increased, %s", err.Error())
 	m.MetricsMap[MetricBroadcasterErr].(prometheus.Counter).Inc()
 }
 
 // Vote Collector
-func (m *MetricService) IncVoteCollectorErr() {
+func (m *MetricService) IncVoteCollectorErr(err error) {
+	if err != nil {
+		logging.Logger.Errorf("vote collector error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricsVoteCollectorErr].(prometheus.Counter).Inc()
 }
 
@@ -316,7 +327,10 @@ func (m *MetricService) SetCollatorDuration(duration time.Duration) {
 	m.MetricsMap[MetricCollatorDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
-func (m *MetricService) IncCollatorErr() {
+func (m *MetricService) IncCollatorErr(err error) {
+	if err != nil {
+		logging.Logger.Errorf("collator error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricCollatorErr].(prometheus.Counter).Inc()
 }
 
@@ -329,7 +343,10 @@ func (m *MetricService) SetSubmitterDuration(duration time.Duration) {
 	m.MetricsMap[MetricSubmitterDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
-func (m *MetricService) IncSubmitterErr() {
+func (m *MetricService) IncSubmitterErr(err error) {
+	if err != nil {
+		logging.Logger.Errorf("submitter error count increased, %s", err.Error())
+	}
 	m.MetricsMap[MetricSubmitterErr].(prometheus.Counter).Inc()
 }
 

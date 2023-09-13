@@ -17,6 +17,7 @@ type AttestMonitor struct {
 	attestedChallengeIds map[uint64]bool // used to save the last attested challenge id
 	dataProvider         DataProvider
 	metricService        *metrics.MetricService
+	wg                   sync.WaitGroup
 }
 
 func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider, metricService *metrics.MetricService) *AttestMonitor {
@@ -51,6 +52,8 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 		if queryCount > MaxQueryCount {
 			a.attestedChallengeIds = make(map[uint64]bool, 0)
 		}
+
+		a.wg.Wait()
 	}
 }
 
@@ -58,7 +61,11 @@ func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 func (a *AttestMonitor) updateAttestedCacheAndEventStatus(old map[uint64]bool, latest []uint64) {
 	for _, challengeId := range latest {
 		if _, ok := old[challengeId]; !ok {
-			go a.updateEventStatus(challengeId)
+			a.wg.Add(1)
+			go func(challengeId uint64) {
+				defer a.wg.Done() // Decrement the WaitGroup when the goroutine is done
+				a.updateEventStatus(challengeId)
+			}(challengeId)
 		}
 	}
 }
