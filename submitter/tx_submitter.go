@@ -4,6 +4,7 @@ import (
 	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,7 +63,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
-			s.metricService.IncSubmitterErr(err)
+			s.metricService.IncSubmitterErr("db", err)
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
 		}
@@ -79,6 +80,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			err = s.submitForSingleEvent(event, attestPeriodEnd)
 			if err != nil {
 				logging.Logger.Errorf("tx submitter ran into an error while trying to attest, err=%+v", err.Error())
+				s.metricService.IncSubmitterErr(strconv.FormatUint(event.ChallengeId, 10), err)
 				continue
 			}
 			time.Sleep(TxSubmitInterval)
@@ -114,7 +116,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Calculate event hash and use it to fetch votes and validator bitset
 	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
-		s.metricService.IncSubmitterErr(err)
+		s.metricService.IncSubmitterErr(strconv.FormatUint(event.ChallengeId, 10), err)
 		return err
 	}
 	return s.submitTransactionLoop(event, attestPeriodEnd, aggregatedSignature, valBitSet)

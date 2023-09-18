@@ -51,12 +51,12 @@ const (
 )
 
 type MetricService struct {
-	MetricsMap map[string]prometheus.Metric
+	MetricsMap map[string]prometheus.Collector
 	cfg        *config.Config
 }
 
 func NewMetricService(config *config.Config) *MetricService {
-	ms := make(map[string]prometheus.Metric, 0)
+	ms := make(map[string]prometheus.Collector, 0)
 
 	// Monitor
 	gnfdSavedBlockMetric := prometheus.NewGauge(prometheus.GaugeOpts{
@@ -197,10 +197,13 @@ func NewMetricService(config *config.Config) *MetricService {
 	prometheus.MustRegister(collatedDurationMetric)
 
 	// Submitter
-	submitterErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: MetricSubmitterErr,
-		Help: "Submitter error count",
-	})
+	submitterErrCountMetric := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: MetricSubmitterErr,
+			Help: "Submitter error count",
+		},
+		[]string{"challengeId", "error"},
+	)
 	ms[MetricSubmitterErr] = submitterErrCountMetric
 	prometheus.MustRegister(submitterErrCountMetric)
 
@@ -343,11 +346,14 @@ func (m *MetricService) SetSubmitterDuration(duration time.Duration) {
 	m.MetricsMap[MetricSubmitterDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
-func (m *MetricService) IncSubmitterErr(err error) {
+func (m *MetricService) IncSubmitterErr(challengeId string, err error) {
 	if err != nil {
 		logging.Logger.Errorf("submitter error count increased, %s", err.Error())
+		metric, ok := m.MetricsMap[MetricSubmitterErr].(prometheus.CounterVec)
+		if ok {
+			metric.WithLabelValues(challengeId, err.Error()).Inc()
+		}
 	}
-	m.MetricsMap[MetricSubmitterErr].(prometheus.Counter).Inc()
 }
 
 // Attest Monitor
