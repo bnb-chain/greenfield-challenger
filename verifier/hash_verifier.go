@@ -59,7 +59,9 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 
 func (v *Verifier) Start() {
 	go v.startFetcher()
-	go v.startWorkers()
+	for i := 0; i < 5; i++ {
+		go v.startWorkers()
+	}
 }
 
 func (v *Verifier) startFetcher() {
