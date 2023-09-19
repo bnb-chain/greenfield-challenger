@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bnb-chain/greenfield-challenger/logging"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/bnb-chain/greenfield-challenger/config"
@@ -17,6 +18,10 @@ const (
 	MetricGnfdSavedBlockCount = "gnfd_saved_block_count"
 	MetricGnfdSavedEvent      = "gnfd_saved_event"
 	MetricGnfdSavedEventCount = "gnfd_saved_event_count"
+
+	// Global
+	MetricGnfdChainErr = "gnfd_chain_error"
+	MetricDBErr        = "db_error"
 
 	// Verifier
 	MetricVerifiedChallenges       = "verified_challenges"
@@ -87,6 +92,27 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricGnfdSavedEventCount] = gnfdSavedEventCountMetric
 	prometheus.MustRegister(gnfdSavedEventCountMetric)
 
+	// Global
+	gnfdChainErrCountMetric := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: MetricGnfdChainErr,
+			Help: "Gnfd chain error count",
+		},
+		[]string{"challengeId", "error"},
+	)
+	ms[MetricGnfdChainErr] = gnfdChainErrCountMetric
+	prometheus.MustRegister(gnfdChainErrCountMetric)
+
+	gnfdDBErrCountMetric := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: MetricDBErr,
+			Help: "Database error count",
+		},
+		[]string{"challengeId", "error"},
+	)
+	ms[MetricDBErr] = gnfdDBErrCountMetric
+	prometheus.MustRegister(gnfdDBErrCountMetric)
+
 	// Hash Verifier
 	verifiedChallengesMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricVerifiedChallenges,
@@ -130,10 +156,12 @@ func NewMetricService(config *config.Config) *MetricService {
 	ms[MetricHashVerifierErr] = hashVerifierErrCountMetric
 	prometheus.MustRegister(hashVerifierErrCountMetric)
 
-	hashVerifierSpApiErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+	hashVerifierSpApiErrCountMetric := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: MetricSpAPIErr,
 		Help: "Hash verifier SP API error count",
-	})
+	},
+		[]string{"challengeId", "error"},
+	)
 	ms[MetricSpAPIErr] = hashVerifierSpApiErrCountMetric
 	prometheus.MustRegister(hashVerifierSpApiErrCountMetric)
 
@@ -260,6 +288,27 @@ func (m *MetricService) IncGnfdSavedEventCount() {
 	m.MetricsMap[MetricGnfdSavedEventCount].(prometheus.Counter).Inc()
 }
 
+// Global
+func (m *MetricService) IncGnfdChainErr(challengeId uint64, err error) {
+	if err != nil {
+		logging.Logger.Errorf("gnfd chain error count increased, %s", err.Error())
+		metric, ok := m.MetricsMap[MetricGnfdChainErr].(prometheus.CounterVec)
+		if ok {
+			metric.WithLabelValues(strconv.FormatUint(challengeId, 10), err.Error()).Inc()
+		}
+	}
+}
+
+func (m *MetricService) IncDBErr(challengeId uint64, err error) {
+	if err != nil {
+		logging.Logger.Errorf("db error count increased, %s", err.Error())
+		metric, ok := m.MetricsMap[MetricDBErr].(prometheus.CounterVec)
+		if ok {
+			metric.WithLabelValues(strconv.FormatUint(challengeId, 10), err.Error()).Inc()
+		}
+	}
+}
+
 // Hash Verifier
 func (m *MetricService) IncVerifiedChallenges() {
 	m.MetricsMap[MetricVerifiedChallenges].(prometheus.Counter).Inc()
@@ -288,11 +337,14 @@ func (m *MetricService) IncHashVerifierErr(err error) {
 	m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
 }
 
-func (m *MetricService) IncHashVerifierSpApiErr(err error) {
+func (m *MetricService) IncHashVerifierSpApiErr(challengeId uint64, err error) {
 	if err != nil {
-		logging.Logger.Errorf("verifier sp api error count increased, %s", err.Error())
+		logging.Logger.Errorf("sp api error count increased, %s", err.Error())
+		metric, ok := m.MetricsMap[MetricSpAPIErr].(prometheus.CounterVec)
+		if ok {
+			metric.WithLabelValues(strconv.FormatUint(challengeId, 10), err.Error()).Inc()
+		}
 	}
-	m.MetricsMap[MetricSpAPIErr].(prometheus.Counter).Inc()
 }
 
 // Broadcaster
@@ -346,12 +398,12 @@ func (m *MetricService) SetSubmitterDuration(duration time.Duration) {
 	m.MetricsMap[MetricSubmitterDuration].(prometheus.Histogram).Observe(duration.Seconds())
 }
 
-func (m *MetricService) IncSubmitterErr(challengeId string, err error) {
+func (m *MetricService) IncSubmitterErr(challengeId uint64, err error) {
 	if err != nil {
 		logging.Logger.Errorf("submitter error count increased, %s", err.Error())
 		metric, ok := m.MetricsMap[MetricSubmitterErr].(prometheus.CounterVec)
 		if ok {
-			metric.WithLabelValues(challengeId, err.Error()).Inc()
+			metric.WithLabelValues(strconv.FormatUint(challengeId, 10), err.Error()).Inc()
 		}
 	}
 }
