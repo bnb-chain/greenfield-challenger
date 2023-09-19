@@ -118,7 +118,7 @@ func (a *App) Start() {
 	go a.executor.CacheValidatorsLoop()
 	go a.executor.GetHeightLoop()
 	go a.eventMonitor.ListenEventLoop()
-	go a.hashVerifier.VerifyHashLoop()
+	go a.hashVerifier.Start()
 	go a.voteCollector.CollectVotesLoop()
 	go a.voteBroadcaster.BroadcastVotesLoop()
 	go a.voteCollator.CollateVotesLoop()

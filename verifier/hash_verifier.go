@@ -68,7 +68,9 @@ func (v *Verifier) startFetcher() {
 		currentHeight := v.executor.GetCachedBlockHeight()
 		events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
 		if err != nil {
-
+			logging.Logger.Errorf("error fetching events for verification, err=%+v", err.Error())
+			v.metricService.IncDBErr(0, err)
+			continue
 		}
 
 		for _, event := range events {
