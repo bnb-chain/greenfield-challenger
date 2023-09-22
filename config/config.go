@@ -130,7 +130,7 @@ type MetricsConfig struct {
 }
 
 func (cfg *MetricsConfig) Validate() {
-	if cfg.Port <= 0 || cfg.Port > 65535 {
+	if cfg.Port < 0 || cfg.Port > 65535 {
 		panic("port should be within (0, 65535]")
 	}
 }
