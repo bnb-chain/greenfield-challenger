@@ -12,8 +12,10 @@
     "chain_id_string": "greenfield_9000-121",
     "gas_limit": 1000,
     "fee_amount": "5000000000000",
-    "fee_denom": "BNB",
-    "deduplication_interval": 100
+    "fee_denom": "BNB"
+  },
+  "metrics_config": {
+    "port": 8080
   },
   "log_config": {
     "level": "DEBUG",
