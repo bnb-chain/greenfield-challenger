@@ -141,7 +141,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	endpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
 	if err != nil {
-		logging.Logger.Errorf("verifier failed to get sp endpoint for challengeId: %s, objectId: %s, err=%+v", err.Error(), event.ChallengeId, event.ObjectId)
+		logging.Logger.Errorf("verifier failed to get sp endpoint for challengeId: %s, objectId: %s, err=%+v", event.ChallengeId, event.ObjectId, err.Error())
 		return err
 	}
 	logging.Logger.Infof("challengeId: %d, sp endpoint: %s, objectId: %s, segmentIndex: %d, redundancyIndex: %d", event.ChallengeId, endpoint, event.ObjectId, event.SegmentIndex, event.RedundancyIndex)
@@ -152,6 +152,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		if strings.Contains(err.Error(), "No such object") {
 			logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
 		}
+		logging.Logger.Errorf("hash verifier error getting object checksums for challengeId: %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
