@@ -132,27 +132,55 @@ func (v *Verifier) verifyHash() error {
 }
 
 func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
+	var err error
 	startTime := time.Now()
 	logging.Logger.Infof("verifier started for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	currentHeight := v.executor.GetCachedBlockHeight()
-	if err := v.preCheck(event, currentHeight); err != nil {
+	if err = v.preCheck(event, currentHeight); err != nil {
 		return err
 	}
 
-	endpoint, err := v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
+	// Retry GetStorageProviderEndpoint and GetObjectInfoChecksums up to 5 times
+	var endpoint string
+	_ = retry.Do(
+		func() error {
+			endpoint, err = v.executor.GetStorageProviderEndpoint(event.SpOperatorAddress)
+			if err != nil {
+				logging.Logger.Errorf("verifier failed to get sp endpoint for challengeId: %s, objectId: %s, err=%+v", event.ChallengeId, event.ObjectId, err.Error())
+			}
+			return err
+		}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
+
 	if err != nil {
-		logging.Logger.Errorf("verifier failed to get sp endpoint for challengeId: %s, objectId: %s, err=%+v", event.ChallengeId, event.ObjectId, err.Error())
+		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
+		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncChallengeFailed()
+		if err != nil {
+			return err
+		}
 		return err
 	}
-	logging.Logger.Infof("challengeId: %d, sp endpoint: %s, objectId: %s, segmentIndex: %d, redundancyIndex: %d", event.ChallengeId, endpoint, event.ObjectId, event.SegmentIndex, event.RedundancyIndex)
 
 	// Call blockchain for object info to get original hash
-	checksums, err := v.executor.GetObjectInfoChecksums(event.ObjectId)
+	var checksums [][]byte
+	_ = retry.Do(
+		func() error {
+			checksums, err = v.executor.GetObjectInfoChecksums(event.ObjectId)
+			if err != nil {
+				if strings.Contains(err.Error(), "No such object") {
+					logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
+				}
+				logging.Logger.Errorf("hash verifier error getting object checksums for challengeId: %d, err=%s", event.ChallengeId, err.Error())
+			}
+			return err
+		}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if err != nil {
-		if strings.Contains(err.Error(), "No such object") {
-			logging.Logger.Errorf("No such object error for challengeId: %d", event.ChallengeId)
+		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
+		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncChallengeFailed()
+		if err != nil {
+			return err
 		}
-		logging.Logger.Errorf("hash verifier error getting object checksums for challengeId: %d, err=%s", event.ChallengeId, err.Error())
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
