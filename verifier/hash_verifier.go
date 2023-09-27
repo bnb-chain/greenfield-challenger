@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/sync/semaphore"
 	"io"
 	"strings"
@@ -25,7 +26,7 @@ type Verifier struct {
 	config                *config.Config
 	executor              *executor.Executor
 	deduplicationInterval uint64
-	cachedChallengeIds    map[uint64]bool
+	cachedChallengeIds    *lru.Cache
 	mtx                   sync.RWMutex
 	dataProvider          DataProvider
 	limiterSemaphore      *semaphore.Weighted
@@ -37,6 +38,9 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 ) *Verifier {
 	limiterSemaphore := semaphore.NewWeighted(20)
 
+	cacheSize := 1000
+	lruCache, _ := lru.New(cacheSize)
+
 	deduplicationInterval, err := executor.QueryChallengeSlashCoolingOffPeriod()
 	if err != nil {
 		logging.Logger.Errorf("verifier failed to query slash cooling off period, err=%+v", err)
@@ -46,6 +50,7 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 		config:                cfg,
 		executor:              executor,
 		deduplicationInterval: deduplicationInterval,
+		cachedChallengeIds:    lruCache,
 		mtx:                   sync.RWMutex{},
 		dataProvider:          dataProvider,
 		limiterSemaphore:      limiterSemaphore,
@@ -54,8 +59,6 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 }
 
 func (v *Verifier) VerifyHashLoop() {
-	// Event lasts for 300 blocks, 2x for redundancy
-	v.cachedChallengeIds = make(map[uint64]bool, common.CacheSize)
 	for {
 		err := v.verifyHash()
 		if err != nil {
@@ -88,7 +91,7 @@ func (v *Verifier) verifyHash() error {
 
 	for _, event := range events {
 		v.mtx.Lock()
-		isCached := v.cachedChallengeIds[event.ChallengeId]
+		isCached := v.cachedChallengeIds.Contains(event.ChallengeId)
 		v.mtx.Unlock()
 
 		if isCached {
@@ -112,7 +115,7 @@ func (v *Verifier) verifyHash() error {
 		if err != nil {
 			if err.Error() == common.ErrEventExpired.Error() {
 				v.mtx.Lock()
-				delete(v.cachedChallengeIds, event.ChallengeId)
+				v.cachedChallengeIds.Remove(event.ChallengeId)
 				v.mtx.Unlock()
 				continue
 			}
@@ -121,7 +124,7 @@ func (v *Verifier) verifyHash() error {
 
 		if !isCached {
 			v.mtx.Lock()
-			v.cachedChallengeIds[event.ChallengeId] = true
+			v.cachedChallengeIds.Add(event.ChallengeId, true)
 			v.mtx.Unlock()
 		}
 	}
