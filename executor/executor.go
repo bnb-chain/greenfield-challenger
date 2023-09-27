@@ -132,7 +132,7 @@ func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block,
 }
 
 func (e *Executor) GetLatestBlockHeight() (uint64, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	res, err := client.GetLatestBlockHeight(context.Background())
 	latestHeight := uint64(res)
 	if err != nil {
@@ -212,7 +212,7 @@ func (e *Executor) GetValidatorsBlsPublicKey() ([]string, error) {
 }
 
 func (e *Executor) QueryInturnAttestationSubmitter() (*challengetypes.QueryInturnAttestationSubmitterResponse, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	res, err := client.InturnAttestationSubmitter(context.Background(), &challengetypes.QueryInturnAttestationSubmitterRequest{})
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get inturn attestation submitter, err=%+v", err.Error())
@@ -222,7 +222,7 @@ func (e *Executor) QueryInturnAttestationSubmitter() (*challengetypes.QueryIntur
 }
 
 func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperatorAddress string, challengeId uint64, objectId sdkmath.Uint, voteResult challengetypes.VoteResult, voteValidatorSet []uint64, VoteAggSignature []byte, txOption sdktypes.TxOption) (bool, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	logging.Logger.Infof("attest challenge params: submitterAddress=%s, challengerAddress=%s, spOperatorAddress=%s, challengeId=%d, objectId=%s, voteResult=%s, voteValidatorSet=%+v, VoteAggSignature=%+v, txOption=%+v", submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId.String(), voteResult.String(), voteValidatorSet, VoteAggSignature, txOption)
 	res, err := client.AttestChallenge(context.Background(), submitterAddress, challengerAddress, spOperatorAddress, challengeId, objectId, voteResult, voteValidatorSet, VoteAggSignature, txOption)
 	if err != nil {
@@ -242,7 +242,7 @@ func (e *Executor) AttestChallenge(submitterAddress, challengerAddress, spOperat
 }
 
 func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 
 	res, err := client.LatestAttestedChallenges(context.Background(), &challengetypes.QueryLatestAttestedChallengesRequest{})
 	if err != nil {
@@ -259,7 +259,7 @@ func (e *Executor) QueryLatestAttestedChallengeIds() ([]uint64, error) {
 }
 
 func (e *Executor) queryChallengeHeartbeatInterval() (uint64, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	q := challengetypes.QueryParamsRequest{}
 	res, err := client.ChallengeParams(context.Background(), &q)
 	if err != nil {
@@ -288,7 +288,7 @@ func (e *Executor) QueryChallengeHeartbeatInterval() (uint64, error) {
 }
 
 func (e *Executor) QueryChallengeSlashCoolingOffPeriod() (uint64, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	params, err := client.ChallengeParams(context.Background(), &challengetypes.QueryParamsRequest{})
 	if err != nil {
 		logging.Logger.Errorf("query challenge params failed, err=%+v", err.Error())
@@ -324,7 +324,7 @@ func (e *Executor) GetHeightLoop() {
 }
 
 func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	spAddr, err := sdk.AccAddressFromHexUnsafe(address)
 	if err != nil {
 		logging.Logger.Errorf("error converting addr from hex unsafe when getting sp endpoint, err=%+v", err.Error())
@@ -341,7 +341,7 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 }
 
 func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 
 	res, err := client.HeadObjectByID(context.Background(), objectId)
 	if err != nil {
@@ -352,7 +352,7 @@ func (e *Executor) GetObjectInfoChecksums(objectId string) ([][]byte, error) {
 }
 
 func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIndex, redundancyIndex int) (*types.ChallengeResult, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 
 	challengeInfoOpts := types.GetChallengeInfoOptions{
 		Endpoint: endpoint,
@@ -398,7 +398,7 @@ func (e *Executor) GetAddr() string {
 }
 
 func (e *Executor) GetNonce() (uint64, error) {
-	client := e.clients.GetClient().Client
+	client := e.clients.GetClient()
 	account, err := client.GetAccount(context.Background(), e.GetAddr())
 	if err != nil {
 		logging.Logger.Errorf("error getting account, err=%+v", err.Error())
