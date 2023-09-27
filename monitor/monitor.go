@@ -129,7 +129,7 @@ func (m *Monitor) poll() error {
 		return err
 	}
 	if err = m.monitorChallengeEvents(block, blockResults); err != nil {
-		//logging.Logger.Errorf("encounter error when monitor challenge events at blockHeight=%d, err=%+v", nextHeight, err.Error())
+		logging.Logger.Errorf("encounter error when monitor challenge events at blockHeight=%d, err=%+v", nextHeight, err.Error())
 		return err
 	}
 	return nil
@@ -172,10 +172,8 @@ func (m *Monitor) monitorChallengeEvents(block *tmtypes.Block, blockResults *cty
 func (m *Monitor) calNextHeight() (uint64, error) {
 	latestPolledBlock, err := m.dataProvider.GetLatestBlock()
 	if err != nil && err != gorm.ErrRecordNotFound {
-		//logging.Logger.Errorf("failed to get latest block from db, error: %s", err.Error())
 		latestHeight, err := m.executor.GetLatestBlockHeight()
 		if err != nil {
-			//logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 			return 0, err
 		}
 		return latestHeight, err
@@ -183,7 +181,6 @@ func (m *Monitor) calNextHeight() (uint64, error) {
 	if latestPolledBlock.Height == 0 { // a fresh database
 		latestHeight, err := m.executor.GetLatestBlockHeight()
 		if err != nil {
-			//logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 			return m.executor.GetCachedBlockHeight(), err
 		}
 		return latestHeight, nil
@@ -192,7 +189,6 @@ func (m *Monitor) calNextHeight() (uint64, error) {
 
 	latestBlockHeight, err := m.executor.GetLatestBlockHeight()
 	if err != nil {
-		//logging.Logger.Errorf("failed to get latest block height, error: %s", err.Error())
 		return 0, err
 	}
 	// pauses challenger for a bit since it already caught the newest block
