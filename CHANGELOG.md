@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.7
+This release updates the dependencies to adapt to Greenfield v0.2.6 and adds a bugfix to handle events where components cannot be fetched successfully for hash verification.  
+
+Bugfixes:  
+* [#87](https://github.com/bnb-chain/greenfield-challenger/pull/87) fix: handle events where components cannot be fetched successfully for hash verification
+
+## v0.0.6-hf.1
+This is a hotfix release to update the outdated config file.
+
+Chore:
+* [#86](https://github.com/bnb-chain/greenfield-challenger/pull/86) fix: update outdated config file
+
 ## v0.0.6  
 This release updates the dependencies to adapt to Greenfield v0.2.5 and contains 1 new feature.
 

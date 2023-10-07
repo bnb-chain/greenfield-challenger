@@ -13,7 +13,7 @@ import (
 type JsonRpcClient = *jsonrpcclient.Client
 
 type GnfdCompositeClient struct {
-	gnfdclient.Client
+	gnfdclient.IClient
 	client.TendermintClient
 	JsonRpcClient
 	Height int64
@@ -36,7 +36,7 @@ func NewGnfdCompositClients(rpcAddrs []string, chainId string, account *types.Ac
 			panic(err)
 		}
 		clients = append(clients, &GnfdCompositeClient{
-			Client:           sdkClient,
+			IClient:          sdkClient,
 			TendermintClient: client.NewTendermintClient(rpcAddrs[i]),
 			JsonRpcClient:    jsonRpcClient,
 		})
