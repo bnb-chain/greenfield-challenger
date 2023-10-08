@@ -77,7 +77,6 @@ func (v *Verifier) verifyHash() error {
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
 	}
-	// TODO: Remove after debugging
 	fetchedEvents := []uint64{}
 	for _, v := range events {
 		fetchedEvents = append(fetchedEvents, v.ChallengeId)
@@ -195,7 +194,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	_ = retry.Do(func() error {
 		challengeRes, challengeResErr = v.executor.GetChallengeResultFromSp(event.ObjectId, endpoint, int(event.SegmentIndex), int(event.RedundancyIndex))
 		if challengeResErr != nil {
-			// TODO: Create error code list for SP side
 			logging.Logger.Errorf("error getting challenge result from sp for challengeId: %d, objectId: %s, err=%s", event.ChallengeId, event.ObjectId, challengeResErr.Error())
 		}
 		return challengeResErr
@@ -261,7 +259,6 @@ func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
 	if heartbeatInterval == 0 {
 		panic("heartbeat interval should not zero, potential bug")
 	}
-	// TODO: Comment this if debugging
 	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
 		found, err := v.dataProvider.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
 			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
@@ -288,7 +285,6 @@ func (v *Verifier) computeRootHash(segmentIndex uint32, pieceData []byte, checks
 
 func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte, spRootHash []byte) error {
 	if bytes.Equal(chainRootHash, spRootHash) {
-		// TODO: Revert this if debugging
 		err := v.dataProvider.UpdateEventStatusVerifyResult(challengeId, model.Verified, model.HashMatched)
 		if err != nil {
 			return err
