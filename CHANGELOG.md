@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.0.0
+This release updates the dependencies to adapt to Greenfield v1.0.0.  
+
 ## v0.0.7
 This release updates the dependencies to adapt to Greenfield v0.2.6 and adds a bugfix to handle events where components cannot be fetched successfully for hash verification.  
 
