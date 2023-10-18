@@ -186,7 +186,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
-	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
+	logging.Logger.Infof("fetched chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
@@ -199,7 +199,11 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
-		v.metricService.IncHashVerifierSpApiErr(err)
+		if isInternalSP(endpoint) {
+			v.metricService.IncHashVerifierInternalSpApiErr(challengeResErr)
+		} else {
+			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
+		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
 			v.metricService.IncHashVerifierErr(err)
@@ -225,9 +229,8 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		spChecksums = append(spChecksums, checksum)
 	}
 	originalSpRootHash := hash.GenerateChecksum(bytes.Join(spChecksums, []byte("")))
-	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", hex.EncodeToString(originalSpRootHash), event.ChallengeId)
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
-	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", hex.EncodeToString(spRootHash), event.ChallengeId)
+	logging.Logger.Infof("hash verification for challengeId: %d, Fetched Original SpRootHash: %s, Locally Computed SpRootHash: %s, Fetched ChainRootHash: %s", event.ChallengeId, hex.EncodeToString(originalSpRootHash), hex.EncodeToString(spRootHash), hex.EncodeToString(chainRootHash))
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
 	if err != nil {
@@ -302,4 +305,13 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 	v.metricService.IncVerifiedChallenges()
 	v.metricService.IncChallengeSuccess()
 	return err
+}
+
+func isInternalSP(spEndpoint string) bool {
+	for _, item := range InternalSPEndpoints {
+		if spEndpoint == item {
+			return true
+		}
+	}
+	return false
 }
