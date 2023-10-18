@@ -59,6 +59,7 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 }
 
 func (v *Verifier) VerifyHashLoop() {
+	go v.updateDeduplicationIntervalLoop()
 	for {
 		err := v.verifyHash()
 		if err != nil {
@@ -68,6 +69,7 @@ func (v *Verifier) VerifyHashLoop() {
 		time.Sleep(VerifyHashLoopInterval)
 	}
 }
+
 func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight, err := v.executor.GetCachedBlockHeight()
@@ -194,7 +196,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
-	logging.Logger.Infof("chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
+	logging.Logger.Infof("fetched chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
@@ -207,7 +209,11 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
-		v.metricService.IncHashVerifierSpApiErr(err)
+		if v.isInternalSP(endpoint) {
+			v.metricService.IncHashVerifierInternalSpApiErr(challengeResErr)
+		} else {
+			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
+		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
 			v.metricService.IncHashVerifierErr(err)
@@ -233,9 +239,8 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		spChecksums = append(spChecksums, checksum)
 	}
 	originalSpRootHash := hash.GenerateChecksum(bytes.Join(spChecksums, []byte("")))
-	logging.Logger.Infof("SpRootHash before replacing: %s for challengeId: %d", hex.EncodeToString(originalSpRootHash), event.ChallengeId)
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
-	logging.Logger.Infof("SpRootHash after replacing: %s for challengeId: %d", hex.EncodeToString(spRootHash), event.ChallengeId)
+	logging.Logger.Infof("hash verification for challengeId: %d, Fetched Original SpRootHash: %s, Locally Computed SpRootHash: %s, Fetched ChainRootHash: %s", event.ChallengeId, hex.EncodeToString(originalSpRootHash), hex.EncodeToString(spRootHash), hex.EncodeToString(chainRootHash))
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
 	if err != nil {
@@ -310,4 +315,25 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 	v.metricService.IncVerifiedChallenges()
 	v.metricService.IncChallengeSuccess()
 	return err
+}
+
+func (v *Verifier) isInternalSP(spEndpoint string) bool {
+	for _, internalEndpoint := range v.config.SPConfig.InternalSPEndpoints {
+		if strings.Contains(spEndpoint, internalEndpoint) {
+			return true
+		}
+	}
+	return false
+}
+
+func (v *Verifier) updateDeduplicationIntervalLoop() {
+	ticker := time.NewTicker(UpdateDeduplicationInterval)
+	for range ticker.C {
+		updatedDeduplicationInterval, err := v.executor.QueryChallengeSlashCoolingOffPeriod()
+		if err != nil {
+			logging.Logger.Errorf("error updating deduplication interval, err=%s", err.Error())
+			return
+		}
+		v.deduplicationInterval = updatedDeduplicationInterval
+	}
 }

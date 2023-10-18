@@ -206,6 +206,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 					}
 					return err
 				}
+				s.metricService.IncSubmitterErr(err)
 			} else {
 				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d", event.ChallengeId, submittedAttempts)
 			}
@@ -217,6 +218,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		if err != nil {
 			logging.Logger.Errorf("submitter succeeded in attesting but failed to update database, err=%+v", err.Error())
+			s.metricService.IncSubmitterErr(err)
 			continue
 		}
 
