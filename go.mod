@@ -6,9 +6,9 @@ require (
 	cosmossdk.io/math v1.0.1
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/aws/aws-sdk-go v1.40.45
-	github.com/bnb-chain/greenfield v0.2.5
+	github.com/bnb-chain/greenfield v1.0.0
 	github.com/bnb-chain/greenfield-common/go v0.0.0-20230830120314-a54ffd6da39f
-	github.com/bnb-chain/greenfield-go-sdk v0.2.5
+	github.com/bnb-chain/greenfield-go-sdk v1.0.1-0.20231018095259-639d2c1b9826
 	github.com/cometbft/cometbft v0.37.2
 	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/ethereum/go-ethereum v1.10.26
