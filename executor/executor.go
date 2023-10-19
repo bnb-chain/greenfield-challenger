@@ -355,7 +355,8 @@ func (e *Executor) GetChallengeResultFromSp(objectId, endpoint string, segmentIn
 	client := e.clients.GetClient()
 
 	challengeInfoOpts := types.GetChallengeInfoOptions{
-		Endpoint: endpoint,
+		Endpoint:     endpoint,
+		UseV2version: true,
 	}
 	challengeInfo, err := client.GetChallengeInfo(context.Background(), objectId, segmentIndex, redundancyIndex, challengeInfoOpts)
 	if err != nil {
