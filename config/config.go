@@ -14,6 +14,7 @@ type Config struct {
 	AlertConfig      AlertConfig      `json:"alert_config"`
 	DBConfig         DBConfig         `json:"db_config"`
 	MetricsConfig    MetricsConfig    `json:"metrics_config"`
+	SPConfig         SPConfig         `json:"sp_config"`
 }
 
 type GreenfieldConfig struct {
@@ -123,6 +124,10 @@ func (cfg *DBConfig) Validate() {
 	if cfg.Username == "" || cfg.DBPath == "" {
 		panic("db config is not correct")
 	}
+}
+
+type SPConfig struct {
+	InternalSPEndpoints []string `json:"internal_sp_endpoints"`
 }
 
 type MetricsConfig struct {

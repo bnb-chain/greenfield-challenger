@@ -206,7 +206,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return challengeResErr
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
-		if isInternalSP(endpoint) {
+		if v.isInternalSP(endpoint) {
 			v.metricService.IncHashVerifierInternalSpApiErr(challengeResErr)
 		} else {
 			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
@@ -314,8 +314,8 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 	return err
 }
 
-func isInternalSP(spEndpoint string) bool {
-	for _, item := range InternalSPEndpoints {
+func (v *Verifier) isInternalSP(spEndpoint string) bool {
+	for _, item := range v.config.SPConfig.InternalSPEndpoints {
 		if spEndpoint == item {
 			return true
 		}

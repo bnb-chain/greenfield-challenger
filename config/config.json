@@ -39,6 +39,17 @@
     "max_open_conns": 40,
     "debug_mode": true
   },
+  "sp_config": {
+    "internal_sp_endpoints": [
+      "https://greenfield-sp.bnbchain.org",
+      "https://greenfield-sp.nodereal.io",
+      "https://greenfield-sp.ninicoin.io",
+      "https://greenfield-sp.defibit.io",
+      "https://greenfield-sp.nariox.org",
+      "https://greenfield-sp.lumibot.org",
+      "https://greenfield-sp.voltbot.io"
+    ]
+  },
   "alert_config": {
     "interval": 300,
     "identity": "your_identity",
