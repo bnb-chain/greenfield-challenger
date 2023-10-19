@@ -60,6 +60,12 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 
 func (v *Verifier) VerifyHashLoop() {
 	for {
+		updatedDeduplicationInterval, slashingCoolingOffPeriodErr := v.executor.QueryChallengeSlashCoolingOffPeriod()
+		if slashingCoolingOffPeriodErr != nil {
+			continue
+		}
+		v.deduplicationInterval = updatedDeduplicationInterval
+
 		err := v.verifyHash()
 		if err != nil {
 			time.Sleep(common.RetryInterval)
@@ -68,6 +74,7 @@ func (v *Verifier) VerifyHashLoop() {
 		time.Sleep(VerifyHashLoopInterval)
 	}
 }
+
 func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
 	currentHeight := v.executor.GetCachedBlockHeight()
