@@ -7,6 +7,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/sync/semaphore"
 	"io"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -80,7 +81,7 @@ func (v *Verifier) verifyHash() error {
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
 	if err != nil {
-		v.metricService.IncHashVerifierErr(err)
+		v.metricService.IncHashVerifierErr("db", err)
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
 	}
@@ -207,13 +208,13 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
 		if v.isInternalSP(endpoint) {
-			v.metricService.IncHashVerifierInternalSpApiErr(challengeResErr)
+			v.metricService.IncHashVerifierInternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
 		} else {
-			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
+			v.metricService.IncHashVerifierExternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
 		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
-			v.metricService.IncHashVerifierErr(err)
+			v.metricService.IncHashVerifierErr(strconv.FormatUint(event.ChallengeId, 10), err)
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		v.metricService.IncVerifiedChallenges()
@@ -243,7 +244,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
-		v.metricService.IncHashVerifierErr(err)
+		v.metricService.IncHashVerifierErr(strconv.FormatUint(event.ChallengeId, 10), err)
 		return err
 	}
 	// Log duration
