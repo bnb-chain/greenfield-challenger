@@ -60,13 +60,8 @@ func NewHashVerifier(cfg *config.Config, executor *executor.Executor, dataProvid
 }
 
 func (v *Verifier) VerifyHashLoop() {
+	go v.updateDeduplicationIntervalLoop()
 	for {
-		updatedDeduplicationInterval, slashingCoolingOffPeriodErr := v.executor.QueryChallengeSlashCoolingOffPeriod()
-		if slashingCoolingOffPeriodErr != nil {
-			continue
-		}
-		v.deduplicationInterval = updatedDeduplicationInterval
-
 		err := v.verifyHash()
 		if err != nil {
 			time.Sleep(common.RetryInterval)
@@ -322,4 +317,16 @@ func (v *Verifier) isInternalSP(spEndpoint string) bool {
 		}
 	}
 	return false
+}
+
+func (v *Verifier) updateDeduplicationIntervalLoop() {
+	ticker := time.NewTicker(UpdateDeduplicationInterval)
+	for range ticker.C {
+		updatedDeduplicationInterval, err := v.executor.QueryChallengeSlashCoolingOffPeriod()
+		if err != nil {
+			logging.Logger.Errorf("error updating deduplication interval, err=%s", err.Error())
+			return
+		}
+		v.deduplicationInterval = updatedDeduplicationInterval
+	}
 }
