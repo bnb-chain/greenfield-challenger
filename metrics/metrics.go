@@ -136,7 +136,7 @@ func NewMetricService(config *config.Config) *MetricService {
 
 	hashVerifierInternalSpApiErrCountMetric := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: MetricHashVerifierErr,
+			Name: MetricInternalSpAPIErr,
 			Help: "Internal sp error count",
 		},
 		[]string{"challengeId", "error"},
@@ -146,7 +146,7 @@ func NewMetricService(config *config.Config) *MetricService {
 
 	hashVerifierExternalSpApiErrCountMetric := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: MetricHashVerifierErr,
+			Name: MetricExternalSpAPIErr,
 			Help: "External sp error count",
 		},
 		[]string{"challengeId", "error"},

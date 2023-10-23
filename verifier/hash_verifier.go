@@ -311,8 +311,8 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 }
 
 func (v *Verifier) isInternalSP(spEndpoint string) bool {
-	for _, item := range v.config.SPConfig.InternalSPEndpoints {
-		if spEndpoint == item {
+	for _, internalEndpoint := range v.config.SPConfig.InternalSPEndpoints {
+		if strings.Contains(spEndpoint, internalEndpoint) {
 			return true
 		}
 	}
