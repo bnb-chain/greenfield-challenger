@@ -187,6 +187,7 @@ func (e *Executor) QueryCachedLatestValidators() ([]*tmtypes.Validator, error) {
 
 func (e *Executor) CacheValidatorsLoop() {
 	ticker := time.NewTicker(UpdateCachedValidatorsInterval)
+	defer ticker.Stop()
 	for range ticker.C {
 		validators, err := e.queryLatestValidators()
 		if err != nil {
@@ -300,6 +301,7 @@ func (e *Executor) QueryChallengeSlashCoolingOffPeriod() (uint64, error) {
 
 func (e *Executor) UpdateHeartbeatIntervalLoop() {
 	ticker := time.NewTicker(QueryHeartbeatIntervalInterval)
+	defer ticker.Stop()
 	for range ticker.C {
 		heartbeatInterval, err := e.queryChallengeHeartbeatInterval()
 		if err != nil {
@@ -314,6 +316,7 @@ func (e *Executor) UpdateHeartbeatIntervalLoop() {
 
 func (e *Executor) GetHeightLoop() {
 	ticker := time.NewTicker(common.RetryInterval)
+	defer ticker.Stop()
 	for range ticker.C {
 		height, err := e.GetLatestBlockHeight()
 		if err != nil {
