@@ -4,7 +4,6 @@ import (
 	"cosmossdk.io/math"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -63,7 +62,7 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		currentHeight := s.executor.GetCachedBlockHeight()
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
-			s.metricService.IncSubmitterErr("db", err)
+			s.metricService.IncSubmitterErr(err)
 			logging.Logger.Errorf("tx submitter failed to fetch events for submitting", err)
 			continue
 		}
@@ -115,7 +114,7 @@ func (s *TxSubmitter) submitForSingleEvent(event *model.Event, attestPeriodEnd u
 	// Calculate event hash and use it to fetch votes and validator bitset
 	aggregatedSignature, valBitSet, err := s.getSignatureAndBitSet(event)
 	if err != nil {
-		s.metricService.IncSubmitterErr(strconv.FormatUint(event.ChallengeId, 10), err)
+		s.metricService.IncSubmitterErr(err)
 		return err
 	}
 	return s.submitTransactionLoop(event, attestPeriodEnd, aggregatedSignature, valBitSet)
@@ -197,7 +196,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 					}
 					return err
 				}
-				s.metricService.IncSubmitterErr(strconv.FormatUint(event.ChallengeId, 10), err)
+				s.metricService.IncSubmitterErr(err)
 			} else {
 				logging.Logger.Errorf("submitter failed for challengeId: %d, attempts: %d", event.ChallengeId, submittedAttempts)
 			}
@@ -209,7 +208,7 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 		err = s.DataProvider.UpdateEventStatus(event.ChallengeId, model.Submitted)
 		if err != nil {
 			logging.Logger.Errorf("submitter succeeded in attesting but failed to update database, err=%+v", err.Error())
-			s.metricService.IncSubmitterErr(strconv.FormatUint(event.ChallengeId, 10), err)
+			s.metricService.IncSubmitterErr(err)
 			continue
 		}
 

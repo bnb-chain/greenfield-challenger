@@ -335,7 +335,6 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 		logging.Logger.Errorf("executor failed to query storage provider %s, err=%+v", address, err.Error())
 		return "", err
 	}
-	logging.Logger.Infof("response res.endpoint %s", res.Endpoint)
 
 	return res.Endpoint, nil
 }
