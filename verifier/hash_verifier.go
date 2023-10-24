@@ -7,7 +7,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/sync/semaphore"
 	"io"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -158,7 +157,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	if err != nil {
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
-		v.metricService.IncVerifiedChallenges(strconv.FormatUint(event.ChallengeId, 10))
+		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		if err != nil {
 			return err
@@ -183,7 +182,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if err != nil {
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
-		v.metricService.IncVerifiedChallenges(strconv.FormatUint(event.ChallengeId, 10))
+		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		if err != nil {
 			return err
@@ -205,16 +204,16 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if challengeResErr != nil {
 		if v.isInternalSP(endpoint) {
-			v.metricService.IncHashVerifierInternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
+			v.metricService.IncHashVerifierInternalSpApiErr(challengeResErr)
 		} else {
-			v.metricService.IncHashVerifierInternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
+			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
 		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
 			v.metricService.IncHashVerifierErr(err)
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
-		v.metricService.IncVerifiedChallenges(strconv.FormatUint(event.ChallengeId, 10))
+		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeSuccess()
 		return err
 	}
@@ -298,7 +297,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 			return err
 		}
 		// update metrics if no err
-		v.metricService.IncVerifiedChallenges(strconv.FormatUint(challengeId, 10))
+		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		return err
 	}
@@ -307,7 +306,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 		return err
 	}
 	// update metrics if no err
-	v.metricService.IncVerifiedChallenges(strconv.FormatUint(challengeId, 10))
+	v.metricService.IncVerifiedChallenges()
 	v.metricService.IncChallengeSuccess()
 	return err
 }
