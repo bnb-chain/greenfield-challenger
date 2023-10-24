@@ -44,6 +44,7 @@ const (
 	Attested // Event has been submitted for tx
 	Duplicated
 	DuplicatedSlash
+	VerificationFailed // Event cannot be verified due to at least 1 endpoint not responding
 )
 
 type VerifyResult int
