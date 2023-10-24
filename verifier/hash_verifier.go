@@ -76,7 +76,7 @@ func (v *Verifier) verifyHash() error {
 	currentHeight := v.executor.GetCachedBlockHeight()
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
 	if err != nil {
-		v.metricService.IncHashVerifierErr("db", err)
+		v.metricService.IncHashVerifierErr(err)
 		logging.Logger.Errorf("verifier failed to retrieve the earliest events from db to begin verification, err=%+v", err.Error())
 		return err
 	}
@@ -158,13 +158,15 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 
 	if err != nil {
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
-		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncVerifiedChallenges(strconv.FormatUint(event.ChallengeId, 10))
 		v.metricService.IncChallengeFailed()
 		if err != nil {
 			return err
 		}
 		return err
 	}
+
+	logging.Logger.Infof("verifier fetched endpoint: %s for challengeId: %d", endpoint, event.ChallengeId)
 
 	// Call blockchain for object info to get original hash
 	var checksums [][]byte
@@ -181,7 +183,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if err != nil {
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
-		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncVerifiedChallenges(strconv.FormatUint(event.ChallengeId, 10))
 		v.metricService.IncChallengeFailed()
 		if err != nil {
 			return err
@@ -189,7 +191,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		return err
 	}
 	chainRootHash := checksums[event.RedundancyIndex+1]
-	logging.Logger.Infof("fetched chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
+	logging.Logger.Infof("verifier fetched chainRootHash: %s for challengeId: %d", hex.EncodeToString(chainRootHash), event.ChallengeId)
 
 	// Call sp for challenge result
 	challengeRes := &types.ChallengeResult{}
@@ -205,14 +207,14 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		if v.isInternalSP(endpoint) {
 			v.metricService.IncHashVerifierInternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
 		} else {
-			v.metricService.IncHashVerifierExternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
+			v.metricService.IncHashVerifierInternalSpApiErr(strconv.FormatUint(event.ChallengeId, 10), challengeResErr)
 		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
 		if err != nil {
-			v.metricService.IncHashVerifierErr(strconv.FormatUint(event.ChallengeId, 10), err)
+			v.metricService.IncHashVerifierErr(err)
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
-		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncVerifiedChallenges(strconv.FormatUint(event.ChallengeId, 10))
 		v.metricService.IncChallengeSuccess()
 		return err
 	}
@@ -233,13 +235,13 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	}
 	originalSpRootHash := hash.GenerateChecksum(bytes.Join(spChecksums, []byte("")))
 	spRootHash := v.computeRootHash(event.SegmentIndex, pieceData, spChecksums)
-	logging.Logger.Infof("hash verification for challengeId: %d, Fetched Original SpRootHash: %s, Locally Computed SpRootHash: %s, Fetched ChainRootHash: %s", event.ChallengeId, hex.EncodeToString(originalSpRootHash), hex.EncodeToString(spRootHash), hex.EncodeToString(chainRootHash))
+	logging.Logger.Infof("hash verification for challengeId: %d \nFetched Original SpRootHash: %s \nLocally Computed SpRootHash: %s \nFetched ChainRootHash: %s", event.ChallengeId, hex.EncodeToString(originalSpRootHash), hex.EncodeToString(spRootHash), hex.EncodeToString(chainRootHash))
 	// Update database after comparing
 	err = v.compareHashAndUpdate(event.ChallengeId, chainRootHash, spRootHash)
 	if err != nil {
 		logging.Logger.Errorf("failed to update event status, challenge id: %d, err: %s",
 			event.ChallengeId, err)
-		v.metricService.IncHashVerifierErr(strconv.FormatUint(event.ChallengeId, 10), err)
+		v.metricService.IncHashVerifierErr(err)
 		return err
 	}
 	// Log duration
@@ -296,7 +298,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 			return err
 		}
 		// update metrics if no err
-		v.metricService.IncVerifiedChallenges()
+		v.metricService.IncVerifiedChallenges(strconv.FormatUint(challengeId, 10))
 		v.metricService.IncChallengeFailed()
 		return err
 	}
@@ -305,7 +307,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 		return err
 	}
 	// update metrics if no err
-	v.metricService.IncVerifiedChallenges()
+	v.metricService.IncVerifiedChallenges(strconv.FormatUint(challengeId, 10))
 	v.metricService.IncChallengeSuccess()
 	return err
 }
