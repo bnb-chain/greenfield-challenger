@@ -156,7 +156,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 		}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 
 	if err != nil {
-		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
+		err = v.dataProvider.UpdateEventStatus(event.ChallengeId, model.VerificationFailed)
 		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		if err != nil {
@@ -181,7 +181,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 			return err
 		}, retry.Context(context.Background()), common.RtyAttem, common.RtyDelay, common.RtyErr)
 	if err != nil {
-		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.Unknown)
+		err = v.dataProvider.UpdateEventStatus(event.ChallengeId, model.VerificationFailed)
 		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		if err != nil {
