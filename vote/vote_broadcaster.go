@@ -90,7 +90,6 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 
 			err = p.broadcastForSingleEvent(localVote.(*votepool.Vote), event)
 			if err != nil {
-				p.metricService.IncBroadcasterErr(err)
 				continue
 			}
 			time.Sleep(50 * time.Millisecond)
