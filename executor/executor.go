@@ -134,18 +134,19 @@ func (e *Executor) GetBlockAndBlockResultAtHeight(height int64) (*tmtypes.Block,
 func (e *Executor) GetLatestBlockHeight() (uint64, error) {
 	client := e.clients.GetClient()
 	res, err := client.GetLatestBlockHeight(context.Background())
-	latestHeight := uint64(res)
 	if err != nil {
 		logging.Logger.Errorf("executor failed to get latest block height, err=%s", err.Error())
+		return 0, err
 	}
 
+	latestHeight := uint64(res)
 	e.mtx.Lock()
 	e.height = latestHeight
 	e.mtx.Unlock()
 	return latestHeight, nil
 }
 
-func (e *Executor) GetCachedBlockHeight() (latestHeight uint64) {
+func (e *Executor) GetCachedBlockHeight() uint64 {
 	e.mtx.Lock()
 	cachedHeight := e.height
 	e.mtx.Unlock()
