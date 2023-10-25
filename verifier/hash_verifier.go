@@ -70,7 +70,11 @@ func (v *Verifier) VerifyHashLoop() {
 }
 func (v *Verifier) verifyHash() error {
 	// Read unprocessed event from db with lowest challengeId
-	currentHeight := v.executor.GetCachedBlockHeight()
+	currentHeight, err := v.executor.GetCachedBlockHeight()
+	if err != nil {
+		logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+		return err
+	}
 	events, err := v.dataProvider.FetchEventsForVerification(currentHeight)
 	if err != nil {
 		v.metricService.IncHashVerifierErr(err)
@@ -137,7 +141,11 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	var err error
 	startTime := time.Now()
 	logging.Logger.Infof("verifier started for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
-	currentHeight := v.executor.GetCachedBlockHeight()
+	currentHeight, err := v.executor.GetCachedBlockHeight()
+	if err != nil {
+		logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+		return err
+	}
 	if err = v.preCheck(event, currentHeight); err != nil {
 		return err
 	}
