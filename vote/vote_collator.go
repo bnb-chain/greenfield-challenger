@@ -46,15 +46,15 @@ func (p *VoteCollator) CollateVotesLoop() {
 			time.Sleep(RetryInterval)
 			continue
 		}
+		if len(events) == 0 {
+			time.Sleep(RetryInterval)
+			continue
+		}
 		fetchedEvents := []uint64{}
 		for _, v := range events {
 			fetchedEvents = append(fetchedEvents, v.ChallengeId)
 		}
 		logging.Logger.Infof("collator fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
-		if len(events) == 0 {
-			time.Sleep(RetryInterval)
-			continue
-		}
 
 		for _, event := range events {
 			err = p.collateForSingleEvent(event)
