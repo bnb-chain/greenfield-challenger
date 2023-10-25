@@ -40,13 +40,17 @@ func (p *VoteCollator) CollateVotesLoop() {
 	for {
 		currentHeight := p.executor.GetCachedBlockHeight()
 		events, err := p.dataProvider.FetchEventsForCollate(currentHeight)
-		logging.Logger.Infof("vote processor fetched %d events for collate", len(events))
 		if err != nil {
 			p.metricService.IncCollatorErr(err)
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			time.Sleep(RetryInterval)
 			continue
 		}
+		fetchedEvents := []uint64{}
+		for _, v := range events {
+			fetchedEvents = append(fetchedEvents, v.ChallengeId)
+		}
+		logging.Logger.Infof("collator fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
 		if len(events) == 0 {
 			time.Sleep(RetryInterval)
 			continue
