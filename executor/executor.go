@@ -146,7 +146,7 @@ func (e *Executor) GetLatestBlockHeight() (uint64, error) {
 	return latestHeight, nil
 }
 
-func (e *Executor) GetCachedBlockHeight() (latestHeight uint64) {
+func (e *Executor) GetCachedBlockHeight() uint64 {
 	e.mtx.Lock()
 	cachedHeight := e.height
 	e.mtx.Unlock()
