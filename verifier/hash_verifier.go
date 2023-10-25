@@ -83,7 +83,7 @@ func (v *Verifier) verifyHash() error {
 	for _, v := range events {
 		fetchedEvents = append(fetchedEvents, v.ChallengeId)
 	}
-	logging.Logger.Infof("verifier fetched these events for verification: %+v", fetchedEvents)
+	logging.Logger.Infof("verifier fetched these events for verification at block height: %d, %+v", currentHeight, fetchedEvents)
 
 	if len(events) == 0 {
 		time.Sleep(common.RetryInterval)

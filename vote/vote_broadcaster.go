@@ -61,6 +61,11 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 				p.metricService.IncHeartbeatEvents()
 			}
 		}
+		fetchedEvents := []uint64{}
+		for _, v := range events {
+			fetchedEvents = append(fetchedEvents, v.ChallengeId)
+		}
+		logging.Logger.Infof("broadcaster fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
 
 		for _, event := range events {
 			localVote, found := p.cachedLocalVote.Get(event.ChallengeId)

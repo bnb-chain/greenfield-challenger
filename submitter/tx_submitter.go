@@ -70,6 +70,12 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			time.Sleep(common.RetryInterval)
 			continue
 		}
+		fetchedEvents := []uint64{}
+		for _, v := range events {
+			fetchedEvents = append(fetchedEvents, v.ChallengeId)
+		}
+		logging.Logger.Infof("submitter fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
+
 		// Submit events
 		for _, event := range events {
 			// Submitter no longer in-turn
