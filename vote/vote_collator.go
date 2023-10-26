@@ -38,15 +38,23 @@ func NewVoteCollator(cfg *config.Config, signer *VoteSigner,
 
 func (p *VoteCollator) CollateVotesLoop() {
 	for {
-		currentHeight := p.executor.GetCachedBlockHeight()
+		currentHeight, err := p.executor.GetCachedBlockHeight()
+		if err != nil {
+			logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+			continue
+		}
 		events, err := p.dataProvider.FetchEventsForCollate(currentHeight)
-		logging.Logger.Infof("vote processor fetched %d events for collate", len(events))
 		if err != nil {
 			p.metricService.IncCollatorErr(err)
 			logging.Logger.Errorf("vote processor failed to fetch unexpired events to collate votes, err=%+v", err.Error())
 			time.Sleep(RetryInterval)
 			continue
 		}
+		fetchedEvents := []uint64{}
+		for _, v := range events {
+			fetchedEvents = append(fetchedEvents, v.ChallengeId)
+		}
+		logging.Logger.Infof("collator fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
 		if len(events) == 0 {
 			time.Sleep(RetryInterval)
 			continue
@@ -107,7 +115,11 @@ func (p *VoteCollator) prepareEnoughValidVotesForEvent(event *model.Event) error
 }
 
 func (p *VoteCollator) preCheck(event *model.Event) error {
-	currentHeight := p.executor.GetCachedBlockHeight()
+	currentHeight, err := p.executor.GetCachedBlockHeight()
+	if err != nil {
+		logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+		return err
+	}
 	if currentHeight > event.ExpiredHeight {
 		logging.Logger.Infof("collator for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
 		return common.ErrEventExpired

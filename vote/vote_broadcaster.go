@@ -45,7 +45,11 @@ func NewVoteBroadcaster(cfg *config.Config, signer *VoteSigner,
 
 func (p *VoteBroadcaster) BroadcastVotesLoop() {
 	for {
-		currentHeight := p.executor.GetCachedBlockHeight()
+		currentHeight, err := p.executor.GetCachedBlockHeight()
+		if err != nil {
+			logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+			continue
+		}
 		events, heartbeatEventCount, err := p.dataProvider.FetchEventsForSelfVote(currentHeight)
 		if err != nil {
 			p.metricService.IncBroadcasterErr(err)
@@ -61,6 +65,11 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 				p.metricService.IncHeartbeatEvents()
 			}
 		}
+		fetchedEvents := []uint64{}
+		for _, v := range events {
+			fetchedEvents = append(fetchedEvents, v.ChallengeId)
+		}
+		logging.Logger.Infof("broadcaster fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
 
 		for _, event := range events {
 			localVote, found := p.cachedLocalVote.Get(event.ChallengeId)
@@ -85,7 +94,6 @@ func (p *VoteBroadcaster) BroadcastVotesLoop() {
 
 			err = p.broadcastForSingleEvent(localVote.(*votepool.Vote), event)
 			if err != nil {
-				p.metricService.IncBroadcasterErr(err)
 				continue
 			}
 			time.Sleep(50 * time.Millisecond)
@@ -120,7 +128,11 @@ func (p *VoteBroadcaster) broadcastForSingleEvent(localVote *votepool.Vote, even
 }
 
 func (p *VoteBroadcaster) preCheck(event *model.Event) error {
-	currentHeight := p.executor.GetCachedBlockHeight()
+	currentHeight, err := p.executor.GetCachedBlockHeight()
+	if err != nil {
+		logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+		return err
+	}
 	if currentHeight > event.ExpiredHeight {
 		logging.Logger.Infof("broadcaster for challengeId: %d has expired. expired height: %d, current height: %d, timestamp: %s", event.ChallengeId, event.ExpiredHeight, currentHeight, time.Now().Format("15:04:05.000000"))
 		return common.ErrEventExpired

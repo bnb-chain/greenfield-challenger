@@ -146,11 +146,20 @@ func (e *Executor) GetLatestBlockHeight() (uint64, error) {
 	return latestHeight, nil
 }
 
-func (e *Executor) GetCachedBlockHeight() uint64 {
+func (e *Executor) GetCachedBlockHeight() (uint64, error) {
 	e.mtx.Lock()
 	cachedHeight := e.height
 	e.mtx.Unlock()
-	return cachedHeight
+
+	var err error
+	if cachedHeight == 0 {
+		cachedHeight, err = e.GetLatestBlockHeight()
+		if err != nil {
+			return 0, err
+		}
+	}
+	
+	return cachedHeight, nil
 }
 
 func (e *Executor) queryLatestValidators() ([]*tmtypes.Validator, error) {

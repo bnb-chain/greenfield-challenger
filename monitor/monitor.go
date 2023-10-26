@@ -181,7 +181,7 @@ func (m *Monitor) calNextHeight() (uint64, error) {
 	if latestPolledBlock.Height == 0 { // a fresh database
 		latestHeight, err := m.executor.GetLatestBlockHeight()
 		if err != nil {
-			return m.executor.GetCachedBlockHeight(), err
+			return m.executor.GetCachedBlockHeight()
 		}
 		return latestHeight, nil
 	}

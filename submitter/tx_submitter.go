@@ -59,7 +59,11 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 		// Loop until submitter is inturn to submit
 		attestPeriodEnd := s.queryAttestPeriodLoop()
 		// Fetch events for submit
-		currentHeight := s.executor.GetCachedBlockHeight()
+		currentHeight, err := s.executor.GetCachedBlockHeight()
+		if err != nil {
+			logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+			continue
+		}
 		events, err := s.FetchEventsForSubmit(currentHeight)
 		if err != nil {
 			s.metricService.IncSubmitterErr(err)
@@ -70,6 +74,12 @@ func (s *TxSubmitter) SubmitTransactionLoop() {
 			time.Sleep(common.RetryInterval)
 			continue
 		}
+		fetchedEvents := []uint64{}
+		for _, v := range events {
+			fetchedEvents = append(fetchedEvents, v.ChallengeId)
+		}
+		logging.Logger.Infof("submitter fetched these events at block height: %d, %+v", currentHeight, fetchedEvents)
+
 		// Submit events
 		for _, event := range events {
 			// Submitter no longer in-turn
@@ -220,7 +230,11 @@ func (s *TxSubmitter) submitTransactionLoop(event *model.Event, attestPeriodEnd 
 
 // preCheck checks if the event has expired.
 func (s *TxSubmitter) preCheck(event *model.Event) error {
-	currentHeight := s.executor.GetCachedBlockHeight()
+	currentHeight, err := s.executor.GetCachedBlockHeight()
+	if err != nil {
+		logging.Logger.Errorf("failed to get cached block height, err=%s", err.Error())
+		return err
+	}
 	if event.ExpiredHeight < currentHeight {
 		logging.Logger.Infof("submitter for challengeId has expired. expired height, current height", event.ChallengeId, event.ExpiredHeight, currentHeight)
 		return common.ErrEventExpired
