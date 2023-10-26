@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.0.1
+This is a hotfix release to resolve bugs that were found during testing.
+
+1. Error response that appears when challenging large objects.
+2. Error handling when the service fails to get the latest block height from the blockchain.  
+
+Bugfix:  
+[#98](https://github.com/bnb-chain/greenfield-challenger/pull/98) fix: the latest cached height could be zero 
+[#97](https://github.com/bnb-chain/greenfield-challenger/pull/97) fix: fix error with get latest block 
+[#95](https://github.com/bnb-chain/greenfield-challenger/pull/95) fix: added a new status VerificationFailed
+
+Chores:  
+[#94](https://github.com/bnb-chain/greenfield-challenger/pull/94) chore: update greenfield go sdk 
+[#93](https://github.com/bnb-chain/greenfield-challenger/pull/93) chore: update challenge api to v2 version  
+
+
 ## v1.0.0
 This release updates the dependencies to adapt to Greenfield v1.0.0.  
 
