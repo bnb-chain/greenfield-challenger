@@ -215,6 +215,7 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
 		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
+		logging.Logger.Infof("challenge succeeded for challengeId: %d, failed to fetch challenge result from sp", event.ChallengeId)
 		if err != nil {
 			v.metricService.IncHashVerifierErr(err)
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
@@ -303,6 +304,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 			return err
 		}
 		// update metrics if no err
+		logging.Logger.Infof("challenge failed for challengeId: %d, hash matched", challengeId)
 		v.metricService.IncVerifiedChallenges()
 		v.metricService.IncChallengeFailed()
 		return err
@@ -312,6 +314,7 @@ func (v *Verifier) compareHashAndUpdate(challengeId uint64, chainRootHash []byte
 		return err
 	}
 	// update metrics if no err
+	logging.Logger.Infof("challenge succeeded for challengeId: %d, hash mismatched", challengeId)
 	v.metricService.IncVerifiedChallenges()
 	v.metricService.IncChallengeSuccess()
 	return err
