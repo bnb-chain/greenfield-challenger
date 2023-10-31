@@ -337,6 +337,8 @@ func (v *Verifier) updateDeduplicationIntervalLoop() {
 			logging.Logger.Errorf("error updating deduplication interval, err=%s", err.Error())
 			return
 		}
+		v.mtx.Lock()
 		v.deduplicationInterval = updatedDeduplicationInterval
+		v.mtx.Unlock()
 	}
 }
