@@ -273,9 +273,14 @@ func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
 	if heartbeatInterval == 0 {
 		panic("heartbeat interval should not zero, potential bug")
 	}
-	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > v.deduplicationInterval {
+
+	v.mtx.Lock()
+	deduplicationInterval := v.deduplicationInterval
+	v.mtx.Unlock()
+
+	if event.ChallengerAddress == "" && event.ChallengeId%heartbeatInterval != 0 && event.ChallengeId > deduplicationInterval {
 		found, err := v.dataProvider.IsEventExistsBetween(event.ObjectId, event.SpOperatorAddress,
-			event.ChallengeId-v.deduplicationInterval, event.ChallengeId-1)
+			event.ChallengeId-deduplicationInterval, event.ChallengeId-1)
 		if err != nil {
 			logging.Logger.Errorf("verifier failed to retrieve information for event %d, err=%+v", event.ChallengeId, err.Error())
 			return err
