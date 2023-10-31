@@ -221,7 +221,6 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
 		}
 		v.metricService.IncVerifiedChallenges()
-		v.metricService.IncChallengeSuccess()
 		return err
 	}
 
