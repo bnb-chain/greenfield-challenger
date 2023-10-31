@@ -211,11 +211,12 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	if challengeResErr != nil {
 		if v.isInternalSP(endpoint) {
 			v.metricService.IncHashVerifierInternalSpApiErr(challengeResErr)
+			logging.Logger.Infof("challenge succeeded due to internal sp api error for challengeId: %d, failed to fetch challenge result from sp endpoint: %s, objectID: %d, segmentIndex: %d, redundancyIndex: %d, err=%s", event.ChallengeId, endpoint, event.ObjectId, int(event.SegmentIndex), int(event.RedundancyIndex), challengeResErr)
 		} else {
 			v.metricService.IncHashVerifierExternalSpApiErr(challengeResErr)
+			logging.Logger.Infof("challenge succeeded due to external sp api error for challengeId: %d, failed to fetch challenge result from sp endpoint: %s, objectID: %d, segmentIndex: %d, redundancyIndex: %d, err=%s", event.ChallengeId, endpoint, event.ObjectId, int(event.SegmentIndex), int(event.RedundancyIndex), challengeResErr)
 		}
 		err = v.dataProvider.UpdateEventStatusVerifyResult(event.ChallengeId, model.Verified, model.HashMismatched)
-		logging.Logger.Infof("challenge succeeded for challengeId: %d, failed to fetch challenge result from sp", event.ChallengeId)
 		if err != nil {
 			v.metricService.IncHashVerifierErr(err)
 			logging.Logger.Errorf("error updating event status for challengeId: %d", event.ChallengeId)
