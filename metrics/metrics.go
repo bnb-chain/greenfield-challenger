@@ -52,12 +52,12 @@ const (
 )
 
 type MetricService struct {
-	MetricsMap map[string]prometheus.Collector
+	MetricsMap map[string]prometheus.Metric
 	cfg        *config.Config
 }
 
 func NewMetricService(config *config.Config) *MetricService {
-	ms := make(map[string]prometheus.Collector, 0)
+	ms := make(map[string]prometheus.Metric, 0)
 
 	// Monitor
 	gnfdSavedBlockMetric := prometheus.NewGauge(prometheus.GaugeOpts{
