@@ -301,7 +301,7 @@ func (e *Executor) QueryChallengeSlashCoolingOffPeriod() (uint64, error) {
 	client := e.clients.GetClient()
 	params, err := client.ChallengeParams(context.Background(), &challengetypes.QueryParamsRequest{})
 	if err != nil {
-		logging.Logger.Errorf("query challenge params failed, err=%+v", err.Error())
+		logging.Logger.Errorf("query slash cooling off period failed, err=%+v", err.Error())
 		return 0, err
 	}
 	logging.Logger.Infof("challenge slash cooling off period: %d", params.Params.SlashCoolingOffPeriod)
@@ -345,7 +345,6 @@ func (e *Executor) GetStorageProviderEndpoint(address string) (string, error) {
 		logging.Logger.Errorf("executor failed to query storage provider %s, err=%+v", address, err.Error())
 		return "", err
 	}
-	logging.Logger.Infof("response res.endpoint %s", res.Endpoint)
 
 	return res.Endpoint, nil
 }

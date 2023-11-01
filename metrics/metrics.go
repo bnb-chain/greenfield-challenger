@@ -24,7 +24,8 @@ const (
 	MetricVerifiedChallengeSuccess = "challenge_success"
 	MetricHeartbeatEvents          = "heartbeat_events"
 	MetricHashVerifierErr          = "hash_verifier_error_count"
-	MetricSpAPIErr                 = "hash_verifier_sp_api_error"
+	MetricInternalSpAPIErr         = "hash_verifier_internal_sp_api_error"
+	MetricExternalSpAPIErr         = "hash_verifier_external_sp_api_error"
 	MetricHashVerifierDuration     = "hash_verifier_duration"
 
 	// Vote Broadcaster
@@ -125,17 +126,24 @@ func NewMetricService(config *config.Config) *MetricService {
 
 	hashVerifierErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: MetricHashVerifierErr,
-		Help: "Hash verifier error count",
+		Help: "Verifier error count",
 	})
 	ms[MetricHashVerifierErr] = hashVerifierErrCountMetric
 	prometheus.MustRegister(hashVerifierErrCountMetric)
 
-	hashVerifierSpApiErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: MetricSpAPIErr,
-		Help: "Hash verifier SP API error count",
+	hashVerifierInternalSpApiErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricInternalSpAPIErr,
+		Help: "Internal sp error count",
 	})
-	ms[MetricSpAPIErr] = hashVerifierSpApiErrCountMetric
-	prometheus.MustRegister(hashVerifierSpApiErrCountMetric)
+	ms[MetricInternalSpAPIErr] = hashVerifierInternalSpApiErrCountMetric
+	prometheus.MustRegister(hashVerifierInternalSpApiErrCountMetric)
+
+	hashVerifierExternalSpApiErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: MetricExternalSpAPIErr,
+		Help: "External sp error count",
+	})
+	ms[MetricExternalSpAPIErr] = hashVerifierExternalSpApiErrCountMetric
+	prometheus.MustRegister(hashVerifierExternalSpApiErrCountMetric)
 
 	// Broadcaster
 	broadcasterErrCountMetric := prometheus.NewCounter(prometheus.CounterOpts{
@@ -281,15 +289,22 @@ func (m *MetricService) IncHeartbeatEvents() {
 func (m *MetricService) IncHashVerifierErr(err error) {
 	if err != nil {
 		logging.Logger.Errorf("verifier error count increased, %s", err.Error())
+		m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
 	}
-	m.MetricsMap[MetricHashVerifierErr].(prometheus.Counter).Inc()
 }
 
-func (m *MetricService) IncHashVerifierSpApiErr(err error) {
+func (m *MetricService) IncHashVerifierInternalSpApiErr(err error) {
 	if err != nil {
-		logging.Logger.Errorf("verifier sp api error count increased, %s", err.Error())
+		logging.Logger.Errorf("verifier internal sp error count increased, %s", err.Error())
+		m.MetricsMap[MetricInternalSpAPIErr].(prometheus.Counter).Inc()
 	}
-	m.MetricsMap[MetricSpAPIErr].(prometheus.Counter).Inc()
+}
+
+func (m *MetricService) IncHashVerifierExternalSpApiErr(err error) {
+	if err != nil {
+		logging.Logger.Errorf("verifier external sp error count increased, %s", err.Error())
+		m.MetricsMap[MetricExternalSpAPIErr].(prometheus.Counter).Inc()
+	}
 }
 
 // Broadcaster
@@ -346,8 +361,8 @@ func (m *MetricService) SetSubmitterDuration(duration time.Duration) {
 func (m *MetricService) IncSubmitterErr(err error) {
 	if err != nil {
 		logging.Logger.Errorf("submitter error count increased, %s", err.Error())
+		m.MetricsMap[MetricSubmitterErr].(prometheus.Counter).Inc()
 	}
-	m.MetricsMap[MetricSubmitterErr].(prometheus.Counter).Inc()
 }
 
 // Attest Monitor
