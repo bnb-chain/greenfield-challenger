@@ -94,6 +94,8 @@ func (v *Verifier) verifyHash() error {
 		return nil
 	}
 
+	events = v.filter(events)
+
 	for _, event := range events {
 		v.mtx.Lock()
 		isCached := v.cachedChallengeIds.Contains(event.ChallengeId)
@@ -255,6 +257,36 @@ func (v *Verifier) verifyForSingleEvent(event *model.Event) error {
 	v.metricService.SetHashVerifierDuration(elaspedTime)
 	logging.Logger.Infof("verifier completed time for challengeId: %d %s", event.ChallengeId, time.Now().Format("15:04:05.000000"))
 	return nil
+}
+
+func (v *Verifier) filter(events []*model.Event) []*model.Event {
+	filtered := make([]*model.Event, 0)
+
+	ignoredSps := []string{
+		"4d23aAE960F32e52DB875F785A8cFd6eCF10fE7d", //10
+		"80c0d7E368A1B3a9be86f8D41A98a6a67dD51FDd", //11
+		"b202B21c34c60A47AA343CA8F7F8183A78Ca1459", //12
+		"C22843908F8c82962754dC141F44Aa73E2C2A74E", //13
+		"5798dfCC1851295328ed4531F67D12E0B2703366", //14
+		"1cACD93bd2D511bce13534bD8690E5bDD3D894C4", //16
+	}
+
+	for _, event := range events {
+		matched := false
+		for _, addr := range ignoredSps {
+			if strings.Trim(strings.ToLower(event.SpOperatorAddress), "0x") == strings.ToLower(addr) {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			_ = v.dataProvider.UpdateEventStatus(event.ChallengeId, model.Duplicated) // reuse duplicated status to avoid introduce another statuts to handle
+		} else {
+			filtered = append(filtered, event)
+		}
+	}
+
+	return filtered
 }
 
 func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
