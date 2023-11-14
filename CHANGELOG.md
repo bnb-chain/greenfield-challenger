@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.0
+This release contains 1 feature.
+
+Features:  
+[#101](https://github.com/bnb-chain/greenfield-challenger/pull/101) feat: add sp metrics for internal/external sp
+
 ## v1.0.1
 This is a hotfix release to resolve bugs that were found during testing.
 
