@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"sync"
+	"time"
 
 	gnfdclient "github.com/bnb-chain/greenfield-go-sdk/client"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
@@ -75,7 +76,9 @@ func (gc *GnfdCompositeClients) GetClient() *GnfdCompositeClient {
 
 func getClientBlockHeight(clientChan chan *GnfdCompositeClient, wg *sync.WaitGroup, client *GnfdCompositeClient) {
 	defer wg.Done()
-	status, err := client.TmClient.Status(context.Background())
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	status, err := client.GetStatus(ctxWithTimeout)
 	if err != nil {
 		return
 	}
