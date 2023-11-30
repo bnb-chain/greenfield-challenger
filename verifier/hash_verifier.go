@@ -286,7 +286,8 @@ func (v *Verifier) preCheck(event *model.Event, currentHeight uint64) error {
 			return err
 		}
 		if found {
-			return v.dataProvider.UpdateEventStatus(event.ChallengeId, model.Duplicated)
+			_ = v.dataProvider.UpdateEventStatus(event.ChallengeId, model.Duplicated)
+			return common.ErrDuplicatedSlashing
 		}
 	}
 
