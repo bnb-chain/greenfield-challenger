@@ -55,6 +55,7 @@ func NewTxSubmitter(cfg *config.Config, executor *executor.Executor, submitterDa
 // SubmitTransactionLoop polls for submitter inturn and fetches events for submit.
 func (s *TxSubmitter) SubmitTransactionLoop() {
 	ticker := time.NewTicker(TxSubmitLoopInterval)
+	defer ticker.Stop()
 	for range ticker.C {
 		// Loop until submitter is inturn to submit
 		attestPeriodEnd := s.queryAttestPeriodLoop()

@@ -33,6 +33,7 @@ func NewAttestMonitor(executor *executor.Executor, dataProvider DataProvider, me
 // UpdateAttestedChallengeIdLoop polls the blockchain for latest attested challengeIds and updates their status
 func (a *AttestMonitor) UpdateAttestedChallengeIdLoop() {
 	ticker := time.NewTicker(QueryAttestedChallengeInterval)
+	defer ticker.Stop()
 	queryCount := 0
 	for range ticker.C {
 		challengeIds, err := a.executor.QueryLatestAttestedChallengeIds()
