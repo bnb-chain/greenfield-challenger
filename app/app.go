@@ -39,6 +39,9 @@ func NewApp(cfg *config.Config) *App {
 	if password == "" {
 		password = getDBPass(&cfg.DBConfig)
 	}
+	if username == "" || password == "" { // read password from ENV
+		username, password = config.GetDBUsernamePasswordFromEnv()
+	}
 
 	dbPath := fmt.Sprintf("%s:%s@%s", username, password, cfg.DBConfig.DBPath)
 

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -43,4 +44,10 @@ func GetSecret(secretName, region string) (string, error) {
 		decodedBinarySecret = string(decodedBinarySecretBytes[:length])
 		return decodedBinarySecret, nil
 	}
+}
+
+func GetDBUsernamePasswordFromEnv() (string, string) {
+	username := os.Getenv("DB_USERNAME")
+	password := os.Getenv("DB_PASSWORD")
+	return username, password
 }
