@@ -19,6 +19,7 @@ func NewDBWiper(dao *dao.DaoManager) *DBWiper {
 
 func (w *DBWiper) DBWipeLoop() {
 	ticker := time.NewTicker(DBWipeInterval)
+	defer ticker.Stop()
 	for range ticker.C {
 		err := w.DBWipe()
 		if err != nil {
