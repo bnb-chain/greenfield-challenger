@@ -14,6 +14,12 @@ COPY . .
 
 RUN make build
 
+# For update to latest CA
+FROM debian:12 AS certs
+RUN apt-get update && apt-get install -y ca-certificates && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Update CA certificates to latest version
+RUN update-ca-certificates
+
 FROM gcr.io/distroless/cc-debian11:latest
 
 ENV GREENFIELD_CHALLENGER_HOME /opt/app
@@ -36,4 +42,8 @@ COPY --from=builder /opt/app/build/greenfield-challenger ${WORKDIR}
 
 
 # Run the app
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=certs /etc/ssl/certs /etc/ssl/certs
+COPY --from=certs /usr/share/ca-certificates /usr/share/ca-certificates
+COPY --from=certs /etc/ca-certificates.conf /etc/ca-certificates.conf
 ENTRYPOINT ["/app/greenfield-challenger"]
