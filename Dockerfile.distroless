@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y ca-certificates && apt-get clean && rm 
 # Update CA certificates to latest version
 RUN update-ca-certificates
 
-FROM gcr.io/distroless/cc-debian11:latest
+FROM gcr.io/distroless/cc-debian12:latest
 
 ENV GREENFIELD_CHALLENGER_HOME /opt/app
 
